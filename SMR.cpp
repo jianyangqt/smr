@@ -16,7 +16,7 @@ using namespace SMRDATA;
 using namespace StatFunc;
 
 void option(int option_num, char* option_str[]);
-int main(int argc, char** argv) {    
+int main(int argc, char** argv) {
     
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 }
 
 void option(int option_num, char* option_str[])
-{
+{    
     char* bFileName=NULL;    
     char* gwasFileName=NULL;
     char* eqtlFileName=NULL;
@@ -60,8 +60,12 @@ void option(int option_num, char* option_str[])
     bool make_besd_flag=false;
     bool make_esd_flag=false;
     char* problstName=NULL;
-    
+    bool smr_flag=true;
 	
+    double p_hetero=1.5654e-3;
+    double ld_top=0.9;
+    unsigned int m_hetero=10;
+    
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -119,10 +123,29 @@ void option(int option_num, char* option_str[])
 			outFileName = option_str[++i];
 			printf("--out %s\n", outFileName);
 		}
+        else if (0 == strcmp(option_str[i], "--p-hetero")){
+            p_hetero = atof(option_str[++i]);
+            printf("--p-hetero %f\n", p_hetero);
+        }
+        else if (0 == strcmp(option_str[i], "--m-hetero")){
+            m_hetero = atoi(option_str[++i]);
+            printf("--m-hetero %d\n", m_hetero);
+        }
+        else if (0 == strcmp(option_str[i], "--ld-top")){
+            ld_top = atof(option_str[++i]);
+            printf("--ld-top %f\n", ld_top);
+            if(ld_top<0 || ld_top>1) throw("\nError: --ld-top should be within the range from 0 to 1.\n");
+        }
+        else if (0 == strcmp(option_str[i], "--smr")){
+            smr_flag=true;
+            printf("--smr \n");
+        }
+        
+
     }
     cout<<endl;
     
     if(make_besd_flag || make_esd_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag);
-    else   smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag);
+    else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_top,m_hetero);
     
    }
