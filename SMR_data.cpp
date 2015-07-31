@@ -530,6 +530,9 @@ namespace SMRDATA
     
     void read_besdfile(eqtlInfo* eqtlinfo, string besdfile)
     {
+        if (eqtlinfo->_include.size() == 0) throw ("Error: No probe is retained for analysis.");
+        if (eqtlinfo->_esi_include.size() == 0) throw ("Error: No SNP is retained for analysis.");
+        
         // the fastest way is using malloc and memcpy
         char buf[MAX_SNPLINE_NUM+4];
         ifstream besd(besdfile.c_str(), ios::in|ios::binary);
@@ -1467,7 +1470,18 @@ namespace SMRDATA
         for(iter=id_map.begin(); iter!=id_map.end(); iter++) keep.push_back(iter->second);
         stable_sort(keep.begin(), keep.end());
     }
+    void update_id_map_rm(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep)
+    {
+        int i = 0;
+        for (i = 0; i < id_list.size(); i++) id_map.erase(id_list[i]);
+        
+        keep.clear();
+        map<string, int>::iterator iter;
+        for (iter = id_map.begin(); iter != id_map.end(); iter++) keep.push_back(iter->second);
+        stable_sort(keep.begin(), keep.end());
+    }
     
+
     void keep_indi(bInfo* bdata,string indi_list_file)
     {
         vector<string> indi_list;
@@ -1476,7 +1490,14 @@ namespace SMRDATA
         cout<<bdata->_keep.size()<<" individuals are kept from ["+indi_list_file+"]."<<endl;
     }
     
-   
+    void remove_indi(bInfo* bdata, string indi_list_file) {
+        vector<string> indi_list;
+        read_indi_list(indi_list_file, indi_list);
+        int prev_size = bdata->_keep.size();
+        update_id_map_rm(indi_list, bdata->_id_map, bdata->_keep);
+        cout << prev_size - bdata->_keep.size() << " individuals are removed from [" + indi_list_file + "] and there are " << bdata->_keep.size() << " individuals remaining." << endl;
+    }
+
     void extract_snp(bInfo* bdata,string snplistfile)
     {
         vector<string> snplist;
@@ -1485,6 +1506,16 @@ namespace SMRDATA
         update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
         cout<<bdata->_include.size()<<" SNPs are extracted from ["+snplistfile+"]."<<endl;
     }
+    void exclude_snp(bInfo* bdata,string snplistfile)
+    {
+        vector<string> snplist;
+         string msg="SNPs";
+        read_msglist(snplistfile, snplist,msg);
+        int prev_size = bdata->_include.size();
+        update_id_map_rm(snplist, bdata->_snp_name_map, bdata->_include);
+        cout << prev_size - bdata->_include.size() << " SNPs are excluded from [" + snplistfile + "] and there are " << bdata->_include.size() << " SNPs remaining." << endl;
+    }
+
 	void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName)
 	{
 		vector<string> snplist;
@@ -1496,6 +1527,22 @@ namespace SMRDATA
 		cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from [" + snplstName + "]." << endl;
 	}
     
+    void exclude_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName)
+    {
+        vector<string> snplist;
+        vector<string> mapstr;
+        string msg = "SNPs";
+        read_msglist(snplstName, snplist, msg);
+        int pre_num=eqtlinfo->_esi_include.size();
+        mapstr.resize(pre_num);
+        for(int i=0;i<pre_num;i++)
+            mapstr[i]=eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]];
+        eqtlinfo->_esi_include.clear();
+        StrFunc::set_complement(snplist, mapstr, eqtlinfo->_esi_include); //sorted
+        //stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());
+        cout << pre_num-eqtlinfo->_esi_include.size() << " SNPs are excluded from [" + snplstName + "] and there are " << eqtlinfo->_esi_include.size() << " SNPs remaining." << endl;
+    }
+    
     void extract_prob(eqtlInfo* eqtlinfo,string problstName)
     {
         vector<string> problist;
@@ -1506,7 +1553,21 @@ namespace SMRDATA
         stable_sort(eqtlinfo->_include.begin(), eqtlinfo->_include.end());
         cout<<eqtlinfo->_include.size()<<" probes are extracted from ["+problstName+"]."<<endl;
     }
-    
+    void exclude_prob(eqtlInfo* eqtlinfo,string problstName)
+    {
+        vector<string> problist;
+        vector<string> mappro;
+        string msg="probes";
+        read_msglist(problstName, problist,msg);
+        int pre_num=eqtlinfo->_include.size();
+        mappro.resize(pre_num);
+        for(int i=0;i<pre_num;i++) mappro[i]=eqtlinfo->_epi_prbID[eqtlinfo->_include[i]];
+        eqtlinfo->_include.clear();
+        StrFunc::set_complement(problist, mappro, eqtlinfo->_include);//sorted
+        //stable_sort(eqtlinfo->_include.begin(), eqtlinfo->_include.end());
+        cout<<pre_num-eqtlinfo->_include.size()<<" probes are excluded from ["+problstName+"]and there are "<<eqtlinfo->_include.size()<<" probes remaining."<<endl;
+    }
+
     void filter_snp_maf(bInfo* bdata,double maf)
     {
         if(bdata->_mu.empty()) calcu_mu(bdata);
@@ -1550,17 +1611,23 @@ namespace SMRDATA
         cout<<eqtlinfo->_include.size()<<" probes to be included."<<endl;
     }
 
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero)
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde)
     {
         bInfo bdata;
         gwasData gdata;
         eqtlInfo eqtlinfo;
         double threshold= chi_val(1,p_hetero);
         
+        if(bFileName == NULL ) throw("Error: --bfle can not be missing.");
+        if(gwasFileName==NULL) throw("Error: --gwas-summary can not be missing.");
+        if(eqtlFileName==NULL) throw("Error: --eqtl-summary can not be missing.");
+            
         read_famfile(&bdata, string(bFileName)+".fam");
         if(indilstName != NULL) keep_indi(&bdata,indilstName);
+        if(indilst2remove != NULL) remove_indi(&bdata, indilst2remove);
         read_bimfile(&bdata, string(bFileName)+".bim");
         if(snplstName != NULL) extract_snp(&bdata, snplstName);
+        if(snplst2exclde != NULL) exclude_snp(&bdata, snplst2exclde);
         read_bedfile(&bdata, string(bFileName)+".bed");
         if (bdata._mu.empty()) calcu_mu(&bdata);
         if(maf>0) filter_snp_maf(&bdata,maf);
@@ -1569,8 +1636,10 @@ namespace SMRDATA
         cout<<endl<<"Reading eQTL summary data..."<<endl;
         read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
         if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
+        if(snplst2exclde != NULL) exclude_eqtl_snp(&eqtlinfo, snplst2exclde); //no switch the place ahead of extract_eqtl_snp()
         read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
         if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
+        if(problst2exclde != NULL) exclude_prob(&eqtlinfo, problst2exclde); //no switch the place ahead of extract_prob()
         if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
         else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
         
@@ -1628,7 +1697,7 @@ namespace SMRDATA
         StrFunc::match(cmmnSNPs, eqtlinfo._esi_rs, edId);
         
         
-        unsigned int outCount = -1;
+        int outCount = -1;
         unsigned int probNum = eqtlinfo._probNum;
         // vectors for output
         vector<long> out_probid(probNum);
@@ -1860,7 +1929,7 @@ namespace SMRDATA
 
     }
     
-    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag)
+    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde)
     {
         bInfo bdata;
         gwasData gdata;
@@ -1870,8 +1939,10 @@ namespace SMRDATA
         {
             read_famfile(&bdata, string(bFileName)+".fam");
             if(indilstName != NULL) keep_indi(&bdata,indilstName);
+            if(indilst2remove != NULL) remove_indi(&bdata, indilst2remove);
             read_bimfile(&bdata, string(bFileName)+".bim");
             if(snplstName != NULL) extract_snp(&bdata, snplstName);
+            if(snplst2exclde != NULL) exclude_snp(&bdata, snplst2exclde);
             read_bedfile(&bdata, string(bFileName)+".bed");
             if (bdata._mu.empty()) calcu_mu(&bdata);
             if(maf>0) filter_snp_maf(&bdata,maf);
@@ -1886,8 +1957,10 @@ namespace SMRDATA
         {
             read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
             if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
+            if(snplst2exclde != NULL) exclude_eqtl_snp(&eqtlinfo, snplst2exclde); //no switch the place ahead of extract_eqtl_snp()
             read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
             if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
+            if(problst2exclde != NULL) exclude_prob(&eqtlinfo, problst2exclde); //no switch the place ahead of extract_prob()
             if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
             

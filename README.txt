@@ -71,3 +71,9 @@
 # --make-besd and --make-esd can be combined together
 ./SMR --bfile aricEur_bg_hwe_c1 --gwas-summary height_step1_refale.raw --beqtl-summary blood_eqtl --out test --keep indi.list --extract-snp snp.list --maf 0.01 --extract-probe probe.list --make-besd --make-esd
 
+
+--bfile aricEur_bg_hwe_c1 --gwas-summary height_step1_refale.raw --beqtl-summary blood_eqtl --out test --ld-pruning 1 --p-hetero 1.57e-3 --m-hetero 1
+
+--bfile aricEur_bg_hwe_c1 --gwas-summary height_step1_refale.raw --beqtl-summary blood_eqtl --out test --remove indi2.list --exclude-snp snp2.list --exclude-probe probe2.list --keep indi.list --extract-snp snp.list --extract-probe probe.list
+
+--beqtl-summary blood_eqtl --out test --make-besd --exclude-snp snp2.list --exclude-probe probe2.list --extract-snp snp.list --extract-probe probe.list

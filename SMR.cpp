@@ -53,6 +53,9 @@ void option(int option_num, char* option_str[])
     char* outFileName=NULL;
     char* indilstName=NULL;
     char* snplstName=NULL;
+    char* indilst2remove=NULL;
+    char* snplst2exclde=NULL;
+    char* problst2exclde=NULL;
     bool bFlag=false;// for binary file
     double maf=0.0;
     
@@ -63,7 +66,7 @@ void option(int option_num, char* option_str[])
     bool smr_flag=true;
 	
     double p_hetero=1.5654e-3;
-    double ld_top=0.9;
+    double ld_prune=0.9;
     unsigned int m_hetero=10;
     
     for(int i=0;i<option_num;i++)
@@ -96,6 +99,11 @@ void option(int option_num, char* option_str[])
             cout<<"--keep "<<indilstName<<endl;
             CommFunc::FileExist(indilstName);
         }
+        else if(strcmp(option_str[i],"--remove")==0){
+            indilst2remove=option_str[++i];
+            cout<<"--remove "<<indilst2remove<<endl;
+            CommFunc::FileExist(indilst2remove);
+        }
         else if(strcmp(option_str[i],"--extract-snp")==0){
             snplstName=option_str[++i];
             cout<<"--extract-snp "<<snplstName<<endl;
@@ -105,6 +113,16 @@ void option(int option_num, char* option_str[])
             problstName=option_str[++i];
             cout<<"--extract-probe "<<problstName<<endl;
             CommFunc::FileExist(problstName);
+        }
+        else if(strcmp(option_str[i],"--exclude-snp")==0){
+            snplst2exclde=option_str[++i];
+            cout<<"--exclude-snp "<<snplst2exclde<<endl;
+            CommFunc::FileExist(snplst2exclde);
+        }
+        else if(strcmp(option_str[i],"--exclude-probe")==0){
+            problst2exclde=option_str[++i];
+            cout<<"--exclude-probe "<<problst2exclde<<endl;
+            CommFunc::FileExist(problst2exclde);
         }
         else if(strcmp(option_str[i],"--maf")==0){
             maf=atof(option_str[++i]);
@@ -131,10 +149,10 @@ void option(int option_num, char* option_str[])
             m_hetero = atoi(option_str[++i]);
             printf("--m-hetero %d\n", m_hetero);
         }
-        else if (0 == strcmp(option_str[i], "--ld-top")){
-            ld_top = atof(option_str[++i]);
-            printf("--ld-top %f\n", ld_top);
-            if(ld_top<0 || ld_top>1) throw("\nError: --ld-top should be within the range from 0 to 1.\n");
+        else if (0 == strcmp(option_str[i], "--ld-pruning")){
+            ld_prune = atof(option_str[++i]);
+            printf("--ld-pruning %f\n", ld_prune);
+            if(ld_prune<0 || ld_prune>1) throw("\nError: --ld-top should be within the range from 0 to 1.\n");
         }
         else if (0 == strcmp(option_str[i], "--smr")){
             smr_flag=true;
@@ -145,7 +163,7 @@ void option(int option_num, char* option_str[])
     }
     cout<<endl;
     
-    if(make_besd_flag || make_esd_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag);
-    else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_top,m_hetero);
+    if(make_besd_flag || make_esd_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde);
+    else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde);
     
    }

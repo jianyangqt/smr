@@ -187,3 +187,9 @@ void StrFunc::match_only(const vector<string> &VecA, const vector<string> &VecB,
 	}
 
 }
+void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC)
+{
+    VecC.clear();
+    for (int i = 0; i<VecB.size(); i++)
+        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
+}
