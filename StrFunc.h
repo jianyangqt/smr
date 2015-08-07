@@ -47,6 +47,7 @@ namespace StrFunc
 	void match(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
 	void match_only(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
     void set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
+    int split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip);
 }
 
 #endif

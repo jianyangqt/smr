@@ -140,3 +140,11 @@ int CommFunc::max_abs_id(vector<double> &zsxz)
     }
     return(id);
 }
+
+int CommFunc::fopen_checked(FILE** in_file, const char* filename, const char* flag)
+{
+    *in_file=fopen(filename,flag);
+    if(!*in_file)  return 0;
+    return 1;
+}
+

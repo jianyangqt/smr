@@ -10,7 +10,7 @@
 
 #include "StrFunc.h"
 #include "SMR_data.h"
-
+#include "eData.h"
 
 using namespace SMRDATA;
 using namespace StatFunc;
@@ -26,6 +26,14 @@ int main(int argc, char** argv) {
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
     
+    if(argc<2)
+    {
+        cout<<"flags include: --bfile\t--gwas-summary\t--beqtl-summary\t--maf\t--keep\n\t\t\
+        --remove\t--extract-snp\t--exclude-snp\t--extract-probe\n\t\t\
+        --exclude-probe\t--eqtl-summary\t--ld-pruning\t--p-hetero\n\t\t\
+        --m-hetero\t--make-besd\t--make-esd\t--out"<<endl;;
+        exit(0);
+    }
     long int time_used = 0, start = time(NULL);
     time_t curr = time(0);
     cout << "Analysis started: " << ctime(&curr) << endl;
@@ -63,8 +71,11 @@ void option(int option_num, char* option_str[])
     bool make_besd_flag=false;
     bool make_esd_flag=false;
     char* problstName=NULL;
-    bool smr_flag=true;
+    bool smr_flag=false;
 	
+    char* eFileName=NULL;
+    bool eremlFlag=false;
+    
     double p_hetero=1.5654e-3;
     double ld_prune=0.9;
     unsigned int m_hetero=10;
@@ -80,7 +91,7 @@ void option(int option_num, char* option_str[])
         else if(0==strcmp(option_str[i],"--gwas-summary")){
 			gwasFileName=option_str[++i];
             printf("--gwas-summary %s\n",gwasFileName);
-			CommFunc::FileExist(gwasFileName);
+			FileExist(gwasFileName);
 		}
         // eQTL files
         else if(0==strcmp(option_str[i],"--eqtl-summary")){
@@ -97,32 +108,32 @@ void option(int option_num, char* option_str[])
         else if(strcmp(option_str[i],"--keep")==0){
             indilstName=option_str[++i];
             cout<<"--keep "<<indilstName<<endl;
-            CommFunc::FileExist(indilstName);
+            FileExist(indilstName);
         }
         else if(strcmp(option_str[i],"--remove")==0){
             indilst2remove=option_str[++i];
             cout<<"--remove "<<indilst2remove<<endl;
-            CommFunc::FileExist(indilst2remove);
+            FileExist(indilst2remove);
         }
         else if(strcmp(option_str[i],"--extract-snp")==0){
             snplstName=option_str[++i];
             cout<<"--extract-snp "<<snplstName<<endl;
-            CommFunc::FileExist(snplstName);
+            FileExist(snplstName);
         }
         else if(strcmp(option_str[i],"--extract-probe")==0){
             problstName=option_str[++i];
             cout<<"--extract-probe "<<problstName<<endl;
-            CommFunc::FileExist(problstName);
+            FileExist(problstName);
         }
         else if(strcmp(option_str[i],"--exclude-snp")==0){
             snplst2exclde=option_str[++i];
             cout<<"--exclude-snp "<<snplst2exclde<<endl;
-            CommFunc::FileExist(snplst2exclde);
+            FileExist(snplst2exclde);
         }
         else if(strcmp(option_str[i],"--exclude-probe")==0){
             problst2exclde=option_str[++i];
             cout<<"--exclude-probe "<<problst2exclde<<endl;
-            CommFunc::FileExist(problst2exclde);
+            FileExist(problst2exclde);
         }
         else if(strcmp(option_str[i],"--maf")==0){
             maf=atof(option_str[++i]);
@@ -158,12 +169,19 @@ void option(int option_num, char* option_str[])
             smr_flag=true;
             printf("--smr \n");
         }
-        
+        else if (0 == strcmp(option_str[i], "--efile")){
+            eremlFlag=true;
+            eFileName = option_str[++i];
+            printf("--efile %s\n", eFileName);
+        }
+
 
     }
     cout<<endl;
+    eData edata;
     
     if(make_besd_flag || make_esd_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde);
     else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde);
+    else if(eremlFlag) read_efile(&edata, eFileName);
     
    }

@@ -8,13 +8,9 @@
 
 #ifndef __SRM_CPP__SMR_data__
 #define __SRM_CPP__SMR_data__
-#define MAX_BUF_SIZE 0x40000000
-#define MAX_LINE_NUM 65536
-#define MAX_SNPLINE_NUM 786432
-#define MAX_SNP_NAME 64
+
 
 #include "CommFunc.h"
-#include "zfstream.h"
 #include "StatFunc.h"
 #include <iostream>
 #include <stdio.h>

@@ -11,6 +11,11 @@
 #ifndef _COMMFUNC_H
 #define _COMMFUNC_H
 
+#define MAX_BUF_SIZE 0x40000000
+#define MAX_LINE_SIZE 786432
+#define MAX_SNP_NAME 64
+
+
 #include <limits>
 #include <complex>
 #include <vector>
@@ -41,6 +46,7 @@ namespace CommFunc
 	int rand_seed(); //positive value, return random seed using the system time
     void FileExist(string filename);  
     int max_abs_id(vector<double> &zsxz);
+    int fopen_checked(FILE** in_file, const char* filename, const char* flag);
 }
 
 #endif

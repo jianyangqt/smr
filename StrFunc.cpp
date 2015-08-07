@@ -193,3 +193,35 @@ void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &V
     for (int i = 0; i<VecB.size(); i++)
         if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
 }
+
+
+int StrFunc::split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip) //form head
+{
+    if(str.empty()) return 0;
+    vec_str.clear();
+    
+    bool look=false;
+    string str_buf;
+    int count=0;
+    
+    for(int i=0; i<str.size(); i++)
+    {
+        if( separator.find(str[i])==string::npos )
+        {
+            if(!look) look=true;
+            str_buf += str[i];
+        }
+        else
+        {
+            if(look)
+            {
+                look=false;
+                if(++count>num2skip) vec_str.push_back(str_buf);
+                str_buf.erase(str_buf.begin(), str_buf.end());
+            }
+        }
+    }
+    if(look) vec_str.push_back(str_buf);
+    
+    return vec_str.size();
+}

@@ -366,12 +366,12 @@ namespace SMRDATA
             exit (EXIT_FAILURE);
         }
         cout << "Reading GWAS summary-level statistics from [" + string(gwasFileName) + "]." << endl;
-        char buf[MAX_LINE_NUM];
+        char buf[MAX_LINE_SIZE];
         int lineNum(0);
-        gwasFile.getline(buf,MAX_LINE_NUM);// the header
+        gwasFile.getline(buf,MAX_LINE_SIZE);// the header
         while(!gwasFile.eof())
         {
-            gwasFile.getline(buf,MAX_LINE_NUM);
+            gwasFile.getline(buf,MAX_LINE_SIZE);
             lineNum++;
         }
         if(buf[0]=='\0') lineNum--;
@@ -388,11 +388,11 @@ namespace SMRDATA
     
         gwasFile.clear(ios::goodbit);
         gwasFile.seekg (0, ios::beg);
-        gwasFile.getline(buf,MAX_LINE_NUM);
+        gwasFile.getline(buf,MAX_LINE_SIZE);
         for(int i=0;i<lineNum;i++)
         {
             string tmpStr;
-            gwasFile.getline(buf,MAX_LINE_NUM);
+            gwasFile.getline(buf,MAX_LINE_SIZE);
             istringstream iss(buf);
             iss>>tmpStr;
             gdata->snpName[i]=tmpStr;
@@ -429,11 +429,11 @@ namespace SMRDATA
         eqtlinfo->_esi_allele2.clear();
 		eqtlinfo->_esi_include.clear();
 
-        char buf[MAX_LINE_NUM];
+        char buf[MAX_LINE_SIZE];
         int lineNum(0);
         while(!esi.eof())
         {
-            esi.getline(buf,MAX_LINE_NUM);
+            esi.getline(buf,MAX_LINE_SIZE);
             lineNum++;
         }
         if(buf[0]=='\0') lineNum--;
@@ -452,7 +452,7 @@ namespace SMRDATA
         for(int i=0;i<lineNum;i++)
         {
             string tmpStr;
-            esi.getline(buf,MAX_LINE_NUM);
+            esi.getline(buf,MAX_LINE_SIZE);
             istringstream iss(buf);
             iss>>tmpStr;
             eqtlinfo->_esi_chr[i]=atoi(tmpStr.c_str());
@@ -485,11 +485,11 @@ namespace SMRDATA
         eqtlinfo->_epi_orien.clear();
 		eqtlinfo->_include.clear();
 
-        char buf[MAX_LINE_NUM];
+        char buf[MAX_LINE_SIZE];
         int lineNum(0);
         while(!epi.eof())
         {
-            epi.getline(buf,MAX_LINE_NUM);
+            epi.getline(buf,MAX_LINE_SIZE);
             lineNum++;
         }
         if(buf[0]=='\0') lineNum--;
@@ -508,7 +508,7 @@ namespace SMRDATA
         for(int i=0;i<lineNum;i++)
         {
             string tmpStr;
-            epi.getline(buf,MAX_LINE_NUM);
+            epi.getline(buf,MAX_LINE_SIZE);
             istringstream iss(buf);
             iss>>tmpStr;
             eqtlinfo->_epi_chr[i]=atoi(tmpStr.c_str());
@@ -534,7 +534,7 @@ namespace SMRDATA
         if (eqtlinfo->_esi_include.size() == 0) throw ("Error: No SNP is retained for analysis.");
         
         // the fastest way is using malloc and memcpy
-        char buf[MAX_SNPLINE_NUM+4];
+        char buf[MAX_LINE_SIZE+4];
         ifstream besd(besdfile.c_str(), ios::in|ios::binary);
         if(!besd)
         {
@@ -661,7 +661,7 @@ namespace SMRDATA
                 long count=0;
                 while(!besd.eof())
                 {
-                    besd.read(buf,MAX_SNPLINE_NUM);
+                    besd.read(buf,MAX_LINE_SIZE);
                     unsigned long Bread=besd.gcount();
                     buf[Bread]='\0';
                     char* ptr=buf;
@@ -701,11 +701,11 @@ namespace SMRDATA
             exit (EXIT_FAILURE);
         }
         cout << "Reading eQTL summary-level statistics from [" + esdfile + "]." << endl;
-        char buf[MAX_SNPLINE_NUM+4];
+        char buf[MAX_LINE_SIZE+4];
         int lineNum(0);      
         while(!esd.eof())
         {
-            esd.getline(buf,MAX_SNPLINE_NUM);
+            esd.getline(buf,MAX_LINE_SIZE);
             lineNum++;
         }
         if(buf[0]=='\0') lineNum--;
@@ -727,9 +727,9 @@ namespace SMRDATA
 			for (int i = 0; i<eqtlinfo->_esi_include.size(); i++)
 			{
 				int sid=eqtlinfo->_esi_include[i];
-				for (int j = cur_line; j < sid; j++) esd.getline(buf, MAX_SNPLINE_NUM);
+				for (int j = cur_line; j < sid; j++) esd.getline(buf, MAX_LINE_SIZE);
 				string tmpStr;				
-				esd.getline(buf, MAX_SNPLINE_NUM);
+				esd.getline(buf, MAX_LINE_SIZE);
 				istringstream iss(buf);
 				int pos = 0;
 				for (int j = 0; j < eqtlinfo->_include.size(); j++)
@@ -771,7 +771,7 @@ namespace SMRDATA
 			for (int i = 0; i<lineNum; i++)
 			{
 				string tmpStr;
-				esd.getline(buf, MAX_SNPLINE_NUM);
+				esd.getline(buf, MAX_LINE_SIZE);
 				istringstream iss(buf);
 				for (int j = 0; j<eqtlinfo->_probNum; j++)
 				{
@@ -1366,52 +1366,7 @@ namespace SMRDATA
         }
     }
     
-    void save_XMat(bInfo* bdata,bool miss_with_mu) {
-        if (miss_with_mu && bdata->_mu.empty()) calcu_mu(bdata);
-        
-        string _out="testtest";
-        // Save matrix X
-        string X_zFile = _out + ".xmat.gz";
-        gzofstream zoutf;
-        zoutf.open(X_zFile.c_str());
-        if (!zoutf.is_open()) throw ("Error: can not open the file [" + X_zFile + "] to write.");
-        cout << "Saving the recoded genotype matrix to the file [" + X_zFile + "]." << endl;
-        int i = 0, j = 0;
-        zoutf << "FID IID ";
-        for (j = 0; j < bdata->_include.size(); j++) zoutf << bdata->_snp_name[bdata->_include[j]] << " ";
-        zoutf << endl;
-        zoutf << "Reference Allele ";
-        for (j = 0; j < bdata->_include.size(); j++) zoutf << bdata->_ref_A[bdata->_include[j]] << " ";
-        zoutf << endl;
-        for (i = 0; i < bdata->_keep.size(); i++) {
-            zoutf << bdata->_fid[bdata->_keep[i]] << ' ' << bdata->_pid[bdata->_keep[i]] << ' ';
-            if (bdata->_dosage_flag) {
-                for (j = 0; j < bdata->_include.size(); j++) {
-                    if (bdata->_geno_dose[bdata->_keep[i]][bdata->_include[j]] < 1e5) {
-                        if (bdata->_allele1[bdata->_include[j]] == bdata->_ref_A[bdata->_include[j]]) zoutf << bdata->_geno_dose[bdata->_keep[i]][bdata->_include[j]] << ' ';
-                        else zoutf << 2.0 - bdata->_geno_dose[bdata->_keep[i]][bdata->_include[j]] << ' ';
-                    } else {
-                        if (miss_with_mu) zoutf << bdata->_mu[bdata->_include[j]] << ' ';
-                        else zoutf << "NA ";
-                    }
-                }
-            } else {
-                for (j = 0; j < bdata->_include.size(); j++) {
-                    if (!bdata->_snp_1[bdata->_include[j]][bdata->_keep[i]] || bdata->_snp_2[bdata->_include[j]][bdata->_keep[i]]) {
-                        if (bdata->_allele1[bdata->_include[j]] == bdata->_ref_A[bdata->_include[j]]) zoutf << bdata->_snp_1[bdata->_include[j]][bdata->_keep[i]] + bdata->_snp_2[bdata->_include[j]][bdata->_keep[i]] << ' ';
-                        else zoutf << 2.0 - (bdata->_snp_1[bdata->_include[j]][bdata->_keep[i]] + bdata->_snp_2[bdata->_include[j]][bdata->_keep[i]]) << ' ';
-                    } else {
-                        if (miss_with_mu) zoutf << bdata->_mu[bdata->_include[j]] << ' ';
-                        else zoutf << "NA ";
-                    }
-                }
-            }
-            zoutf << endl;
-        }
-        zoutf.close();
-        cout << "The recoded genotype matrix has been saved in the file [" + X_zFile + "] (in compressed text format)." << endl;
-    }
-   
+       
     void makeptrx(bInfo* bdata,int bsnpid,int cursnpid, float* X, bool minus_2p)
     {
         int i = 0;
@@ -1618,16 +1573,16 @@ namespace SMRDATA
         eqtlInfo eqtlinfo;
         double threshold= chi_val(1,p_hetero);
         
-        if(bFileName == NULL ) throw("Error: --bfle can not be missing.");
-        if(gwasFileName==NULL) throw("Error: --gwas-summary can not be missing.");
-        if(eqtlFileName==NULL) throw("Error: --eqtl-summary can not be missing.");
+        if(!bFileName) throw("Error: --bfle can not be missing.");
+        if(!gwasFileName) throw("Error: --gwas-summary can not be missing.");
+        if(!eqtlFileName) throw("Error: --eqtl-summary can not be missing.");
             
         read_famfile(&bdata, string(bFileName)+".fam");
-        if(indilstName != NULL) keep_indi(&bdata,indilstName);
-        if(indilst2remove != NULL) remove_indi(&bdata, indilst2remove);
+        if(indilstName) keep_indi(&bdata,indilstName);
+        if(indilst2remove) remove_indi(&bdata, indilst2remove);
         read_bimfile(&bdata, string(bFileName)+".bim");
-        if(snplstName != NULL) extract_snp(&bdata, snplstName);
-        if(snplst2exclde != NULL) exclude_snp(&bdata, snplst2exclde);
+        if(snplstName) extract_snp(&bdata, snplstName);
+        if(snplst2exclde) exclude_snp(&bdata, snplst2exclde);
         read_bedfile(&bdata, string(bFileName)+".bed");
         if (bdata._mu.empty()) calcu_mu(&bdata);
         if(maf>0) filter_snp_maf(&bdata,maf);
@@ -1635,11 +1590,11 @@ namespace SMRDATA
         read_gwas_data( &gdata, gwasFileName);
         cout<<endl<<"Reading eQTL summary data..."<<endl;
         read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
-        if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
-        if(snplst2exclde != NULL) exclude_eqtl_snp(&eqtlinfo, snplst2exclde); //no switch the place ahead of extract_eqtl_snp()
+        if (snplstName) extract_eqtl_snp(&eqtlinfo, snplstName);
+        if(snplst2exclde) exclude_eqtl_snp(&eqtlinfo, snplst2exclde); //no switch the place ahead of extract_eqtl_snp()
         read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
-        if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
-        if(problst2exclde != NULL) exclude_prob(&eqtlinfo, problst2exclde); //no switch the place ahead of extract_prob()
+        if(problstName) extract_prob(&eqtlinfo, problstName);
+        if(problst2exclde) exclude_prob(&eqtlinfo, problst2exclde); //no switch the place ahead of extract_prob()
         if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
         else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
         
