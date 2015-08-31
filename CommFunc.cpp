@@ -148,3 +148,14 @@ int CommFunc::fopen_checked(FILE** in_file, const char* filename, const char* fl
     return 1;
 }
 
+void CommFunc::getRank(vector<int> &a, vector<int> &b)
+{
+    b.resize(a.size());
+    for (int i = a.size()-1; i >= 0; i--)
+    {
+        int count = 0;
+        for (int j = 0; j != i, j < a.size(); j++) if (a[j] < a[i]) count++;
+        b[i] = count;
+    }
+}
+

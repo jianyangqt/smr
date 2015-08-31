@@ -21,7 +21,7 @@
 #include <bitset>
 
 //#include <omp.h>
-
+typedef unsigned long long         uint64_t;
 typedef unsigned int         uint32_t;
 typedef MatrixXf eigenMatrix;
 typedef VectorXf eigenVector;
@@ -132,7 +132,7 @@ namespace SMRDATA
     void read_esdfile(eqtlInfo* eqtlinfo, string esdfile);
    
    
-    
+    bool has_prefix(const std::string &str, const std::string &prefix);
     bool has_suffix(const std::string &str, const std::string &suffix);
     void ld_calcualte(double* ref_ld,float* ref_snpData,int rsize,int csize);
     void get_square_idxes(vector<int> &sn_ids,vector<double> &zsxz,double threshold);
@@ -173,7 +173,7 @@ namespace SMRDATA
   
     int file_read_check(ifstream* in_file, const char* filename);
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde);
-    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde);
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr);
+    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis, float transThres, float restThres);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

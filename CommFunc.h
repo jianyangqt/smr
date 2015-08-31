@@ -47,6 +47,7 @@ namespace CommFunc
     void FileExist(string filename);  
     int max_abs_id(vector<double> &zsxz);
     int fopen_checked(FILE** in_file, const char* filename, const char* flag);
+    void getRank(vector<int> &a, vector<int> &b);
 }
 
 #endif
