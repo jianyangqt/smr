@@ -10,54 +10,13 @@
 #include "StrFunc.h"
 #include "SMR_data.h"
 #include "eData.h"
+#include "SMR.h"
 
 using namespace SMRDATA;
 using namespace StatFunc;
 
-void option(int option_num, char* option_str[]);
-static inline bool not_in_flags(vector<string> &flags, string str)
-{
-    return find(flags.begin(),flags.end(),str) == flags.end();
-}
-static inline void FLAG_VALID_CK(int option_num, char* option_str[])
-{
-    const char *flgs[] = { "--bfile","--gwas-summary","--beqtl-summary","--maf","--keep","--remove","--extract-snp","--exclude-snp","--extract-probe",
-        "--exclude-probe","--eqtl-summary","--ld-pruning","--peqtl-hetero","--m-hetero","--make-besd","--make-esd","--out", "--peqtl-smr","--smr",
-    "--cis-itvl","--trans-thres","--rest-thres","--efile"};
-    
-    vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));
-    
-    if(option_num<3)
-    {
-        cout<<"flags include:"<<endl;
-        int cur_mark=0;
-        for(int i=0;i<flags.size();i++)
-        {
-            int tmp=i>>2;
-            if(tmp>cur_mark)
-            {
-                cout<<endl;
-                cur_mark=tmp;
-            }
-            cout<<flags[i]<<",";
-        }
-        exit (EXIT_FAILURE);
-    }
-    for(int i=0;i<option_num;i++)
-    {
-        if(has_prefix(option_str[i],"--"))
-            if(not_in_flags(flags, option_str[i]))
-            {
-                
-                fprintf (stderr, "%s: Invalid option\n",
-                         option_str[i]);
-                exit (EXIT_FAILURE);
-            }
-    }
-
-}
 int main(int argc, char** argv) {
-    
+        
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
     cout << "* version 0.3" << endl;
@@ -66,7 +25,7 @@ int main(int argc, char** argv) {
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
     
-    FLAG_VALID_CK(argc,argv);
+    FLAGS_VALID_CK(argc,argv);
     long int time_used = 0, start = time(NULL);
     time_t curr = time(0);
     cout << "Analysis started: " << ctime(&curr) << endl;
@@ -124,53 +83,63 @@ void option(int option_num, char* option_str[])
         // Plink files for LD from a reference sample
         if(0==strcmp(option_str[i],"--bfile")){
             bFileName=option_str[++i];
+            FLAG_VALID_CK("--bfile", bFileName);
             printf("--bfile %s\n",bFileName);
         }
         // gwas data file as cojo format
         else if(0==strcmp(option_str[i],"--gwas-summary")){
             gwasFileName=option_str[++i];
+            FLAG_VALID_CK("--gwas-summary", gwasFileName);
             printf("--gwas-summary %s\n",gwasFileName);
             CommFunc::FileExist(gwasFileName);
         }
         // eQTL files
         else if(0==strcmp(option_str[i],"--eqtl-summary")){
             eqtlFileName=option_str[++i];
+            FLAG_VALID_CK("--eqtl-summary", eqtlFileName);
             printf("--eqtl-summary %s\n",eqtlFileName);
             
         }
         else if(0==strcmp(option_str[i],"--beqtl-summary")){
             eqtlFileName=option_str[++i];
+            FLAG_VALID_CK("--beqtl-summary", eqtlFileName);
             bFlag=true;
             printf("--beqtl-summary %s\n",eqtlFileName);
             
         }
         else if(strcmp(option_str[i],"--keep")==0){
             indilstName=option_str[++i];
+            FLAG_VALID_CK("--keep", indilstName);
             cout<<"--keep "<<indilstName<<endl;
             CommFunc::FileExist(indilstName);
         }
         else if(strcmp(option_str[i],"--remove")==0){
             indilst2remove=option_str[++i];
+            FLAG_VALID_CK("--remove", indilst2remove);
             cout<<"--remove "<<indilst2remove<<endl;
             CommFunc::FileExist(indilst2remove);
         }
         else if(strcmp(option_str[i],"--extract-snp")==0){
             snplstName=option_str[++i];
+            FLAG_VALID_CK("--extract-snp", snplstName);
             cout<<"--extract-snp "<<snplstName<<endl;
             CommFunc::FileExist(snplstName);
         }
         else if(strcmp(option_str[i],"--extract-probe")==0){
             problstName=option_str[++i];
+            FLAG_VALID_CK("--extract-probe", problstName);
             cout<<"--extract-probe "<<problstName<<endl;
             CommFunc::FileExist(problstName);
         }
         else if(strcmp(option_str[i],"--exclude-snp")==0){
             snplst2exclde=option_str[++i];
+            FLAG_VALID_CK("--exclude-snp", snplst2exclde);
             cout<<"--exclude-snp "<<snplst2exclde<<endl;
             CommFunc::FileExist(snplst2exclde);
         }
         else if(strcmp(option_str[i],"--exclude-probe")==0){
             problst2exclde=option_str[++i];
+            FLAG_VALID_CK("--exclude-probe", problst2exclde);
             cout<<"--exclude-probe "<<problst2exclde<<endl;
             CommFunc::FileExist(problst2exclde);
         }
@@ -193,7 +162,11 @@ void option(int option_num, char* option_str[])
         }
         else if (0 == strcmp(option_str[i], "--out")){
             outFileName = option_str[++i];
-            printf("--out %s\n", outFileName);
+            if(outFileName !=NULL && has_prefix(outFileName, "--"))
+            {
+                outFileName=NULL;
+                i--;
+            }else   printf("--out %s\n", outFileName);
         }
         else if (0 == strcmp(option_str[i], "--peqtl-smr")){
             p_smr = atof(option_str[++i]);
@@ -262,6 +235,7 @@ void option(int option_num, char* option_str[])
         else if (0 == strcmp(option_str[i], "--efile")){
             eremlFlag=true;
             eFileName = option_str[++i];
+            FLAG_VALID_CK("--efile", eFileName);
             printf("--efile %s\n", eFileName);
         }
 

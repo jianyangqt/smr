@@ -24,14 +24,26 @@ typedef struct{
     uint32_t prbNum;
     uint32_t indiNum;
     
-    vector< string > FID;
-    vector< string > IID;
-    vector< string > PrbID;
-  
-    vector<uint32_t> include;
-    vector<uint32_t> keep;
+    //eii
+    vector< string > _eii_fid;
+    vector< string > _eii_iid;
+    vector<bool> _eii_fain;
+    vector<bool> _eii_moin;
+    vector<char> _eii_sex;
+    vector<float> _eii_pheno;
+    vector<uint32_t> _keep;
     
-    vector<double> eprVal;
+    //epi
+    vector<uint32_t> _epi_chr;
+    vector<string> _epi_prbid;
+    vector<uint32_t> _epi_gd;
+    vector<uint32_t> _epi_bp;
+    vector<string> _epi_gene;
+    vector<char> _epi_orien;
+    vector<uint32_t> _include;
+    
+    //eed
+    vector<double> _eprVal;// probe-major
    
 } eData;
 

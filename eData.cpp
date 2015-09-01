@@ -20,33 +20,34 @@ void read_efile(eData* edata, string efile)
         exit (EXIT_FAILURE);
     }
     cout << "Reading gene expression / methylation data from [" + efile + "] ..." << endl;
-    /*
-    fseek(eflptr,0, SEEK_END);
-    int fszie=ftell(eflptr);
-    rewind(eflptr);
-     */
+    
     char buf[MAX_LINE_SIZE];
-    fgets(buf, MAX_LINE_SIZE, eflptr);
-    edata->prbNum=split_string_skip(buf, edata->PrbID, "\x20\t\n",numCol2Skip);
-    for(int i=0;i<edata->prbNum;i++) edata->include.push_back(i);
+    fgets(buf, MAX_LINE_SIZE, eflptr);//head
+    edata->prbNum=split_string_skip(buf, edata->_epi_prbid, "\x20\t\n",numCol2Skip);
+    for(int i=0;i<edata->prbNum;i++) edata->_include.push_back(i);
+   
+    while (fgets(buf, MAX_LINE_SIZE, eflptr)) lineNum++;
+    if(buf[0]=='\0') lineNum--;
+    edata->indiNum=lineNum;
+    rewind(eflptr);
+    fgets(buf, MAX_LINE_SIZE, eflptr); //head
+    edata->_eprVal.resize(edata->prbNum*lineNum);
+    edata->_keep.resize(lineNum);
+    edata->_eii_fid.resize(lineNum);
+    edata->_eii_iid.resize(lineNum);
     vector<string> tmp;
-    while(fgets(buf, MAX_LINE_SIZE, eflptr))
+    for(int i=0;i<lineNum;i++)
     {
         tmp.clear();
+        fgets(buf, MAX_LINE_SIZE, eflptr);
         split_string(buf, tmp, "\x20\t\n");
-        edata->keep.push_back(lineNum++);
-        edata->FID.push_back(tmp[0]);
-        edata->IID.push_back(tmp[1]);
-        for(int i=2;i<tmp.size();i++)
-            if(tmp[i]=="NA") edata->eprVal.push_back(1e10);
-            else edata->eprVal.push_back(atof(tmp[i].c_str()));
+        edata->_keep[i]=i;
+        edata->_eii_fid[i]=tmp[0];
+        edata->_eii_iid[i]=tmp[1];
+        for(int j=2;j<tmp.size();j++)
+            if(tmp[j]=="NA") edata->_eprVal[(j-2)*lineNum+i]=1e10;
+            else edata->_eprVal[(j-2)*lineNum+i]=atof(tmp[j].c_str());
         
-    }
-    edata->indiNum=lineNum;
-    if(edata->eprVal.size()!=lineNum*edata->prbNum)
-    {
-        cout << "Error: Unmatched data from [" + efile + "]" << endl;
-        exit(EXIT_FAILURE);
     }
     fclose(eflptr);
     cout<<"Expression data for "<<edata->prbNum<<" probes of "<<edata->indiNum<<" individuals have been included from the file [" + efile + "]."<<endl;
