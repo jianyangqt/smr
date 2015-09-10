@@ -9,16 +9,16 @@
 #ifndef __SRM_CPP__SMR_data__
 #define __SRM_CPP__SMR_data__
 
-
+#include <stdlib.h>
 #include "CommFunc.h"
 #include "StatFunc.h"
 #include <iostream>
 #include <stdio.h>
 #include <ctype.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <zlib.h>
 #include <bitset>
+
 
 //#include <omp.h>
 typedef unsigned long long         uint64_t;

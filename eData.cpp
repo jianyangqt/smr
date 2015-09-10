@@ -8,6 +8,10 @@
 
 #include "eData.h"
 // main function declared in gcta.h
+
+namespace E_DATA
+{
+
 void read_efile(eData* edata, string efile)
 {
     int numCol2Skip=2;
@@ -53,3 +57,4 @@ void read_efile(eData* edata, string efile)
     cout<<"Expression data for "<<edata->prbNum<<" probes of "<<edata->indiNum<<" individuals have been included from the file [" + efile + "]."<<endl;
     
     }
+}

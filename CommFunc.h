@@ -12,7 +12,7 @@
 #define _COMMFUNC_H
 
 #define MAX_BUF_SIZE 0x40000000
-#define MAX_LINE_SIZE 786432
+#define MAX_LINE_SIZE 0x00753000
 #define MAX_SNP_NAME 64
 
 

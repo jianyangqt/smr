@@ -680,26 +680,95 @@ namespace SMRDATA
             {
                 //without --extract-probe, read with less I/O. and need not to update epi.
                 //read with static buffer. If dynamic buffer, 2GB per I/O can be more efficient.
-                unsigned long long count=0;
+                /*
+                 unsigned long long count=0;
+                 while(!besd.eof())
+                 {
+                 besd.read(buf,MAX_LINE_NUM);
+                 unsigned long Bread=besd.gcount();
+                 buf[Bread]='\0';
+                 char* ptr=buf;
+                 //while(*ptr != '\0') //can not use this, too many 0x00 in buf
+                 while(Bread)
+                 {
+                 unsigned long pid=count/eqtlinfo->_snpNum;
+                 unsigned long sid=count++%eqtlinfo->_snpNum;
+                 ft=(float *)ptr;
+                 if(pid&1) eqtlinfo->_sexz[pid>>1][sid]=*ft;
+                 else eqtlinfo->_bxz[pid>>1][sid]=*ft;
+                 ptr+=4;
+                 Bread-=4;
+                 }
+                 }
+                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
+                 */
+                
+                /*
+                 
+                 // besd.seekg(0,besd.end);
+                 // uint64_t lSize = besd.tellg();
+                 //  lSize-=4;
+                 //  besd.seekg(4); // same as besd.seekg(4, besd.beg);
+                 uint64_t alread=0;
+                 
+                 char* buff;
+                 uint64_t buffszie=0x40000000;
+                 buff = (char*) malloc (sizeof(char)*buffszie);
+                 if (buff == NULL) {fputs ("Memory error",stderr); exit (1);}
+                 memset(buff,0,sizeof(char)*buffszie);
+                 uint64_t count=0;
+                 while(!besd.eof())
+                 {
+                 besd.read(buff,buffszie);
+                 unsigned long Bread=besd.gcount();
+                 alread+=Bread;
+                 char* ptr=buff;
+                 while(Bread)
+                 {
+                 unsigned long pid=count/eqtlinfo->_snpNum;
+                 unsigned long sid=count++%eqtlinfo->_snpNum;
+                 ft=(float *)ptr;
+                 if(pid&1) eqtlinfo->_sexz[pid>>1][sid]=*ft;
+                 else eqtlinfo->_bxz[pid>>1][sid]=*ft;
+                 ptr+=4;
+                 Bread-=4;
+                 }
+                 cout<<alread<<":"<<(alread>>30)<<"GB "<<endl;
+                 }
+                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besd
+                 file + "]." <<endl;
+                 free(buff);
+                 
+                 */
+              
+                
+                char* buff;
+                uint64_t buffszie=0x40000000;
+                buff = (char*) malloc (sizeof(char)*buffszie);
+                if (buff == NULL) {fputs ("Memory error",stderr); exit (1);}
+                memset(buff,0,sizeof(char)*buffszie);
+                
+                uint64_t perbeta=(eqtlinfo->_snpNum<<2);
+                uint64_t probonce=sizeof(char)*buffszie/perbeta;
+                uint64_t readsize=perbeta*probonce;
+                uint64_t probcount=0;
                 while(!besd.eof())
                 {
-                    besd.read(buf,MAX_LINE_SIZE);
+                    besd.read(buff,readsize);
                     unsigned long Bread=besd.gcount();
-                    buf[Bread]='\0';
-                    char* ptr=buf;
-                    //while(*ptr != '\0') //can not use this, too many 0x00 in buf
+                    char* ptr=buff;
                     while(Bread)
                     {
-                        unsigned long pid=count/eqtlinfo->_snpNum;
-                        unsigned long sid=count++%eqtlinfo->_snpNum;
-                        ft=(float *)ptr;
-                        if(pid&1) eqtlinfo->_sexz[pid>>1][sid]=*ft;
-                        else eqtlinfo->_bxz[pid>>1][sid]=*ft;
-                        ptr+=4;
-                        Bread-=4;
+                        memcpy(&eqtlinfo->_bxz[probcount][0],ptr,perbeta);
+                        ptr+=perbeta;
+                        memcpy(&eqtlinfo->_sexz[probcount++][0],ptr,perbeta);
+                        ptr+=perbeta;
+                        Bread-=(perbeta<<1);
                     }
+                     cout<<probcount<<" done! "<<endl;
                 }
                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
+                free(buff);
             }
             free(buffer);
         }
@@ -1610,9 +1679,9 @@ namespace SMRDATA
         eqtlInfo eqtlinfo;
         double threshold= chi_val(1,p_hetero);
         
-        if(bFileName == NULL ) throw("Error: --bfle can not be missing.");
-        if(gwasFileName==NULL) throw("Error: --gwas-summary can not be missing.");
-        if(eqtlFileName==NULL) throw("Error: --eqtl-summary can not be missing.");
+        if(bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
+        if(gwasFileName==NULL) throw("Error: please input GWAS summary data for SMR analysis by the flag --gwas-summary.");
+        if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
         
         read_famfile(&bdata, string(bFileName)+".fam");
         if(indilstName != NULL) keep_indi(&bdata,indilstName);
@@ -2050,7 +2119,7 @@ namespace SMRDATA
                 cols[0]=0;
                 for(uint32_t i=0;i<eqtlinfo._probNum;i++)
                 {
-                    vector<uint32_t> esi_include;
+                    vector<int> esi_include;
                     int probchr=eqtlinfo._epi_chr[i];
                     int probbp= eqtlinfo._epi_bp[i];
                     uint32_t uperBounder=probbp+cis;
@@ -2066,25 +2135,35 @@ namespace SMRDATA
                         else if(pxz<transThres)
                         {
                             esi_include.push_back(j);
-                            uint32_t transbp=eqtlinfo._esi_bp[j];
+                            long transbp=eqtlinfo._esi_bp[j];
+                           
+                            //if esi is not sorted.                            
+                           // for(int k=0;k<eqtlinfo._snpNum;k++)
+                           //     if(k!=j && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[k]  && abs(transbp-eqtlinfo._esi_bp[k])<=cis)   esi_include.push_back(k);
+                            
+                            // if esi is sorted
+                           
                             int startptr=j-1;
-                            while(transbp-eqtlinfo._esi_bp[startptr]<cis)
+                            while(startptr>=0 && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && abs(transbp-eqtlinfo._esi_bp[startptr])<=cis)
                             {
                                 esi_include.push_back(startptr);
                                 startptr--;
+                                
                             }
                             startptr=j+1;
-                            while(eqtlinfo._esi_bp[startptr]-transbp<cis)
+                            while(startptr<=eqtlinfo._snpNum && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && abs(transbp-eqtlinfo._esi_bp[startptr])<=cis)
                             {
                                 esi_include.push_back(startptr);
                                 startptr++;
-                                j=startptr-1;//move to trans upper limit
+                                //j=startptr-1; wrong!!! is there are trans upper, then the trans region should extend.
                             }
+                           
                         }
                         else if(pxz<restThres) esi_include.push_back(j);
                     }
                     sort( esi_include.begin(), esi_include.end() );
-                    esi_include.erase( unique( esi_include.begin(), esi_include.end() ), esi_include.end() );
+                    vector<int> ::iterator it=unique(esi_include.begin(),esi_include.end());
+                    esi_include.erase( it, esi_include.end() );
                     
                     for(int j=0;j<esi_include.size();j++)
                     {

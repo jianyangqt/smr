@@ -18,6 +18,8 @@
 
 using namespace CommFunc;
 using namespace StrFunc;
+namespace E_DATA
+{
 
 typedef struct{
     
@@ -48,6 +50,6 @@ typedef struct{
 } eData;
 
 void read_efile(eData* edata, string efile);
-
+}
 #endif /* defined(__SMR_CPP__eData__) */
 

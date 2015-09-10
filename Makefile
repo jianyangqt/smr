@@ -12,7 +12,7 @@ OUTPUT = SMR
 CXX = g++
 
 # EIGEN library
-EIGEN_PATH = ../Lib/eigen
+EIGEN_PATH = ../../Lib/eigen
 
 # Intel MKL library
 #MKL_PATH = /opt/intel/mkl
@@ -29,16 +29,13 @@ HDR += CommFunc.h \
 	   ipmpar.h \
            StatFunc.h \
            StrFunc.h \
-            SMR_data.h \
-           zfstream.h
+            SMR_data.h           
 SRC = SMR.cpp \
            CommFunc.cpp \
            SMR_data.cpp \
 	   dcdflib.cpp \
            StatFunc.cpp \
-           StrFunc.cpp \
-           zfstream.cpp
-	   
+           StrFunc.cpp	   
 OBJ = $(SRC:.cpp=.o)
 
 all : $(OUTPUT) 
