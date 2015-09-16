@@ -21,8 +21,7 @@
 
 
 //#include <omp.h>
-typedef unsigned long long         uint64_t;
-typedef unsigned int         uint32_t;
+
 typedef MatrixXf eigenMatrix;
 typedef VectorXf eigenVector;
 

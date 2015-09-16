@@ -560,17 +560,19 @@ namespace SMRDATA
             eqtlinfo->_bxz.clear();
             eqtlinfo->_sexz.clear();
             
-            uint32_t colNum=eqtlinfo->_probNum<<1;
-            uint32_t valNum;
-            uint32_t lSize;
+            uint64_t colNum=eqtlinfo->_probNum<<1;
+            uint64_t valNum;
+            uint64_t lSize;
             char* buffer;
             besd.seekg(0,besd.end);
             lSize = besd.tellg();
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
             besd.read(buf, 4);
-            valNum=(uint32_t)*(float *)buf;
-            if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            //valNum=(uint32_t)*(float *)buf; // int to float then float to int back can lose pricision. hence this clause and bellow are unbelievable
+           // if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            
+            valNum=((lSize>>2)-3-colNum)>>1;
             
             buffer = (char*) malloc (sizeof(char)*(lSize-8));
             if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
@@ -651,8 +653,8 @@ namespace SMRDATA
             eqtlinfo->_sexz.resize(eqtlinfo->_include.size());
             for(unsigned int i=0;i<eqtlinfo->_include.size();i++)
             {
-                eqtlinfo->_bxz[i].reserve(eqtlinfo->_esi_include.size());
-                eqtlinfo->_sexz[i].reserve(eqtlinfo->_esi_include.size());
+                eqtlinfo->_bxz[i].resize(eqtlinfo->_esi_include.size());
+                eqtlinfo->_sexz[i].resize(eqtlinfo->_esi_include.size());
             }
             char* buffer;
             buffer = (char*) malloc (sizeof(char)*eqtlinfo->_snpNum<<3);
@@ -738,9 +740,7 @@ namespace SMRDATA
                  cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besd
                  file + "]." <<endl;
                  free(buff);
-                 
                  */
-              
                 
                 char* buff;
                 uint64_t buffszie=0x40000000;

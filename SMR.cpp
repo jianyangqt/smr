@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 }
 
 void option(int option_num, char* option_str[])
-{    
+{
     char* bFileName=NULL;    
     char* gwasFileName=NULL;
     char* eqtlFileName=NULL;
@@ -248,6 +248,6 @@ void option(int option_num, char* option_str[])
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag || make_esd_flag || cis_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis, transThres, restThres);
     else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr);
-    else if(eremlFlag) read_efile(&edata, string(eFileName));
+    else if(eremlFlag) read_efile(&edata, eFileName);
     
    }

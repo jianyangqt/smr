@@ -23,8 +23,10 @@
 #include <ctime>
 #include <fstream>
 #include "StrFunc.h"
-
 #include <string.h>
+
+typedef unsigned long long         uint64_t;
+typedef unsigned int         uint32_t;
 
 using namespace std;
 
