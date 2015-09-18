@@ -560,7 +560,7 @@ namespace SMRDATA
             eqtlinfo->_bxz.clear();
             eqtlinfo->_sexz.clear();
             
-            uint64_t colNum=eqtlinfo->_probNum<<1;
+            uint64_t colNum=(eqtlinfo->_probNum<<1)+1;
             uint64_t valNum;
             uint64_t lSize;
             char* buffer;
@@ -568,39 +568,40 @@ namespace SMRDATA
             lSize = besd.tellg();
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
-            besd.read(buf, 4);
-            //valNum=(uint32_t)*(float *)buf; // int to float then float to int back can lose pricision. hence this clause and bellow are unbelievable
-           // if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            besd.read(buf, sizeof(uint64_t));
+            valNum=*(uint64_t *)buf;
+            if( lSize - (sizeof(float) + sizeof(uint64_t) + (colNum+valNum)*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
             
-            valNum=((lSize>>2)-3-colNum)>>1;
             
-            buffer = (char*) malloc (sizeof(char)*(lSize-8));
+            buffer = (char*) malloc (sizeof(char)*(lSize));
             if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
-            besd.read(buffer,(lSize-8));
-            if (besd.gcount()+8 != lSize) {fputs ("Reading error",stderr); exit (2);}
-            float* ptr;
-            ptr=(float *)buffer;
+            besd.read(buffer,lSize);
+            if (besd.gcount()+sizeof(float) + sizeof(uint64_t) != lSize) {fputs ("Reading error",stderr); exit (2);}
+            
+            
+            uint32_t* ptr;
+            ptr=(uint32_t *)buffer;
             
             if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum)
             {
                 vector<int> rk;
                 getRank(eqtlinfo->_esi_include, rk); // if eqtlinfo->_esi_include is sorted, rk is the indices.
                 eqtlinfo->_cols.resize((eqtlinfo->_include.size()<<1)+1);
-                eqtlinfo->_cols[0]=(uint32_t)*ptr;
-                float* row_ptr;
-                row_ptr=ptr+colNum+1;
+                eqtlinfo->_cols[0]=*ptr;
+                uint32_t* row_ptr;
+                row_ptr=ptr+colNum;
                 float* val_ptr;
-                val_ptr=row_ptr+valNum;
+                val_ptr=(float*)(row_ptr+valNum);
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
-                    unsigned long pid=eqtlinfo->_include[i];
-                    uint32_t pos=(uint32_t)*(ptr+(pid<<1));
-                    uint32_t pos1=(uint32_t)*(ptr+(pid<<1)+1);
+                    uint32_t pid=eqtlinfo->_include[i];
+                    uint32_t pos=*(ptr+(pid<<1));
+                    uint32_t pos1=*(ptr+(pid<<1)+1);
                     uint32_t num=pos1-pos;
                     uint32_t real_num=0;
                     for(int j=0;j<num<<1;j++)
                     {
-                        uint32_t rid=(uint32_t)*(row_ptr+pos+j);
+                        uint32_t rid=*(row_ptr+pos+j);
                         
                         long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin();
                         if(sid<eqtlinfo->_esi_include.size())
@@ -629,12 +630,14 @@ namespace SMRDATA
             }
             else
             {
-                eqtlinfo->_cols.resize(colNum+1);
+                eqtlinfo->_cols.resize(colNum);
                 eqtlinfo->_rowid.resize(valNum);
                 eqtlinfo->_val.resize(valNum);
-                for(int i=0;i<=colNum;i++) eqtlinfo->_cols[i]=(uint32_t)*ptr++;
-                for(int i=0;i<valNum;i++) eqtlinfo->_rowid[i]=(uint32_t)*ptr++;
-                for(int i=0;i<valNum;i++) eqtlinfo->_val[i]=*ptr++;
+                
+                for(int i=0;i<colNum;i++) eqtlinfo->_cols[i]=*ptr++;
+                for(int i=0;i<valNum;i++) eqtlinfo->_rowid[i]=*ptr++;
+                float* val_ptr=(float*)ptr;
+                for(int i=0;i<valNum;i++) eqtlinfo->_val[i]=*val_ptr++;
                 eqtlinfo->_valNum = valNum;
                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
             }
@@ -2111,8 +2114,8 @@ namespace SMRDATA
             {
                 if(eqtlinfo._valNum>0) throw("Error: please input dense format eQTL summary data file.");
                 //if got flag (--extract-snp), filter_probe_null() should be invoked, then _include.
-                vector<float> cols((eqtlinfo._probNum<<1)+1);
-                vector<float> rowids;
+                vector<uint32_t> cols((eqtlinfo._probNum<<1)+1);
+                vector<uint32_t> rowids;
                 vector<float> val;
                 
                 cis=cis*1e6;
@@ -2180,15 +2183,23 @@ namespace SMRDATA
                     cols[i+1<<1]=(real_num<<1)+cols[i<<1];
                 }
                 
-                uint64_t bufsize=2+cols.size()+(val.size()<<1);
-                float* buffer=(float*)malloc (sizeof(float)*bufsize);
-                buffer[0]=1.0; buffer[1]=val.size();
-                float* ptr=buffer+2;
-                memcpy(ptr,&cols[0],sizeof(float)*cols.size());
-                ptr=buffer+2+cols.size();
-                memcpy(ptr,&rowids[0],sizeof(float)*rowids.size());
-                ptr=buffer+2+cols.size()+val.size();
-                memcpy(ptr,&val[0],sizeof(float)*val.size());
+                uint64_t colSize=sizeof(uint32_t)*cols.size();
+                uint64_t rowSize=sizeof(uint32_t)*rowids.size();
+                uint64_t valSize=sizeof(float)*val.size();
+                uint64_t valNum=val.size();
+                uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
+                char* buffer=(char*)malloc (bufsize*sizeof(char));
+                char* wptr=buffer;
+                float ftype=SPARSE_FILE_TYPE_1;
+                memcpy(wptr,&ftype,sizeof(float));
+                wptr+=sizeof(float);
+                memcpy(wptr,&valNum,sizeof(uint64_t));
+                wptr+=sizeof(uint64_t);
+                memcpy(wptr,&cols[0],colSize);
+                wptr+=colSize;
+                memcpy(wptr,&rowids[0],rowSize);
+                wptr+=rowSize;
+                memcpy(wptr,&val[0],valSize);
                 
                 cout<<"\nsaving eQTL data..."<<endl;
                 string esdfile = string(outFileName)+".esi";
@@ -2212,7 +2223,7 @@ namespace SMRDATA
                 esdfile = string(outFileName)+".besd";
                 FILE * besd;
                 besd = fopen (esdfile.c_str(), "wb");
-                fwrite (buffer,sizeof(float), bufsize, besd);
+                fwrite (buffer,sizeof(char), bufsize, besd);
                 fclose(besd);
                 
                 free(buffer);
@@ -2345,20 +2356,25 @@ namespace SMRDATA
                     }
                     else
                     {
-                        vector<uint32_t> cols;
-                        uint64_t bsize=3+(eqtlinfo._include.size()<<1)+(eqtlinfo._valNum<<1);
-                        float* buffer=(float*)malloc (sizeof(float)*bsize);
-                        memset(buffer,0,sizeof(float)*bsize);
-                        float* ptr=buffer;
-                        *ptr++=1.0; *ptr++=(float)eqtlinfo._valNum; *ptr++=0.0;
-                        for(int i=0;i<eqtlinfo._include.size();i++)
-                        {
-                            *ptr++=(float)eqtlinfo._cols[(eqtlinfo._include[i]<<1)+1];
-                            *ptr++=(float)eqtlinfo._cols[eqtlinfo._include[i]+1<<1];
-                        }
-                        for(int i=0;i<eqtlinfo._valNum;i++) *ptr++=(float)eqtlinfo._rowid[i];
-                        memcpy(ptr,&eqtlinfo._val[0],sizeof(float)*eqtlinfo._valNum);
-                        fwrite (buffer,sizeof(float), bsize, smr);
+                        uint64_t colSize=sizeof(uint32_t)*(eqtlinfo._cols.size());
+                        uint64_t rowSize=sizeof(uint32_t)*eqtlinfo._valNum;
+                        uint64_t valSize=sizeof(float)*eqtlinfo._valNum;
+                        uint64_t valNum=eqtlinfo._valNum;
+                        uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
+                        
+                        char* buffer=(char*)malloc (sizeof(char)*bufsize);
+                        memset(buffer,0,sizeof(char)*bufsize);
+                        float ftype=SPARSE_FILE_TYPE_1;
+                        memcpy(buffer,&ftype,sizeof(float));
+                        char* wptr=buffer+sizeof(float);
+                        memcpy(wptr,&valNum,sizeof(uint64_t));
+                        wptr+=sizeof(uint64_t);
+                        memcpy(wptr,&eqtlinfo._cols[0],colSize);
+                        wptr+=colSize;
+                        memcpy(wptr,&eqtlinfo._rowid[0],rowSize);
+                        wptr+=rowSize;
+                        memcpy(wptr,&eqtlinfo._val[0],valSize);
+                        fwrite (buffer,sizeof(char), bufsize, smr);
                         free(buffer);
                     }
                     fclose (smr);
@@ -2528,12 +2544,11 @@ namespace SMRDATA
             {
                 esdfile = string(outFileName)+".besd";
                 FILE * smr;
-                float* buffer;
                 smr = fopen (esdfile.c_str(), "wb");
                 if(eqtlinfo._valNum==0)
                 {
                     unsigned long bsize=(include.size()*slctId.size()<<1)+1;
-                    buffer=(float*)malloc (sizeof(float)*bsize);
+                    float* buffer=(float*)malloc (sizeof(float)*bsize);
                     memset(buffer,0,sizeof(float)*bsize);
                     float* ptr=buffer;
                     *ptr++=0.0; //dense flag
@@ -2548,11 +2563,12 @@ namespace SMRDATA
                             ptr[((i<<1)+1)*snp_num+j]=eqtlinfo._sexz[include[i]][slctId[j]];
                     }
                     fwrite (buffer,sizeof(float), bsize, smr);
+                    free(buffer);
                 }
                 else{
                     
-                    vector<float> cols((include.size()<<1)+1);
-                    vector<float> rowid;
+                    vector<uint32_t> cols((include.size()<<1)+1);
+                    vector<uint32_t> rowid;
                     vector<float> val;
                     vector<int> rk;
                     vector<float> tmp;
@@ -2586,22 +2602,30 @@ namespace SMRDATA
                         cols[(i<<1)+1]=real_num+cols[i<<1];
                         cols[i+1<<1]=(real_num<<1)+cols[i<<1];
                     }
-                    uint32_t valNum=val.size();
-                    uint32_t bufsize=2+cols.size()+(valNum<<1);
-                    buffer=(float*)malloc (sizeof(float)*bufsize);
-                    memset(buffer,0,sizeof(float)*bufsize);
-                    float* ptr=buffer;
-                    *ptr++=1.0; //sparse flag
-                    *ptr++=(float)valNum;
-                    memcpy(ptr,&cols[0],sizeof(float)*cols.size());
-                    ptr=buffer+2+cols.size();
-                    memcpy(ptr,&rowid[0],sizeof(float)*rowid.size());
-                    ptr=buffer+2+cols.size()+rowid.size();
-                    memcpy(ptr,&val[0],sizeof(float)*val.size());
-                    fwrite (buffer,sizeof(float), bufsize, smr);
+                    
+                    uint64_t colSize=sizeof(uint32_t)*cols.size();
+                    uint64_t rowSize=sizeof(uint32_t)*rowid.size();
+                    uint64_t valNum=val.size();
+                    uint64_t valSize=sizeof(float)*valNum;
+                    uint64_t bufsize=1+sizeof(uint64_t)+colSize+rowSize+valSize;
+                    
+                    char* buffer=(char*)malloc (sizeof(char)*bufsize);
+                    memset(buffer,0,sizeof(char)*bufsize);
+                    float ftype=SPARSE_FILE_TYPE_1;
+                    memcpy(buffer,&ftype,sizeof(float));
+                    char* wptr=buffer+sizeof(float);
+                    memcpy(wptr,&valNum,sizeof(uint64_t));
+                    wptr+=sizeof(uint64_t);
+                    memcpy(wptr,&cols[0],colSize);
+                    wptr+=colSize;
+                    memcpy(wptr,&rowid[0],rowSize);
+                    wptr+=rowSize;
+                    memcpy(wptr,&val[0],valSize);
+                    fwrite (buffer,sizeof(char), bufsize, smr);
+                    free(buffer);
                 }
                 fclose (smr);
-                free(buffer);
+               
                 cout<<"Beta values and SE values for "<<include.size()<<" Probes and "<<slctId.size()<<" SNPs have been saved in the binary file [" + esdfile + "]." <<endl;
             }
         }

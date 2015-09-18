@@ -14,7 +14,10 @@
 #define MAX_BUF_SIZE 0x40000000
 #define MAX_LINE_SIZE 0x00753000
 #define MAX_SNP_NAME 64
-
+#define DENSE_FILE_TYPE_1 0
+#define SPARSE_FILE_TYPE_1 1
+#define DENSE_FILE_TYPE_2 2
+#define SPARSE_FILE_TYPE_2 3
 
 #include <limits>
 #include <complex>

@@ -109,14 +109,14 @@ namespace SMRDATA
         //for sparse
         vector<uint32_t> _cols;
         vector<uint32_t> _rowid;
-        vector<double> _val;
+        vector<float> _val;
         // for dense
         vector< vector<float> > _bxz; // first dimension is probe, second is snp
         vector< vector<float> > _sexz;
         
         uint32_t _probNum;
         uint32_t _snpNum;
-        uint32_t _valNum;
+        uint64_t _valNum;
         
     } eqtlInfo;
     
