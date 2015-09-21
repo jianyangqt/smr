@@ -555,7 +555,7 @@ namespace SMRDATA
         besd.read(buf, 4);
         float* flag;
         flag=(float *)buf;
-        if((int)*flag){
+        if((int)*flag == SPARSE_FILE_TYPE_2){
             // clear datastruct for dense befor read sparse
             eqtlinfo->_bxz.clear();
             eqtlinfo->_sexz.clear();
@@ -644,7 +644,7 @@ namespace SMRDATA
             // terminate
             free (buffer);
         }
-        else
+        else if((int)*flag == DENSE_FILE_TYPE_1 )
         {
             // clear datastruct for sparse befor read dense
             eqtlinfo->_cols.clear();
@@ -745,6 +745,7 @@ namespace SMRDATA
                  free(buff);
                  */
                 
+                /*
                 char* buff;
                 uint64_t buffszie=0x40000000;
                 buff = (char*) malloc (sizeof(char)*buffszie);
@@ -752,30 +753,151 @@ namespace SMRDATA
                 memset(buff,0,sizeof(char)*buffszie);
                 
                 uint64_t perbeta=(eqtlinfo->_snpNum<<2);
-                uint64_t probonce=sizeof(char)*buffszie/perbeta;
+                uint64_t probonce=sizeof(char)*buffszie/perbeta;  //should be even number
+                probonce>>=1;
+                probonce<<=1;
                 uint64_t readsize=perbeta*probonce;
                 uint64_t probcount=0;
                 while(!besd.eof())
                 {
                     besd.read(buff,readsize);
                     unsigned long Bread=besd.gcount();
-                    char* ptr=buff;
+                    float* rptr=(float *)buff;
                     while(Bread)
                     {
-                        memcpy(&eqtlinfo->_bxz[probcount][0],ptr,perbeta);
-                        ptr+=perbeta;
-                        memcpy(&eqtlinfo->_sexz[probcount++][0],ptr,perbeta);
-                        ptr+=perbeta;
+                        memcpy(&eqtlinfo->_bxz[probcount][0],rptr,perbeta);
+                        rptr+=eqtlinfo->_snpNum;
+                        memcpy(&eqtlinfo->_sexz[probcount++][0],rptr,perbeta);
+                        rptr+=eqtlinfo->_snpNum;
                         Bread-=(perbeta<<1);
                     }
                      cout<<probcount<<" done! "<<endl;
                 }
                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
                 free(buff);
+                 */
+                
+                char* buff;
+                uint64_t buffszie=0x40000000;
+                buff = (char*) malloc (sizeof(char)*buffszie);
+                if (buff == NULL) {fputs ("Memory error",stderr); exit (1);}
+                memset(buff,0,sizeof(char)*buffszie);
+                
+                uint64_t perbeta=(eqtlinfo->_snpNum<<2);
+                uint64_t probonce=sizeof(char)*buffszie/perbeta;  //should be even number
+                probonce>>=1;
+                probonce<<=1;
+                uint64_t readsize=perbeta*probonce;
+                uint64_t probcount=0;
+                while(!besd.eof())
+                {
+                    besd.read(buff,readsize);
+                    unsigned long Bread=besd.gcount();
+                    char* rptr=buff;
+                    while(Bread)
+                    {
+                        memcpy(&eqtlinfo->_bxz[probcount][0],rptr,perbeta);
+                        rptr+=perbeta;
+                        memcpy(&eqtlinfo->_sexz[probcount++][0],rptr,perbeta);
+                        rptr+=perbeta;
+                        Bread-=(perbeta<<1);
+                    }
+                    printf("\rRedinging... %3.0f%%", 100.0*probcount/eqtlinfo->_probNum);
+                    fflush(stdout);
+                }
+                cout<<"\neQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
+                free(buff);
+
             }
             free(buffer);
         }
-        
+        else if ((int)*flag == SPARSE_FILE_TYPE_1 )
+        {
+            // clear datastruct for dense befor read sparse
+            eqtlinfo->_bxz.clear();
+            eqtlinfo->_sexz.clear();
+            
+            uint64_t colNum=eqtlinfo->_probNum<<1;
+            uint64_t valNum;
+            uint64_t lSize;
+            char* buffer;
+            besd.seekg(0,besd.end);
+            lSize = besd.tellg();
+            
+            besd.seekg(4); // same as besd.seekg(4, besd.beg);
+            besd.read(buf, 4);
+            //valNum=(uint32_t)*(float *)buf; // int to float then float to int back can lose pricision. hence this clause and bellow are unbelievable
+            // if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            
+            valNum=((lSize>>2)-3-colNum)>>1;
+            
+            buffer = (char*) malloc (sizeof(char)*(lSize-8));
+            if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
+            besd.read(buffer,(lSize-8));
+            if (besd.gcount()+8 != lSize) {fputs ("Reading error",stderr); exit (2);}
+            float* ptr;
+            ptr=(float *)buffer;
+            
+            if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum)
+            {
+                vector<int> rk;
+                getRank(eqtlinfo->_esi_include, rk); // if eqtlinfo->_esi_include is sorted, rk is the indices.
+                eqtlinfo->_cols.resize((eqtlinfo->_include.size()<<1)+1);
+                eqtlinfo->_cols[0]=(uint32_t)*ptr;
+                float* row_ptr;
+                row_ptr=ptr+colNum+1;
+                float* val_ptr;
+                val_ptr=row_ptr+valNum;
+                for(int i=0;i<eqtlinfo->_include.size();i++)
+                {
+                    unsigned long pid=eqtlinfo->_include[i];
+                    uint32_t pos=(uint32_t)*(ptr+(pid<<1));
+                    uint32_t pos1=(uint32_t)*(ptr+(pid<<1)+1);
+                    uint32_t num=pos1-pos;
+                    uint32_t real_num=0;
+                    for(int j=0;j<num<<1;j++)
+                    {
+                        uint32_t rid=(uint32_t)*(row_ptr+pos+j);
+                        
+                        long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin();
+                        if(sid<eqtlinfo->_esi_include.size())
+                        {
+                            eqtlinfo->_rowid.push_back(rk[sid]);
+                            eqtlinfo->_val.push_back(*(val_ptr+pos+j));
+                            real_num++;
+                        }
+                        
+                        /*
+                         if(find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)!=eqtlinfo->_esi_include.end()) //can be optimized
+                         {
+                         eqtlinfo->_rowid.push_back(rid);
+                         eqtlinfo->_val.push_back(*(val_ptr+pos+j));
+                         real_num++;
+                         }
+                         */
+                    }
+                    eqtlinfo->_cols[(i<<1)+1]=(real_num>>1)+eqtlinfo->_cols[i<<1];
+                    eqtlinfo->_cols[i+1<<1]=real_num+eqtlinfo->_cols[i<<1];
+                }
+                eqtlinfo->_valNum = eqtlinfo->_val.size();
+                cout<<"eQTL summary-level statistics of "<<eqtlinfo->_include.size()<<" Probes and "<<eqtlinfo->_esi_include.size()<<" SNPs to be included from [" + besdfile + "]." <<endl;
+                if(eqtlinfo->_include.size()<eqtlinfo->_probNum ) update_epi(eqtlinfo);
+                if(eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum) update_esi(eqtlinfo);
+            }
+            else
+            {
+                eqtlinfo->_cols.resize(colNum+1);
+                eqtlinfo->_rowid.resize(valNum);
+                eqtlinfo->_val.resize(valNum);
+                for(int i=0;i<=colNum;i++) eqtlinfo->_cols[i]=(uint32_t)*ptr++;
+                for(int i=0;i<valNum;i++) eqtlinfo->_rowid[i]=(uint32_t)*ptr++;
+                for(int i=0;i<valNum;i++) eqtlinfo->_val[i]=*ptr++;
+                eqtlinfo->_valNum = valNum;
+                cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
+            }
+            // terminate
+            free (buffer);
+        }
         besd.close();
     }
     
@@ -2190,7 +2312,7 @@ namespace SMRDATA
                 uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
                 char* buffer=(char*)malloc (bufsize*sizeof(char));
                 char* wptr=buffer;
-                float ftype=SPARSE_FILE_TYPE_1;
+                float ftype=SPARSE_FILE_TYPE_2;
                 memcpy(wptr,&ftype,sizeof(float));
                 wptr+=sizeof(float);
                 memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -2364,7 +2486,7 @@ namespace SMRDATA
                         
                         char* buffer=(char*)malloc (sizeof(char)*bufsize);
                         memset(buffer,0,sizeof(char)*bufsize);
-                        float ftype=SPARSE_FILE_TYPE_1;
+                        float ftype=SPARSE_FILE_TYPE_2;
                         memcpy(buffer,&ftype,sizeof(float));
                         char* wptr=buffer+sizeof(float);
                         memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -2611,7 +2733,7 @@ namespace SMRDATA
                     
                     char* buffer=(char*)malloc (sizeof(char)*bufsize);
                     memset(buffer,0,sizeof(char)*bufsize);
-                    float ftype=SPARSE_FILE_TYPE_1;
+                    float ftype=SPARSE_FILE_TYPE_2;
                     memcpy(buffer,&ftype,sizeof(float));
                     char* wptr=buffer+sizeof(float);
                     memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -2632,4 +2754,86 @@ namespace SMRDATA
         
     }
     
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup, bool bFlag)
+    {
+        eqtlInfo eqtlinfo;
+        cout<<endl<<"Reading eQTL summary data..."<<endl;
+        if(eqtlFileName != NULL)
+        {
+            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
+            if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
+            read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
+            if(problstName != NULL) extract_prob(&eqtlinfo, problstName);           
+            if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
+            else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
+            
+        }
+        else throw ("Error: please input the eQTL summary information for the eQTL data files by the option --beqtl-summary.");
+       
+        vector<int> out_esi_id;
+        vector<int> out_epi_id;
+        vector<float> out_beta;
+        vector<float> out_se;
+        vector<double> out_pval;
+        if(eqtlinfo._valNum==0)
+        {
+            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
+            {
+                for(uint32_t j=0;j<eqtlinfo._snpNum;j++)
+                {
+                    double beta=eqtlinfo._bxz[i][j];
+                    double se=eqtlinfo._sexz[i][j];
+                    double zsxz=beta/se;
+                    double pxz=pchisq(zsxz*zsxz, 1);
+                    if(pxz<plookup)
+                    {
+                        out_esi_id.push_back(j);
+                        out_epi_id.push_back(i);
+                        out_beta.push_back(beta);
+                        out_se.push_back(se);
+                        out_pval.push_back(pxz);
+                    }
+                }
+            }
+        }
+        else
+        {
+            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
+            {
+                int proid=eqtlinfo._include[i];
+                int pos=eqtlinfo._cols[proid<<1];
+                int pos1=eqtlinfo._cols[(proid<<1)+1];
+                int num=pos1-pos;
+                for(int j=0;j<num;j++)
+                {
+                    double beta=eqtlinfo._val[pos+j];
+                    double se=eqtlinfo._val[pos+j+num];
+                    double zsxz=beta/se;
+                    double pxz=pchisq(zsxz*zsxz, 1);
+                    if(pxz<plookup)
+                    {
+                        out_esi_id.push_back(eqtlinfo._rowid[pos+j]);
+                        out_epi_id.push_back(i);
+                        out_beta.push_back(beta);
+                        out_se.push_back(se);
+                        out_pval.push_back(pxz);
+                    }
+                }
+            }
+        }
+        
+        string smrfile = string(outFileName)+".lkp";
+        ofstream smr(smrfile.c_str());
+        if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
+        
+        smr << "SNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' << "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
+        
+        for (int i = 0;i <out_esi_id.size(); i++) {
+            smr<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
+        }
+       
+        smr.close();
+        cout<<"Extracted results of "<<out_esi_id.size()<<" SNPs have been saved in the file [" + smrfile + "]."<<endl;
+        
+    }
 }

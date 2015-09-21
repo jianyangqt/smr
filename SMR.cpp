@@ -79,6 +79,11 @@ void option(int option_num, char* option_str[])
     float transThres=5.0e-8;
     float restThres=1.0e-5;
     
+    // for lookup
+    float plookup=5e-8;
+    bool lookup_flag=false;
+    
+    
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -239,7 +244,16 @@ void option(int option_num, char* option_str[])
             FLAG_VALID_CK("--efile", eFileName);
             printf("--efile %s\n", eFileName);
         }
-
+        else if (0 == strcmp(option_str[i], "--lookup")){
+            lookup_flag=true;
+            plookup = atof (option_str[++i]);
+            printf("--lookup %10.2e\n", plookup);
+            if(plookup<0 || plookup>1)
+            {
+                fprintf (stderr, "Error: --lookup should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
 
     }
     cout<<endl;
@@ -249,5 +263,6 @@ void option(int option_num, char* option_str[])
     if(make_besd_flag || make_esd_flag || cis_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis, transThres, restThres);
     else if(smr_flag)  smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr);
     else if(eremlFlag) read_efile(&edata, eFileName);
+    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
     
    }
