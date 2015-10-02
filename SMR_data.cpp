@@ -267,10 +267,10 @@ namespace SMRDATA
             Bim >> ibuf;
             bdata->_bp.push_back(ibuf);
             Bim >> cbuf;
-            //StrFunc::to_upper(cbuf);
+            StrFunc::to_upper(cbuf);
             bdata->_allele1.push_back(cbuf.c_str()[0]);
             Bim >> cbuf;
-            //StrFunc::to_upper(cbuf);
+            StrFunc::to_upper(cbuf);
             bdata->_allele2.push_back(cbuf.c_str()[0]);
         }
         Bim.close();
@@ -419,6 +419,8 @@ namespace SMRDATA
             iss>>tmpStr;
             gdata->splSize[i]=atoi(tmpStr.c_str());
         }
+        to_upper(gdata->allele_1,lineNum);
+        to_upper(gdata->allele_2,lineNum);
        cout <<"GWAS summary statistics of "<<gdata->snpNum << " SNPs to be included from [" + string(gwasFileName) + "]." << endl;
         gwasFile.close();
     }
@@ -471,8 +473,10 @@ namespace SMRDATA
             iss>>tmpStr;
             eqtlinfo->_esi_bp[i]=atoi(tmpStr.c_str());
             iss>>tmpStr;
+            StrFunc::to_upper(tmpStr);
             eqtlinfo->_esi_allele1[i]=tmpStr.c_str()[0];
             iss>>tmpStr;
+            StrFunc::to_upper(tmpStr);
             eqtlinfo->_esi_allele2[i]=tmpStr.c_str()[0];
 			eqtlinfo->_esi_include[i] = i;
         }
@@ -792,7 +796,7 @@ namespace SMRDATA
                 while(!besd.eof())
                 {
                     besd.read(buff,readsize);
-                    unsigned long Bread=besd.gcount();
+                    uint64_t Bread=besd.gcount();
                     char* rptr=buff;
                     while(Bread)
                     {
@@ -802,7 +806,7 @@ namespace SMRDATA
                         rptr+=perbeta;
                         Bread-=(perbeta<<1);
                     }
-                    printf("\rRedinging... %3.0f%%", 100.0*probcount/eqtlinfo->_probNum);
+                    printf("Redinging... %3.0f%%\r", 100.0*probcount/eqtlinfo->_probNum);
                     fflush(stdout);
                 }
                 cout<<"\neQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
@@ -1020,11 +1024,9 @@ namespace SMRDATA
   //this function derived from the source code of FastGCN
     void ld_calcualte(double* ref_ld,float* ref_snpData,int rsize,int csize)
     {
+        vector<float> tmpX(rsize);
+        vector<float> tmpX2(rsize);
         
-        float* tmpX=new float[rsize];
-        float* tmpX2=new float[rsize];
-        ::memset(tmpX,0,rsize*sizeof(float));
-        ::memset(tmpX2,0,rsize*sizeof(float));
         //
         //	int Num_CPU_Cores;
         //#ifdef WIN32
@@ -1056,8 +1058,6 @@ namespace SMRDATA
             }
         }
         
-        delete[] tmpX;
-        delete[] tmpX2;
     }
     
     void get_square_idxes(vector<int> &sn_ids,vector<double> &zsxz,double threshold)
@@ -1120,13 +1120,14 @@ namespace SMRDATA
         vector<double> bxy1;
         vector<double> sexy1;
         vector<double> dev;
+        vector<double> tmp3;
         long nsnp=*snp_num;
         int maxid;        
         double pdev=-1.0;
-        double* covbxy=new double[nsnp*nsnp];
-        ::memset(covbxy,0,nsnp*nsnp*sizeof(double));
-        double* vdev=new double[(nsnp-1)*(nsnp-1)];
-        ::memset(vdev,0,(nsnp-1)*(nsnp-1)*sizeof(double));
+        double* covbxy= (double*)malloc(sizeof(double)*nsnp*nsnp);
+        memset(covbxy,0,nsnp*nsnp*sizeof(double));
+        double* vdev=(double*)malloc(sizeof(double)*(nsnp-1)*(nsnp-1));
+        memset(vdev,0,(nsnp-1)*(nsnp-1)*sizeof(double));
         dev.resize(nsnp-1);
         if(nsnp>1)
         {
@@ -1142,8 +1143,8 @@ namespace SMRDATA
             est_cov_bxy(covbxy, zsxz1,bxy1,seyz1,bxz1,ref_ld1);
             
             double tmp1=covbxy[maxid*nsnp+maxid];
-            double* tmp3=new double[nsnp-1];
-            ::memset(tmp3,0,(nsnp-1)*sizeof(double));
+            tmp3.clear();
+            tmp3.resize(nsnp-1);
             for(int i=0; i<maxid; i++) tmp3[i]=covbxy[maxid*nsnp+i];
             for(int i=maxid+1; i<nsnp; i++) tmp3[i-1]=covbxy[maxid*nsnp+i];
             // vdev as tmp2
@@ -1208,13 +1209,13 @@ namespace SMRDATA
             
             pdev= pchisqsum(sumChisq_dev,lambda);
             *snp_num=lambda.size();
-            
-            delete[] tmp3;          
          
         }else *snp_num=-9;
         
-        delete[] vdev;
-        delete[] covbxy;
+        free(vdev);
+        free(covbxy);
+        vdev=NULL;
+        covbxy=NULL;
         
         return(pdev);
     }
@@ -1239,7 +1240,12 @@ namespace SMRDATA
         ss << value;      
         return(ss.str());
     }
-    
+    string ltos(long value)
+    {
+        stringstream ss;
+        ss << value;
+        return(ss.str());
+    }
 
     
     void free_gwas_data(gwasData* gdata)
@@ -1868,10 +1874,40 @@ namespace SMRDATA
             ga2 = gdata.allele_2[gdId[i]];
             ea1 = eqtlinfo._esi_allele1[edId[i]];
             ea2 = eqtlinfo._esi_allele2[edId[i]];
+            /*
             if (a1 != '0' && a2 != '0' && ga1 != '0' && ga2 != '0' && ea1 != '0' && ea2 != '0')
                 if ((a1 == ga1 && a2 == ga2) || (a1 == ga2 && a2 == ga1) || (a1 != ga1 && a1 != ga2 && a2 != ga2 && a2 != ga1))
                     if ((a1 == ea1 && a2 == ea2) || (a1 == ea2 && a2 == ea1) || (a1 != ea1 && a1 != ea2 && a2 != ea2 && a2 != ea1))
                         cmmnSNPs.push_back(slctSNPs[i]);
+            */
+            
+            if (a1 != '0' && a2 != '0' && ga1 != '0' && ga2 != '0' && ea1 != '0' && ea2 != '0')
+            {
+                if(a1 == ga1 &&  a2 == ga2)
+                {
+                    if( a1 == ea1 && a2 == ea2) cmmnSNPs.push_back(slctSNPs[i]);
+                    else if(a1 == ea2 && a2 == ea1)
+                    {
+                        cmmnSNPs.push_back(slctSNPs[i]);
+                        for(int j=0;j<eqtlinfo._include.size();j++) eqtlinfo._bxz[eqtlinfo._include[j]][edId[i]]=  -eqtlinfo._bxz[eqtlinfo._include[j]][edId[i]];
+                    }
+                }
+                else if(a1 == ga2 &&  a2 == ga1)
+                {
+                    
+                    if( a1 == ea1 && a2 == ea2)
+                    {
+                        cmmnSNPs.push_back(slctSNPs[i]);
+                        gdata.byz[gdId[i]]=-gdata.byz[gdId[i]];
+                    }
+                    else if(a1 == ea2 && a2 == ea1)
+                    {
+                        cmmnSNPs.push_back(slctSNPs[i]);
+                        gdata.byz[gdId[i]]=-gdata.byz[gdId[i]];
+                        for(int j=0;j<eqtlinfo._include.size();j++) eqtlinfo._bxz[eqtlinfo._include[j]][edId[i]]=  -eqtlinfo._bxz[eqtlinfo._include[j]][edId[i]];
+                    }
+                }
+            }
         }
         
         // get indices
@@ -1908,6 +1944,31 @@ namespace SMRDATA
         cout<<endl<<"Performing SMR and heterogeneity analysis..... "<<endl;
         float progr0=0.0 , progr1;
         progress_print(progr0);
+        
+        
+        vector<float> bxz;
+        vector<float> sexz;
+        vector<uint32_t> curId;
+        vector<string> eName;
+        
+        vector<char> allele1;
+        vector<char> allele2;
+        vector<string> reName;
+        vector<string> tstName;
+        vector<uint32_t> bpsnp;
+        
+        vector<double> byz;
+        vector<double> seyz;
+        vector<double> zsxz;
+        
+        vector<int> sn_ids;
+        
+        vector<double> byz1;
+        vector<double> seyz1;
+        vector<double> bxz1;
+        vector<double> sexz1;
+        vector<double> zsxz1;
+        
         for(int i=0;i<probNum;i++)
         {
             
@@ -1920,10 +1981,10 @@ namespace SMRDATA
             }
             
             //extract info from eqtl
-            vector<float> bxz;
-            vector<float> sexz;
-            vector<uint32_t> curId;
-            vector<string> eName;
+            bxz.clear();
+            sexz.clear();
+            curId.clear();
+            eName.clear();
             if(eqtlinfo._rowid.empty())
             {
                 for (int j = 0; j<edId.size(); j++)
@@ -1951,18 +2012,22 @@ namespace SMRDATA
                     }
                 }
             }
-            
+           
             if (curId.size() == 0) continue;
             
             //extract info from reference
-            vector<char> allele1(curId.size());
-            vector<char> allele2(curId.size());
-            vector<string> reName(curId.size());
-            vector<string> tstName(curId.size());
-            vector<unsigned int> bpsnp(curId.size());
-            float* ref_snpData; //row major: snps belonging to the the same individual store adjacently
-            ref_snpData=new float[bdata._indi_num*curId.size()];
-            ::memset(ref_snpData,0,bdata._indi_num*curId.size()*sizeof(float));
+            allele1.clear();
+            allele2.clear();
+            reName.clear();
+            tstName.clear();
+            bpsnp.clear();
+            allele1.resize(curId.size());
+            allele2.resize(curId.size());
+            reName.resize(curId.size());
+            tstName.resize(curId.size());
+            bpsnp.resize(curId.size());
+            float* ref_snpData = (float*)malloc(sizeof(float)*bdata._indi_num*curId.size()); //row major: snps belonging to the the same individual store adjacently
+            memset(ref_snpData,0,bdata._indi_num*curId.size()*sizeof(float));
             for (int j = 0; j<curId.size(); j++)
             {
                 allele1[j] = bdata._allele1[bdId[curId[j]]]; // string to char
@@ -1975,28 +2040,24 @@ namespace SMRDATA
             
             
             // extract info from gwas data. NOTE: the gwas data is not same as the one that R code uses.
-            vector<char> allele_1(curId.size());
-            vector<char> allele_2(curId.size());
-            vector<double> byz(curId.size());
-            vector<double> seyz(curId.size());
-            vector<string> gName(curId.size());
+            byz.clear();
+            seyz.clear();
+            byz.resize(curId.size());
+            seyz.resize(curId.size());
             for (int j = 0; j<curId.size(); j++)
             {
-                allele_1[j] = gdata.allele_1[gdId[curId[j]]];
-                allele_2[j] = gdata.allele_2[gdId[curId[j]]];
                 byz[j] = gdata.byz[gdId[curId[j]]];
                 seyz[j] = gdata.seyz[gdId[curId[j]]];
-                gName[j]=gdata.snpName[gdId[curId[j]]];
             }
             //get LD info from reference
-            double* ref_ld;
-            ref_ld=new double[curId.size()*(curId.size()-1)/2];
-            ::memset(ref_ld,0,curId.size()*(curId.size()-1)*sizeof(double)/2);
+            double* ref_ld = (double *)malloc(sizeof(double)*curId.size()*(curId.size()-1)/2);
+            memset(ref_ld,0,curId.size()*(curId.size()-1)*sizeof(double)/2);
             ld_calcualte(ref_ld,ref_snpData,curId.size(),bdata._indi_num);
             
-            
+          
             // top_snp_test();
-            vector<double> zsxz(curId.size());
+            zsxz.clear();
+            zsxz.resize(curId.size());
             for(int j=0;j<curId.size();j++) zsxz[j]=bxz[j]/sexz[j];
             int maxid=max_abs_id(zsxz);
             
@@ -2006,13 +2067,19 @@ namespace SMRDATA
             
             
             double pxy_val=pchisq(chisqxy, 1);  //   double pxy=chi_prob(1,chisqxy); //works
+            
             double chisqyz=byz[maxid]/seyz[maxid];
             double pyz_val = pchisq(chisqyz*chisqyz, 1);
             double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
             
-            if(pxz_val>p_smr) continue;
-            else outCount++;
-            
+            if(pxz_val>p_smr)
+            {
+                free(ref_snpData);
+                ref_snpData=NULL;
+                free(ref_ld);
+                ref_ld=NULL;
+                continue;
+            } else outCount++;
             
             out_probid[outCount]= i;
             bxy[outCount]=dtosf(bxy_val);
@@ -2028,20 +2095,19 @@ namespace SMRDATA
             rsbp[outCount]=itos(bpsnp[maxid]);
             rsa1[outCount]=allele1[maxid];
             rsa2[outCount]=allele2[maxid];
+
             
-            
-            vector<int> sn_ids; //increase order
+            sn_ids.clear(); //increase order
             if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
             else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ref_ld, maxid,ld_top);
             
-            vector<double> byz1;
-            vector<double> seyz1;
-            vector<double> bxz1;
-            vector<double> sexz1;
-            vector<double> zsxz1;
-            double* ref_ld1;
-            ref_ld1=new double[sn_ids.size()*(sn_ids.size()-1)/2];
-            ::memset(ref_ld1,0,sn_ids.size()*(sn_ids.size()-1)*sizeof(double)/2);
+            byz1.clear();
+            seyz1.clear();
+             bxz1.clear();
+             sexz1.clear();
+             zsxz1.clear();
+            double* ref_ld1 =(double*)malloc(sizeof(double)*sn_ids.size()*(sn_ids.size()-1)/2);
+            memset(ref_ld1,0,sn_ids.size()*(sn_ids.size()-1)*sizeof(double)/2);
             
             for(int j=0;j<sn_ids.size();j++)
             {
@@ -2059,6 +2125,12 @@ namespace SMRDATA
                 nsnp_test1[outCount]= string("NA");
                 top_match1[outCount]= string("NA");
                 ldrsq[outCount]= string("NA");
+                free(ref_ld1);
+                ref_ld1=NULL;
+                free(ref_ld);
+                ref_ld=NULL;
+                free(ref_snpData);
+                ref_snpData=NULL;
                 continue;
             }
             
@@ -2084,10 +2156,13 @@ namespace SMRDATA
             else ldrsqVal=1;
             ldrsq[outCount]=dtosf(ldrsqVal);
             
-            delete[] ref_ld;
-            delete[] ref_ld1;
-            delete[] ref_snpData;
             
+            free(ref_ld1);
+            ref_ld1=NULL;
+            free(ref_ld);
+            ref_ld=NULL;
+            free(ref_snpData);
+            ref_snpData=NULL;
         }
         
         //genesn in R is just probidx here. can refer to probinfo to get probeid, probenm, chr, gene, bp
@@ -2234,14 +2309,39 @@ namespace SMRDATA
             //output (no Plink data or GWAS data input)
             if(cis_flag)
             {
+                cout<<"Transforming dense file to sparse file ..."<<endl;
                 if(eqtlinfo._valNum>0) throw("Error: please input dense format eQTL summary data file.");
                 //if got flag (--extract-snp), filter_probe_null() should be invoked, then _include.
                 vector<uint32_t> cols((eqtlinfo._probNum<<1)+1);
                 vector<uint32_t> rowids;
                 vector<float> val;
+                FILE* logfile=NULL;
+                char cCurrentPath[FILENAME_MAX];
                 
+                if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+                {
+                   throw ("Error: can not get current directory!");
+                }
+                
+                cCurrentPath[sizeof(cCurrentPath) - 1] = '\0'; /* not really required */
+
+                
+                string fname=string(cCurrentPath)+"/smr.log";
+                logfile=fopen(fname.c_str(), "w");
+                if (!(logfile)) {
+                    sprintf("Error: Failed to open %s.\n", fname.c_str());
+                    exit(1);
+                }
+                fputs(string("--cis-itvl:\t"+itos(cis)+"Mb\n").c_str(),logfile);
+                 fputs(string("--trans-thres:\t"+dtos(transThres)+"\n").c_str(),logfile);
+                 fputs(string("--rest-thres:\t"+dtos(restThres)+"\n").c_str(),logfile);
+                 fputs(string("-----------------------------------------\n").c_str(),logfile);
+                
+                fputs("ProbeID\tProbeChr\tType\tStartBP\tEndBP\tnsnp\n",logfile);
                 cis=cis*1e6;
                 cols[0]=0;
+                //in case of too many values over transThres in the trans region
+                string pretransPrbId="";
                 for(uint32_t i=0;i<eqtlinfo._probNum;i++)
                 {
                     vector<int> esi_include;
@@ -2249,6 +2349,8 @@ namespace SMRDATA
                     int probbp= eqtlinfo._epi_bp[i];
                     uint32_t uperBounder=probbp+cis;
                     uint32_t lowerBounder=((probbp-cis>0)?(probbp-cis):0);
+                    uint32_t cisNum=0;
+                    uint32_t otherSlctNum=0;
                     for(int j=0;j<eqtlinfo._snpNum;j++)
                     {
                         double zsxz=eqtlinfo._bxz[i][j]/eqtlinfo._sexz[i][j];
@@ -2256,35 +2358,58 @@ namespace SMRDATA
                         if(eqtlinfo._esi_chr[j] == probchr && eqtlinfo._esi_bp[j]<=uperBounder && eqtlinfo._esi_bp[j]>=lowerBounder && abs(eqtlinfo._sexz[i][j]+9)>1e-6)
                         {
                             esi_include.push_back(j);
+                            cisNum++;
                         }
                         else if(pxz<transThres)
                         {
+                            uint32_t transNum=0;
+                            string logstr="";
                             esi_include.push_back(j);
                             long transbp=eqtlinfo._esi_bp[j];
-                           
+                            long translowerBounder=((transbp-cis>0)?(transbp-cis):0);
+                            long transuperBounder=transbp+cis;
                             //if esi is not sorted.                            
                            // for(int k=0;k<eqtlinfo._snpNum;k++)
                            //     if(k!=j && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[k]  && abs(transbp-eqtlinfo._esi_bp[k])<=cis)   esi_include.push_back(k);
                             
                             // if esi is sorted
-                           
                             int startptr=j-1;
                             while(startptr>=0 && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && abs(transbp-eqtlinfo._esi_bp[startptr])<=cis)
                             {
+                                translowerBounder=eqtlinfo._esi_bp[startptr];
                                 esi_include.push_back(startptr);
                                 startptr--;
+                                transNum++;
                                 
                             }
                             startptr=j+1;
-                            while(startptr<=eqtlinfo._snpNum && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && abs(transbp-eqtlinfo._esi_bp[startptr])<=cis)
+                            while(startptr<eqtlinfo._snpNum && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && abs(transbp-eqtlinfo._esi_bp[startptr])<=cis)
                             {
+                                transuperBounder=eqtlinfo._esi_bp[startptr];
                                 esi_include.push_back(startptr);
                                 startptr++;
+                                transNum++;
+                                
                                 //j=startptr-1; wrong!!! is there are trans upper, then the trans region should extend.
                             }
-                           
+                            // for log
+                            if( eqtlinfo._epi_prbID[i] != pretransPrbId )
+                            {
+                                logstr=eqtlinfo._epi_prbID[i]+"\t"+itos(eqtlinfo._epi_chr[i])+"\ttrans"+"\t"+ltos(translowerBounder)+"\t"+ltos(transuperBounder)+"\t"+itos(transNum)+"\n";
+                                fputs(logstr.c_str(),logfile);
+                                pretransPrbId=eqtlinfo._epi_prbID[i];
+                            }                           
                         }
-                        else if(pxz<restThres) esi_include.push_back(j);
+                        else if(pxz<restThres)
+                        {
+                            esi_include.push_back(j);
+                            otherSlctNum++;
+                        }
+                    }
+                    if(cisNum)
+                    {
+                        string logstr=eqtlinfo._epi_prbID[i]+"\t"+itos(eqtlinfo._epi_chr[i])+"\tcis"+"\t"+ltos(lowerBounder)+"\t"+ltos(uperBounder)+"\t"+itos(cisNum)+"\n";
+                        fputs(logstr.c_str(),logfile);
                     }
                     sort( esi_include.begin(), esi_include.end() );
                     vector<int> ::iterator it=unique(esi_include.begin(),esi_include.end());
@@ -2347,10 +2472,10 @@ namespace SMRDATA
                 besd = fopen (esdfile.c_str(), "wb");
                 fwrite (buffer,sizeof(char), bufsize, besd);
                 fclose(besd);
-                
+                if(logfile) fclose(logfile);
                 free(buffer);
                 cout<<"Beta values and SE values for "<<eqtlinfo._include.size()<<" Probes and "<<eqtlinfo._snpNum<<" SNPs have been saved in the binary file [" + esdfile + "]." <<endl;
-                
+                cout<<"Log information has been saved in the file [" + fname + "]." <<endl;
             }
             else
             {
@@ -2478,7 +2603,7 @@ namespace SMRDATA
                     }
                     else
                     {
-                        uint64_t colSize=sizeof(uint32_t)*(eqtlinfo._cols.size());
+                        uint64_t colSize=sizeof(uint32_t)*((eqtlinfo._include.size()<<1)+1);
                         uint64_t rowSize=sizeof(uint32_t)*eqtlinfo._valNum;
                         uint64_t valSize=sizeof(float)*eqtlinfo._valNum;
                         uint64_t valNum=eqtlinfo._valNum;
@@ -2491,7 +2616,12 @@ namespace SMRDATA
                         char* wptr=buffer+sizeof(float);
                         memcpy(wptr,&valNum,sizeof(uint64_t));
                         wptr+=sizeof(uint64_t);
-                        memcpy(wptr,&eqtlinfo._cols[0],colSize);
+                        uint32_t* uptr=(uint32_t*)wptr; *uptr++=0;
+                        for(int i=0;i<eqtlinfo._include.size();i++)
+                        {
+                            *uptr++=eqtlinfo._cols[(eqtlinfo._include[i]<<1)+1];
+                            *uptr++=eqtlinfo._cols[eqtlinfo._include[i]+1<<1];
+                        }
                         wptr+=colSize;
                         memcpy(wptr,&eqtlinfo._rowid[0],rowSize);
                         wptr+=rowSize;
@@ -2729,7 +2859,7 @@ namespace SMRDATA
                     uint64_t rowSize=sizeof(uint32_t)*rowid.size();
                     uint64_t valNum=val.size();
                     uint64_t valSize=sizeof(float)*valNum;
-                    uint64_t bufsize=1+sizeof(uint64_t)+colSize+rowSize+valSize;
+                    uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
                     
                     char* buffer=(char*)malloc (sizeof(char)*bufsize);
                     memset(buffer,0,sizeof(char)*bufsize);

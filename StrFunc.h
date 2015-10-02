@@ -25,6 +25,7 @@ namespace StrFunc
 	int split_string(const string &str, vector<string> &vec_str, string separator=" ,\t;\n");
 	string first_string(const string &str, const char separator);
 	string last_string(const string &str, const char separator);
+    void to_upper(char* str, int len);
 	void to_upper(string &str);
 	void to_lower(string &str);
 	string get_sub_str(const string & rst, int pos);

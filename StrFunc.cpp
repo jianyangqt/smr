@@ -58,7 +58,13 @@ string StrFunc::last_string(const string &str, const char separator)
 	if(pos!=-1) return string(str.begin()+pos+1, str.end());
 	return string("");
 }
-
+void StrFunc::to_upper(char* str, int len)
+{
+    int i=0;
+    for(i=0; i<len; i++){
+        if(str[i]>='a' && str[i]<='z') str[i]+='A'-'a';
+    }
+}
 void StrFunc::to_upper(string &str)
 {
 	int i=0;

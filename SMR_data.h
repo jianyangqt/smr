@@ -12,12 +12,20 @@
 #include <stdlib.h>
 #include "CommFunc.h"
 #include "StatFunc.h"
+#include "StrFunc.h"
 #include <iostream>
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
 #include <zlib.h>
 #include <bitset>
+#ifdef WINDOWS
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#endif
 
 
 //#include <omp.h>
@@ -27,6 +35,7 @@ typedef VectorXf eigenVector;
 
 using namespace std;
 using namespace StatFunc;
+using namespace StrFunc;
 using namespace CommFunc;
 
 namespace SMRDATA

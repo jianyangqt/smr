@@ -68,7 +68,7 @@ void option(int option_num, char* option_str[])
     bool make_besd_flag=false;
     bool make_esd_flag=false;
     char* problstName=NULL;
-    bool smr_flag=false;
+    bool smr_flag=true;
 	
     char* eFileName=NULL;
     bool eremlFlag=false;

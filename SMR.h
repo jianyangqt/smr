@@ -35,6 +35,7 @@ static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
             }
             cout<<flags[i]<<",";
         }
+        cout<<endl;
         exit (EXIT_FAILURE);
     }
     for(int i=0;i<option_num;i++)
