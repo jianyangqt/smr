@@ -123,9 +123,23 @@ void CommFunc::FileExist(string filename)
     ifstream ifile(filename.c_str());
     if(!ifile) throw("Error: can not open the file ["+filename+"] to read.");
 }
-
-
 int CommFunc::max_abs_id(vector<double> &zsxz)
+{
+    int id=0;
+    double tmpVal, cmpVal=abs(zsxz[0]);
+    for( int i=1;i<zsxz.size();i++)
+    {
+        tmpVal=abs(zsxz[i]);
+        if( cmpVal-tmpVal < 1e-6)
+        {
+            cmpVal=tmpVal;
+            id=i;
+        }
+    }
+    return(id);
+}
+
+int CommFunc::max_abs_id(VectorXd &zsxz)
 {
     int id=0;
     double tmpVal, cmpVal=abs(zsxz[0]);

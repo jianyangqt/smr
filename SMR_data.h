@@ -19,16 +19,16 @@
 #include <errno.h>
 #include <zlib.h>
 #include <bitset>
-#ifdef WINDOWS
+#ifdef _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd
 #else
 #include <unistd.h>
 #define GetCurrentDir getcwd
 #endif
-
-
-//#include <omp.h>
+#ifndef __APPLE__
+#include <omp.h>
+#endif
 
 typedef MatrixXf eigenMatrix;
 typedef VectorXf eigenVector;
@@ -97,6 +97,7 @@ namespace SMRDATA
         double* seyz;
         double* pvalue;
         uint32_t* splSize;
+        vector<uint32_t> _include;
     } gwasData;
     
     typedef struct{
@@ -143,11 +144,11 @@ namespace SMRDATA
     bool has_prefix(const std::string &str, const std::string &prefix);
     bool has_suffix(const std::string &str, const std::string &suffix);
     void ld_calcualte(double* ref_ld,float* ref_snpData,int rsize,int csize);
-    void get_square_idxes(vector<int> &sn_ids,vector<double> &zsxz,double threshold);
-    void est_cov_bxy(double* covbxy, vector<double> zsxz1,vector<double> bxy1,vector<double> seyz1,vector<double> bxz1,double* ref_ld1);
-    double bxy_hetero3(vector<double> byz1, vector<double> bxz1,vector<double> seyz1,vector<double> sexz1,vector<double> zsxz1,double* ref_ld1, long* nsnp);
+    void get_square_idxes(vector<int> &sn_ids,VectorXd &zsxz,double threshold);
+	void est_cov_bxy(MatrixXd &covbxy, VectorXd &_zsxz, VectorXf &_bxy, VectorXd &_seyz, VectorXd &_bxz, MatrixXd &_LD_heidi);
+	float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
     
-    bool make_XMat(bInfo* bdata, MatrixXf &X);
+    bool make_XMat(bInfo* bdata, MatrixXd &X);
     void make_XMat_SNPs(bInfo* bdata, vector< vector<float> > &X, bool miss_with_mu);
     void LD_Blocks(bInfo* bdata, double wind_size, double alpha, bool IncldQ,vector<string> &_ld_target_snp);
     void makex_eigenVector(bInfo* bdata,int j, eigenVector &x, bool resize, bool minus_2p);
@@ -181,7 +182,7 @@ namespace SMRDATA
   
     int file_read_check(ifstream* in_file, const char* filename);
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr);
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag);
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis, float transThres, float restThres);
     
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);

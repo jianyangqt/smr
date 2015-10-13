@@ -12,7 +12,12 @@
 #define _COMMFUNC_H
 
 #define MAX_BUF_SIZE 0x40000000
+#ifdef _WIN32
+#define MAX_LINE_SIZE 655360
+#else
 #define MAX_LINE_SIZE 0x00753000
+#endif
+
 #define MAX_SNP_NAME 64
 #define DENSE_FILE_TYPE_1 0  // float + floats
 #define SPARSE_FILE_TYPE_1 1 // float + float + floats + floats +floats
@@ -27,10 +32,16 @@
 #include <fstream>
 #include "StrFunc.h"
 #include <string.h>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include <unsupported/Eigen/SparseExtra>
+#include <Eigen/Eigenvalues>
 
 typedef unsigned long long         uint64_t;
 typedef unsigned int         uint32_t;
 
+
+using namespace Eigen;
 using namespace std;
 
 namespace CommFunc
@@ -50,6 +61,7 @@ namespace CommFunc
 	const double Sign(const double &a, const double &b);
 	int rand_seed(); //positive value, return random seed using the system time
     void FileExist(string filename);  
+    int max_abs_id(VectorXd &zsxz);
     int max_abs_id(vector<double> &zsxz);
     int fopen_checked(FILE** in_file, const char* filename, const char* flag);
     void getRank(vector<int> &a, vector<int> &b);
