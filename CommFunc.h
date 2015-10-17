@@ -12,7 +12,7 @@
 #define _COMMFUNC_H
 
 #define MAX_BUF_SIZE 0x40000000
-#ifdef _WIN32
+#ifdef _WIN64
 #define MAX_LINE_SIZE 655360
 #else
 #define MAX_LINE_SIZE 0x00753000

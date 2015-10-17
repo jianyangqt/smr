@@ -19,7 +19,7 @@
 #include <errno.h>
 #include <zlib.h>
 #include <bitset>
-#ifdef _WIN32
+#ifdef _WIN64
 #include <direct.h>
 #define GetCurrentDir _getcwd
 #else
@@ -108,7 +108,9 @@ namespace SMRDATA
         vector<char> _esi_allele1;
         vector<char> _esi_allele2;
 		vector<int> _esi_include; // initialized in the readesi
-
+        map<string,int> _snp_name_map;
+       
+        
         vector<uint32_t> _epi_chr;
         vector<string> _epi_prbID;
         vector<uint32_t> _epi_gd;
@@ -186,5 +188,7 @@ namespace SMRDATA
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis, float transThres, float restThres);
     
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
+    
+    void combineCis(char* eqtlsmaslstName, char* outFileName);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

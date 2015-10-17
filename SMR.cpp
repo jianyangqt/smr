@@ -89,6 +89,9 @@ void option(int option_num, char* option_str[])
     
     int thread_num = 1;
     
+    bool combineFlg = false;
+    char* eqtlsmaslstName = NULL;
+    
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -272,9 +275,21 @@ void option(int option_num, char* option_str[])
             thread_num=atoi(option_str[++i]);
             printf("--thread-num %d\n", thread_num);
         }
+        else if (0 == strcmp(option_str[i], "--combine-cis")){
+            combineFlg = true;
+            printf("--combine-cis \n");
+        }
+        else if (0 == strcmp(option_str[i], "--beqtl-summaries")){
+            eqtlsmaslstName = option_str[++i];
+            FLAG_VALID_CK("--beqtl-summaries", eqtlsmaslstName);
+            printf("--beqtl-summaries %s\n", eqtlsmaslstName);
+        }
     }
     
 #ifndef __APPLE__
+    stringstream ss;
+    ss << thread_num;
+    setenv("OMP_NUM_THREADS", ss.str().c_str(), 1);
     omp_set_num_threads(thread_num);
 #endif
     
@@ -283,8 +298,9 @@ void option(int option_num, char* option_str[])
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag || make_esd_flag || cis_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis, transThres, restThres);
-    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag);
+    else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
+    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag);
     
    }

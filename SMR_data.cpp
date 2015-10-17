@@ -236,9 +236,18 @@ namespace SMRDATA
 		eqtlinfo->_esi_allele2.swap(allele2_buf);
         
         eqtlinfo->_esi_include.clear();
-        for (int i = 0; i < eqtlinfo->_snpNum; i++) eqtlinfo->_esi_include.push_back(i);
-
-		
+        eqtlinfo->_snp_name_map.clear();
+        long size=0;
+        for (int i = 0; i < eqtlinfo->_snpNum; i++)
+        {
+            eqtlinfo->_esi_include.push_back(i);
+            /*
+             // disabled currently
+            eqtlinfo->_snp_name_map.insert(pair<string, int>(eqtlinfo->_esi_rs[i], i));
+            if (size == eqtlinfo->_snp_name_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[i] + "\".");
+            size = eqtlinfo->_snp_name_map.size();
+             */
+        }
 	}
 
     void read_bimfile(bInfo* bdata,string bimfile) {
@@ -426,8 +435,20 @@ namespace SMRDATA
        cout <<"GWAS summary statistics of "<<gdata->snpNum << " SNPs to be included from [" + string(gwasFileName) + "]." << endl;
         gwasFile.close();
     }
-    
-    
+	/*
+    void update_include_map(eqtlInfo* eqtlinfo)
+    {
+        eqtlinfo->_incld_id_map.clear();
+        long size=0;
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            eqtlinfo->_incld_id_map.insert(pair<int,int>(eqtlinfo->_esi_include[i],i));
+            if (size == eqtlinfo->_incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
+            size = eqtlinfo->_incld_id_map.size();
+        }
+        
+    }
+	*/
     void read_esifile(eqtlInfo* eqtlinfo, string esifile)
     {
         ifstream esi(esifile.c_str());
@@ -460,7 +481,8 @@ namespace SMRDATA
         eqtlinfo->_esi_allele2.resize(lineNum);
 		eqtlinfo->_esi_include.resize(lineNum);
         esi.clear(ios::goodbit);
-        esi.seekg (0, ios::beg);        
+        esi.seekg (0, ios::beg);
+        long size=0;
         for(int i=0;i<lineNum;i++)
         {
             string tmpStr;
@@ -470,6 +492,12 @@ namespace SMRDATA
             eqtlinfo->_esi_chr[i]=atoi(tmpStr.c_str());
             iss>>tmpStr;
             eqtlinfo->_esi_rs[i]=tmpStr;
+            /*
+             //disabled currently
+            eqtlinfo->_snp_name_map.insert(pair<string, int>(tmpStr, i));
+            if (size == eqtlinfo->_snp_name_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + tmpStr + "\".");
+            size = eqtlinfo->_snp_name_map.size();
+            */
             iss>>tmpStr;
             eqtlinfo->_esi_gd[i]=atoi(tmpStr.c_str());
             iss>>tmpStr;
@@ -481,8 +509,8 @@ namespace SMRDATA
             StrFunc::to_upper(tmpStr);
             eqtlinfo->_esi_allele2[i]=tmpStr.c_str()[0];
 			eqtlinfo->_esi_include[i] = i;
-        }
-        
+            
+        }       
         esi.close();
        
     }
@@ -596,6 +624,16 @@ namespace SMRDATA
                 row_ptr=ptr+colNum;
                 float* val_ptr;
                 val_ptr=(float*)(row_ptr+valNum);
+                
+                map<int, int > _incld_id_map;
+                long size = 0;
+                for (int i = 0; i<eqtlinfo->_esi_include.size(); i++)
+                {
+                    _incld_id_map.insert(pair<int, int>(eqtlinfo->_esi_include[i], i));
+                    if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
+                    size = _incld_id_map.size();
+                }
+
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
                     uint32_t pid=eqtlinfo->_include[i];
@@ -607,22 +645,20 @@ namespace SMRDATA
                     {
                         uint32_t rid=*(row_ptr+pos+j);
                         
-                        long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin();
-                        if(sid<eqtlinfo->_esi_include.size())
+                        map<int, int>::iterator iter;
+                        iter=_incld_id_map.find(rid);
+                        if(iter!=_incld_id_map.end())
                         {
+                            int sid=iter->second;
+                        
+                       // long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin(); //slow
+                      //  if(sid<eqtlinfo->_esi_include.size())
+                      //  {
                             eqtlinfo->_rowid.push_back(sid);
                             eqtlinfo->_val.push_back(*(val_ptr+pos+j));
                             real_num++;
                         }
-                        
-                        /*
-                         if(find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)!=eqtlinfo->_esi_include.end()) //can be optimized
-                         {
-                         eqtlinfo->_rowid.push_back(rid);
-                         eqtlinfo->_val.push_back(*(val_ptr+pos+j));
-                         real_num++;
-                         }
-                         */
+                       
                     }
                     eqtlinfo->_cols[(i<<1)+1]=(real_num>>1)+eqtlinfo->_cols[i<<1];
                     eqtlinfo->_cols[i+1<<1]=real_num+eqtlinfo->_cols[i<<1];
@@ -830,8 +866,8 @@ namespace SMRDATA
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
             besd.read(buf, 4);
-            //valNum=(uint32_t)*(float *)buf; // int to float then float to int back can lose pricision. hence this clause and bellow are unbelievable
-            // if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            valNum=(uint32_t)*(float *)buf; // int to float then float to int back can lose pricision. hence this clause and bellow are unbelievable
+             if(lSize-((3+colNum+(valNum<<1))<<2) != 0) {fputs ("wrong element number",stderr); exit (3);}
             
             valNum=((lSize>>2)-3-colNum)>>1;
             
@@ -843,13 +879,23 @@ namespace SMRDATA
             ptr=(float *)buffer;
             
             if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum)
-            {
+            {                
                 eqtlinfo->_cols.resize((eqtlinfo->_include.size()<<1)+1);
                 eqtlinfo->_cols[0]=(uint32_t)*ptr;
                 float* row_ptr;
                 row_ptr=ptr+colNum+1;
                 float* val_ptr;
                 val_ptr=row_ptr+valNum;
+
+				map<int, int > _incld_id_map;
+				long size = 0;
+				for (int i = 0; i<eqtlinfo->_esi_include.size(); i++)
+				{
+					_incld_id_map.insert(pair<int, int>(eqtlinfo->_esi_include[i], i));
+					if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
+					size = _incld_id_map.size();
+				}
+
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
                     unsigned long pid=eqtlinfo->_include[i];
@@ -860,23 +906,16 @@ namespace SMRDATA
                     for(int j=0;j<num<<1;j++)
                     {
                         uint32_t rid=(uint32_t)*(row_ptr+pos+j);
-                        
-                        long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin();
-                        if(sid<eqtlinfo->_esi_include.size())
+						 
+                        map<int, int>::iterator iter;
+                        iter=_incld_id_map.find(rid);
+                        if(iter!=_incld_id_map.end())
                         {
+                            int sid=iter->second;							
                             eqtlinfo->_rowid.push_back(sid);
                             eqtlinfo->_val.push_back(*(val_ptr+pos+j));
                             real_num++;
                         }
-                        
-                        /*
-                         if(find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)!=eqtlinfo->_esi_include.end()) //can be optimized
-                         {
-                         eqtlinfo->_rowid.push_back(rid);
-                         eqtlinfo->_val.push_back(*(val_ptr+pos+j));
-                         real_num++;
-                         }
-                         */
                     }
                     eqtlinfo->_cols[(i<<1)+1]=(real_num>>1)+eqtlinfo->_cols[i<<1];
                     eqtlinfo->_cols[i+1<<1]=real_num+eqtlinfo->_cols[i<<1];
@@ -1060,6 +1099,7 @@ namespace SMRDATA
     
     void get_square_idxes(vector<int> &sn_ids,VectorXd &zsxz,double threshold)
     {
+        
         for(int i=0;i<zsxz.size();i++)
         {
            if(zsxz[i]*zsxz[i]-threshold>1e-6) sn_ids.push_back(i);
@@ -1067,7 +1107,7 @@ namespace SMRDATA
     }
 	void get_square_ldpruning_idxes(vector<int> &sn_ids, VectorXd &zsxz, double threshold, MatrixXd &LD, long maxid, double ld_top)
     {
-        
+       
         for(int i=0;i<zsxz.size();i++)
         {
             if(i!= maxid)
@@ -1668,7 +1708,7 @@ namespace SMRDATA
 		read_msglist(snplstName, snplist, msg);
 		eqtlinfo->_esi_include.clear();
 		StrFunc::match_only(snplist, eqtlinfo->_esi_rs, eqtlinfo->_esi_include);
-		stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());
+		stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());        
 		cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from [" + snplstName + "]." << endl;
 	}
     
@@ -1684,7 +1724,7 @@ namespace SMRDATA
             mapstr[i]=eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]];
         eqtlinfo->_esi_include.clear();
         StrFunc::set_complement(snplist, mapstr, eqtlinfo->_esi_include); //sorted
-        //stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());
+        stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());       
         cout << pre_num-eqtlinfo->_esi_include.size() << " SNPs are excluded from [" + snplstName + "] and there are " << eqtlinfo->_esi_include.size() << " SNPs remaining." << endl;
     }
     
@@ -1765,7 +1805,7 @@ namespace SMRDATA
         }
         cout<<eqtlinfo->_include.size()<<" probes to be included."<<endl;
     }
-
+   
     void allele_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata)
     {
         // get the common SNPs
@@ -1879,9 +1919,6 @@ namespace SMRDATA
         for(int i=0; i<bdata->_include.size(); i++) id_map_buf.erase(bdata->_snp_name[bdata->_include[i]]);
         map<string, int>::iterator iter;
         for(iter=id_map_buf.begin(); iter!=id_map_buf.end(); iter++) bdata->_snp_name_map.erase(iter->first);
-        
-
-
     }
     void allele_check(gwasData* gdata, eqtlInfo* esdata)
     {
@@ -2021,10 +2058,9 @@ namespace SMRDATA
             tmpX[i]=X.col(i).sum();
             tmpX2[i]=X.col(i).dot(X.col(i));
         }
-        LD=X.transpose()*X;
+        LD.noalias()=X.transpose()*X;
         VectorXd tmpXX=(sqrt(tmpX2.array()*n-tmpX.array()*tmpX.array())).matrix();
-        LD =
-        (LD*n-tmpX*tmpX.transpose()).array()/ (tmpXX*tmpXX.transpose()).array();
+        LD = (LD*n-tmpX*tmpX.transpose()).array()/ (tmpXX*tmpXX.transpose()).array();
         
     }
     void update_geIndx(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata)
@@ -2042,6 +2078,198 @@ namespace SMRDATA
         esdata->_esi_include = tmpIdx2;
     }
 
+    void read_smaslist(vector<string> &smasNames, string eqtlsmaslstName)
+    {
+        ifstream smas(eqtlsmaslstName.c_str());
+        if (!smas) throw ("Error: can not open the file [" + eqtlsmaslstName + "] to read.");
+        cout << "Reading eQTL summary file names from [" + eqtlsmaslstName + "]." << endl;
+        char buf[MAX_LINE_SIZE];
+        while (smas.getline(buf, MAX_LINE_SIZE))
+        {
+            string tmpStr;
+            istringstream iss(buf);
+            iss >> tmpStr;
+            smasNames.push_back(tmpStr);
+        }
+        cout << smasNames.size()<<" eQTL summary file names are included from [" + eqtlsmaslstName + "]." << endl;
+        smas.close();
+    }
+    void combine_esi(eqtlInfo* eqtlinfo, vector<string> &smasNames)
+    {
+        eqtlinfo->_esi_chr.clear();
+        eqtlinfo->_esi_rs.clear();
+        eqtlinfo->_esi_gd.clear();
+        eqtlinfo->_esi_bp.clear();
+        eqtlinfo->_esi_allele1.clear();
+        eqtlinfo->_esi_allele2.clear();
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_snp_name_map.clear();
+        long size = 0, counter = 0;
+        
+        for (int i = 0; i < smasNames.size(); i++)
+        {
+            string esifile = smasNames[i]+".esi";
+            ifstream esi(esifile.c_str());
+            if (!esi) throw ("Error: can not open the file [" + esifile + "] to read.");
+            cout << "Reading eQTL SNP information from [" + esifile + "]." << endl;
+            
+            char buf[MAX_LINE_SIZE];
+            int lineNum(0);
+            while (!esi.eof())
+            {
+                esi.getline(buf, MAX_LINE_SIZE);
+                lineNum++;
+            }
+            if (buf[0] == '\0') lineNum--;
+            cout << lineNum << " SNPs to be included from [" + esifile + "]." << endl;
+            
+            esi.clear(ios::goodbit);
+            esi.seekg(0, ios::beg);
+            for (int j = 0; j<lineNum; j++)
+            {
+                string tmpStr;
+                esi.getline(buf, MAX_LINE_SIZE);
+                istringstream iss(buf);
+                iss >> tmpStr;
+                int chrtmp = atoi(tmpStr.c_str());
+                iss >> tmpStr;
+                
+                eqtlinfo->_snp_name_map.insert(pair<string, int>(tmpStr,counter));
+                if (size < eqtlinfo->_snp_name_map.size())
+                {
+                    size = eqtlinfo->_snp_name_map.size();
+                    eqtlinfo->_esi_chr.push_back(chrtmp);
+                    eqtlinfo->_esi_rs.push_back(tmpStr);
+                    iss >> tmpStr;
+                    eqtlinfo->_esi_gd.push_back(atoi(tmpStr.c_str()));
+                    iss >> tmpStr;
+                    eqtlinfo->_esi_bp.push_back(atoi(tmpStr.c_str()));
+                    iss >> tmpStr;
+                    StrFunc::to_upper(tmpStr);
+                    eqtlinfo->_esi_allele1.push_back(tmpStr.c_str()[0]);
+                    iss >> tmpStr;
+                    StrFunc::to_upper(tmpStr);
+                    eqtlinfo->_esi_allele2.push_back(tmpStr.c_str()[0]);
+                    eqtlinfo->_esi_include.push_back(counter++);
+                }
+            }
+            esi.close();
+        }
+        eqtlinfo->_snpNum =eqtlinfo->_esi_include.size();
+        cout <<"Total " <<eqtlinfo->_snpNum << " SNPs to be included! " << endl;
+    }
+    
+    void combine_epi_esd(eqtlInfo* eqtlinfo, vector<string> &smasNames, string outFileName)
+    {
+        eqtlinfo->_cols.push_back(0);
+        vector<uint32_t> duplicatedid;
+        for (int i = 0; i < smasNames.size(); i++)
+        {
+            string esifile = smasNames[i] + ".esi";
+            string epifile = smasNames[i] + ".epi";
+            string esdfile = smasNames[i] + ".besd";
+            eqtlInfo tmp_info;
+            read_esifile(&tmp_info, esifile);
+            read_epifile(&tmp_info, epifile);
+            read_besdfile(&tmp_info, esdfile);
+            for (int j = 0; j < tmp_info._probNum; j++)
+            {
+                duplicatedid.clear();
+                uint32_t beta_start = tmp_info._cols[j << 1];
+                uint32_t se_start = tmp_info._cols[1 + (j << 1)];
+                int numsnps = se_start - beta_start;
+                for (int k = 0; k < numsnps; k++)
+                {
+                    uint32_t ge_rowid = tmp_info._rowid[beta_start + k];
+                    string snpname = tmp_info._esi_rs[ge_rowid];
+                    map<string, int>::iterator iter;
+                    iter = eqtlinfo->_snp_name_map.find(snpname);
+                    if (iter == eqtlinfo->_snp_name_map.end()) throw("Unknown error!");
+                    uint32_t sid = iter->second;
+                    eqtlinfo->_rowid.push_back(sid);
+                    duplicatedid.push_back(sid);
+                    eqtlinfo->_val.push_back(tmp_info._val[beta_start + k]);
+                }
+                for (int k = 0; k < numsnps; k++)
+                {
+                    uint32_t ge_rowid = tmp_info._rowid[se_start + k];
+                    uint32_t sid = duplicatedid[k];
+                    eqtlinfo->_rowid.push_back(sid);
+                    eqtlinfo->_val.push_back(tmp_info._val[se_start + k]);
+                }
+                uint32_t lastcolnum = eqtlinfo->_cols[eqtlinfo->_cols.size() - 1] ;
+                eqtlinfo->_cols.push_back(lastcolnum + numsnps);
+                eqtlinfo->_cols.push_back(lastcolnum + (numsnps<<1));
+                
+                eqtlinfo->_epi_bp.push_back(tmp_info._epi_bp[j]);
+                eqtlinfo->_epi_chr.push_back(tmp_info._epi_chr[j]);
+                eqtlinfo->_epi_gd.push_back(tmp_info._epi_gd[j]);
+                eqtlinfo->_epi_gene.push_back(tmp_info._epi_gene[j]);
+                eqtlinfo->_epi_orien.push_back(tmp_info._epi_orien[j]);
+                eqtlinfo->_epi_prbID.push_back(tmp_info._epi_prbID[j]);
+            }
+        }
+        eqtlinfo->_valNum = eqtlinfo->_val.size();
+        eqtlinfo->_probNum = eqtlinfo->_epi_prbID.size();
+        for (int i = 0; i < eqtlinfo->_probNum; i++) eqtlinfo->_include.push_back(i);
+        cout << "Total "<<eqtlinfo->_probNum << " probes and "<< eqtlinfo->_snpNum << " SNPs have been combined." << endl;
+        
+        filter_probe_null(eqtlinfo); // at the same time, reset the vector _include
+        cout << "\nsaving eQTL data..." << endl;
+        string esdfile = outFileName + ".esi";
+        ofstream smr(esdfile.c_str());
+        if (!smr) throw ("Error: can not open the esi file " + esdfile + " to save!");
+        for (int i = 0; i <eqtlinfo->_snpNum; i++) {
+            smr << eqtlinfo->_esi_chr[i] << '\t' << eqtlinfo->_esi_rs[i] << '\t' << eqtlinfo->_esi_gd[i] << '\t' << eqtlinfo->_esi_bp[i] << '\t' << eqtlinfo->_esi_allele1[i] << '\t' << eqtlinfo->_esi_allele2[i] << '\n';
+        }
+        smr.close();
+        cout << eqtlinfo->_snpNum << " SNPs have been saved in the file [" + esdfile + "]." << endl;
+        
+        esdfile = string(outFileName) + ".epi";
+        smr.open(esdfile.c_str());
+        if (!smr) throw ("Error: can not open the epi file " + esdfile + " to save!");
+        for (int i = 0; i <eqtlinfo->_include.size(); i++) {
+            smr << eqtlinfo->_epi_chr[eqtlinfo->_include[i]] << '\t' << eqtlinfo->_epi_prbID[eqtlinfo->_include[i]] << '\t' << eqtlinfo->_epi_gd[eqtlinfo->_include[i]] << '\t' << eqtlinfo->_epi_bp[eqtlinfo->_include[i]] << '\t' << eqtlinfo->_epi_gene[eqtlinfo->_include[i]] << '\t' << eqtlinfo->_epi_orien[eqtlinfo->_include[i]] << '\n';
+        }
+        smr.close();
+        cout << eqtlinfo->_probNum << " probes have been saved in the file [" + esdfile + "]." << endl;
+        
+        esdfile = string(outFileName) + ".besd";
+        FILE * smrbesd;
+        smrbesd = fopen(esdfile.c_str(), "wb");
+        uint64_t colSize = sizeof(uint32_t)*((eqtlinfo->_include.size() << 1) + 1);
+        uint64_t rowSize = sizeof(uint32_t)*eqtlinfo->_valNum;
+        uint64_t valSize = sizeof(float)*eqtlinfo->_valNum;
+        uint64_t valNum = eqtlinfo->_valNum;
+        uint64_t bufsize = sizeof(float) + sizeof(uint64_t) + colSize + rowSize + valSize;
+        
+        char* buffer = (char*)malloc(sizeof(char)*bufsize);
+        memset(buffer, 0, sizeof(char)*bufsize);
+        float ftype = SPARSE_FILE_TYPE_2;
+        memcpy(buffer, &ftype, sizeof(float));
+        char* wptr = buffer + sizeof(float);
+        memcpy(wptr, &valNum, sizeof(uint64_t));
+        wptr += sizeof(uint64_t);
+        uint32_t* uptr = (uint32_t*)wptr; *uptr++ = 0;
+        for (int i = 0; i<eqtlinfo->_include.size(); i++)
+        {
+            *uptr++ = eqtlinfo->_cols[(eqtlinfo->_include[i] << 1) + 1];
+            *uptr++ = eqtlinfo->_cols[eqtlinfo->_include[i] + 1 << 1];
+        }
+        wptr += colSize;
+        memcpy(wptr, &eqtlinfo->_rowid[0], rowSize);
+        wptr += rowSize;
+        memcpy(wptr, &eqtlinfo->_val[0], valSize);
+        fwrite(buffer, sizeof(char), bufsize, smrbesd);
+        free(buffer);
+        fclose(smrbesd);
+        
+        cout << "Beta values and SE values for " << eqtlinfo->_include.size() << " Probes and " << eqtlinfo->_snpNum << " SNPs have been saved in the binary file [" + esdfile + "]." << endl;
+        
+    }
+
+    
+    
     void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag)
     {
         bInfo bdata;
@@ -2079,8 +2307,8 @@ namespace SMRDATA
         }else
         {
              allele_check(&gdata, &esdata);
-        }
-        
+        }        
+       
         update_gwas(&gdata);
         cout<<"Reading eQTL summary data..."<<endl;
         read_epifile(&esdata, string(eqtlFileName)+".epi");
@@ -2410,11 +2638,11 @@ namespace SMRDATA
                 ga1 = gdata.allele_1[cmmnId[i]];
                 ga2 = gdata.allele_2[cmmnId[i]];
                 if (a1 != '0' && a2 != '0' && ga1 != '0' && ga2 != '0' )
-                    if ((a1 == ga1 && a2 == ga2) || (a1 == ga2 && a2 == ga1) || (a1 != ga1 && a1 != ga2 && a2 != ga2 && a2 != ga1))
+                    if ((a1 == ga1 && a2 == ga2) || (a1 == ga2 && a2 == ga1) )
                     {
                         slctSNPs.push_back(cmmnSNPs[i]);
-                        A1.push_back(a1);
-                        A2.push_back(a2);
+                        A1.push_back(ga1);
+                        A2.push_back(ga2);
                     }
             }
             if(slctSNPs.empty()) throw("Error: no common SNPs between PLink data and GWAS data.");
@@ -2508,6 +2736,7 @@ namespace SMRDATA
                             esi_include.push_back(j);
                             cisNum++;
                         }
+                       
                         else if(pxz<transThres)
                         {
                             uint32_t transNum=0;
@@ -2553,6 +2782,7 @@ namespace SMRDATA
                             esi_include.push_back(j);
                             otherSlctNum++;
                         }
+                        
                     }
                     if(cisNum)
                     {
@@ -2834,6 +3064,13 @@ namespace SMRDATA
             }
             else
             {
+                map<int, int > _incld_id_map;
+                for (int i = 0; i<slctId.size(); i++)
+                {
+                    _incld_id_map.insert(pair<int, int>(slctId[i], i));
+                    
+                }
+
                 for (int i = 0; i < eqtlinfo._probNum; i++)
                 {
                     uint32_t pos1=eqtlinfo._cols[(i<<1)+1];
@@ -2844,7 +3081,9 @@ namespace SMRDATA
                         for(int j=0;j<num;j++)
                         {
                             uint32_t rid=eqtlinfo._rowid[pos+j];
-                            if(find(slctId.begin(),slctId.end(),rid)!=slctId.end())
+                            map<int, int>::iterator iter;
+                            iter=_incld_id_map.find(rid);
+                            if(iter!=_incld_id_map.end())
                             {
                                 include.push_back(i);
                                 break;
@@ -2896,6 +3135,12 @@ namespace SMRDATA
                 {
                     vector<int> rk;
                     getRank(slctId, rk);
+                    map<int, int > _incld_id_map;
+                    for (int i = 0; i<slctId.size(); i++)
+                    {
+                        _incld_id_map.insert(pair<int, int>(slctId[i], i));
+                        
+                    }
                     eqtlinfo._bxz.resize(include.size());
                     eqtlinfo._sexz.resize(include.size());
                     for( uint32_t i=0;i<include.size();i++)
@@ -2918,9 +3163,11 @@ namespace SMRDATA
                         for(int j=0;j<num;j++)
                         {
                             uint32_t rid=eqtlinfo._rowid[pos+j];
-                            long sid=find(slctId.begin(),slctId.end(),rid)-slctId.begin();
-                            if(sid<slctId.size())
+                            map<int, int>::iterator iter;
+                            iter=_incld_id_map.find(rid);
+                            if(iter!=_incld_id_map.end())
                             {
+                                int sid=iter->second;
                                 eqtlinfo._bxz[i][rk[sid]]=eqtlinfo._val[pos+j];
                                 eqtlinfo._sexz[i][rk[sid]]=eqtlinfo._val[pos+j+num];
                             }
@@ -2973,6 +3220,12 @@ namespace SMRDATA
                     vector<int> rk;
                     vector<float> tmp;
                     getRank(slctId, rk);
+                    map<int, int > _incld_id_map;
+                    for (int i = 0; i<slctId.size(); i++)
+                    {
+                        _incld_id_map.insert(pair<int, int>(slctId[i], i));
+                        
+                    }
                     cols[0]=0.0;
                     for(int i=0;i<include.size();i++)
                     {
@@ -2984,9 +3237,11 @@ namespace SMRDATA
                         for(uint32_t j=0;j<num;j++)
                         {
                             uint32_t rid=eqtlinfo._rowid[pos+j];
-                            int it=find(slctId.begin(),slctId.end(),rid)-slctId.begin();
-                            if(it<slctId.size())
+                            map<int, int>::iterator iter;
+                            iter=_incld_id_map.find(rid);
+                            if(iter!=_incld_id_map.end())
                             {
+                                int it=iter->second;
                                 val.push_back(eqtlinfo._val[pos+j]);
                                 tmp.push_back(eqtlinfo._val[pos+j+num]);
                                 rowid.push_back(rk[it]);
@@ -3112,6 +3367,18 @@ namespace SMRDATA
        
         smr.close();
         cout<<"Extracted results of "<<out_esi_id.size()<<" SNPs have been saved in the file [" + smrfile + "]."<<endl;
+        
+    }
+    
+    void combineCis(char* eqtlsmaslstName, char* outFileName)
+    {
+        
+        eqtlInfo eqtlinfo;
+        vector<string> smasNames;
+        
+        read_smaslist(smasNames, string(eqtlsmaslstName));
+        combine_esi(&eqtlinfo, smasNames);
+        combine_epi_esd(&eqtlinfo, smasNames, string(outFileName));
         
     }
 }
