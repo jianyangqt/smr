@@ -1149,11 +1149,13 @@ namespace SMRDATA
         MatrixXd covbxy(nsnp,nsnp);
         MatrixXd vdev(nsnp-1,nsnp-1);
        
+        VectorXd bxz2;
         dev.resize(nsnp-1);
         if(nsnp>1)
         {
             _bxy=_byz.array()/_bxz.array();
-            _sexy=sqrt((_seyz.array()*_seyz.array()*_bxz.array()*_bxz.array()+_sexz.array()*_sexz.array()*_byz.array()*_byz.array())/(_bxz.array()*_bxz.array()*_bxz.array()*_bxz.array()));
+            bxz2=_bxz.array()*_bxz.array();
+            _sexy=(_seyz.array()*_seyz.array()*bxz2.array()+_sexz.array()*_sexz.array()*_byz.array()*_byz.array())/(bxz2.array()*bxz2.array()).sqrt();
             
             maxid=max_abs_id(_zsxz);
             
@@ -1197,7 +1199,6 @@ namespace SMRDATA
 			
             // using Eigen Library
             
-			
 			SelfAdjointEigenSolver<MatrixXd> es(covbxy);			
             VectorXd lambda;
             lambda=es.eigenvalues();
@@ -1211,9 +1212,7 @@ namespace SMRDATA
             /*
              MatrixXd D = es.pseudoEigenvalueMatrix();
              cout << "The pseudo-eigenvalue matrix D is:" << endl << D << endl;
-             */
-            
-            //unsigned int m=lambda.size();
+            */
             
             pdev= pchisqsum(sumChisq_dev,lambda);
             *snp_num=lambda.size();
@@ -1250,7 +1249,14 @@ namespace SMRDATA
         return(ss.str());
     }
 
-    
+    template <typename T>
+    inline string atos (T const& a)
+    {
+        stringstream ss;
+        ss << a;
+        return(ss.str());
+    }
+
     void free_gwas_data(gwasData* gdata)
     {
         gdata->snpName.clear();
@@ -2270,7 +2276,7 @@ namespace SMRDATA
 
     
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag)
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl)
     {
         bInfo bdata;
         gwasData gdata;
@@ -2374,6 +2380,7 @@ namespace SMRDATA
         MatrixXd _X;
         MatrixXd _LD;
         MatrixXd _LD_heidi;
+        cis_itvl=cis_itvl*1e6;
         for(int i=0;i<probNum;i++)
         {
          
@@ -2396,22 +2403,29 @@ namespace SMRDATA
             allele2.clear();
             bpsnp.clear();
             long maxid =-9;
+            uint32_t probebp=esdata._epi_bp[i];
+            uint32_t probechr=esdata._epi_chr[i];
             if(esdata._rowid.empty())
             {
                 for (int j = 0; j<bdata._include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
                 {
                     if (abs(esdata._bxz[i][j] + 9) > 1e-6)
                     {
-                        bxz.push_back(esdata._bxz[i][j]);
-                        sexz.push_back(esdata._sexz[i][j]);
-                        byz.push_back(gdata.byz[j]);
-                        seyz.push_back(gdata.seyz[j]);
-                        curId.push_back(j);
-                        eName.push_back(esdata._esi_rs[j]);
-                        if(heidiFlag && esdata._esi_rs[j]==string(refSNP)) maxid=(eName.size()-1);
-                        if(!heidioffFlag) bpsnp.push_back(bdata._bp[bdata._include[j]]);
-                        allele1.push_back(esdata._esi_allele1[j]);
-                        allele2.push_back(esdata._esi_allele2[j]);
+                        uint32_t snpbp=esdata._esi_bp[j];
+                        uint32_t snpchr=esdata._esi_chr[j];
+                        if(snpchr==probechr && fabs(probebp-snpbp)<=cis_itvl)
+                        {
+                            bxz.push_back(esdata._bxz[i][j]);
+                            sexz.push_back(esdata._sexz[i][j]);
+                            byz.push_back(gdata.byz[j]);
+                            seyz.push_back(gdata.seyz[j]);
+                            curId.push_back(j);
+                            eName.push_back(esdata._esi_rs[j]);
+                            if(heidiFlag && esdata._esi_rs[j]==string(refSNP)) maxid=(eName.size()-1);
+                            if(!heidioffFlag) bpsnp.push_back(bdata._bp[bdata._include[j]]);
+                            allele1.push_back(esdata._esi_allele1[j]);
+                            allele2.push_back(esdata._esi_allele2[j]);
+                        }
                     }
                 }
                 
@@ -2423,17 +2437,21 @@ namespace SMRDATA
                 for(int j=0;j<numsnps;j++)
                 {
                     int ge_rowid=esdata._rowid[beta_start+j];
-                    bxz.push_back(esdata._val[beta_start+j]);
-                    sexz.push_back(esdata._val[se_start+j]);
-                    byz.push_back(gdata.byz[ge_rowid]);
-                    seyz.push_back(gdata.seyz[ge_rowid]);
-                    curId.push_back(ge_rowid);
-                    eName.push_back(esdata._esi_rs[ge_rowid]);
-                    if(heidiFlag && esdata._esi_rs[ge_rowid]==string(refSNP)) maxid=(eName.size()-1);
-                    allele1.push_back(esdata._esi_allele1[ge_rowid]);
-                    allele2.push_back(esdata._esi_allele2[ge_rowid]);
-                    if(!heidioffFlag) bpsnp.push_back(bdata._bp[bdata._include[ge_rowid]]);
-                   
+                    uint32_t snpbp=esdata._esi_bp[ge_rowid];
+                    uint32_t snpchr=esdata._esi_chr[ge_rowid];
+                    if(snpchr==probechr && fabs(probebp-snpbp)<=cis_itvl)
+                    {
+                        bxz.push_back(esdata._val[beta_start+j]);
+                        sexz.push_back(esdata._val[se_start+j]);
+                        byz.push_back(gdata.byz[ge_rowid]);
+                        seyz.push_back(gdata.seyz[ge_rowid]);
+                        curId.push_back(ge_rowid);
+                        eName.push_back(esdata._esi_rs[ge_rowid]);
+                        if(heidiFlag && esdata._esi_rs[ge_rowid]==string(refSNP)) maxid=(eName.size()-1);
+                        allele1.push_back(esdata._esi_allele1[ge_rowid]);
+                        allele2.push_back(esdata._esi_allele2[ge_rowid]);
+                        if(!heidioffFlag) bpsnp.push_back(bdata._bp[bdata._include[ge_rowid]]);
+                    }
                 }
             }
             if(heidiFlag && maxid==-9) continue;
@@ -2495,9 +2513,6 @@ namespace SMRDATA
                     ldrsq[outCount]= string("NA");
                     continue;
                 }
-                
-                
-                
                 _byz.resize(sn_ids.size());
                 _seyz.resize(sn_ids.size());
                 _bxz.resize(sn_ids.size());
@@ -2566,7 +2581,7 @@ namespace SMRDATA
         
     }
     
-    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis, float transThres, float restThres)
+    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres)
     {
         bInfo bdata;
         gwasData gdata;
@@ -2692,103 +2707,226 @@ namespace SMRDATA
                 vector<uint32_t> rowids;
                 vector<float> val;
                 FILE* logfile=NULL;
+                /*
                 char cCurrentPath[FILENAME_MAX];
                 
                 if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
                 {
                    throw ("Error: can not get current directory!");
                 }
-                
-                cCurrentPath[sizeof(cCurrentPath) - 1] = '\0'; /* not really required */
-
-                
+                cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
                 string fname=string(cCurrentPath)+"/smr.log";
-                logfile=fopen(fname.c_str(), "w");
+                */
+                string logfname = string(outFileName)+".summary";
+                logfile=fopen(logfname.c_str(), "w");
                 if (!(logfile)) {
-                    sprintf("Error: Failed to open %s.\n", fname.c_str());
+                    printf("Error: Failed to open log file.\n");
                     exit(1);
                 }
-                fputs(string("--cis-itvl:\t"+itos(cis)+"Mb\n").c_str(),logfile);
-                 fputs(string("--trans-thres:\t"+dtos(transThres)+"\n").c_str(),logfile);
-                 fputs(string("--rest-thres:\t"+dtos(restThres)+"\n").c_str(),logfile);
-                 fputs(string("-----------------------------------------\n").c_str(),logfile);
-                
-                fputs("ProbeID\tProbeChr\tType\tStartBP\tEndBP\tnsnp\n",logfile);
-                cis=cis*1e6;
+                string logstr="--cis-itvl:\t"+itos(cis_itvl)+"Mb\n--trans-itvl:\t"+itos(trans_itvl)+"Mb\n--trans-thres:\t"+dtos(transThres)+"\n--rest-thres:\t"+dtos(restThres)+"\n";
+                logstr+="cis region is represent as [Chr, Start bp, End bp, nsnp,trans_touch_cis]; trans region is represent as <Chr, Start bp, End bp, nsnp, extend, merge>.\n";
+                logstr+="trans_touch_cis: cis region and trans region are overlapped then merged into one big cis region.\n";
+                logstr+="extend: trans region contains more than two SNPs that meet the trans threshold.\n";
+                logstr+="merge: two or more trans regions are overlapped and megered into one big trans region.\n\n";
+                logstr+="{ProbeID,ProbeBP}\t[Chr,cis_startBP,cis_endBP,NumSNPs,merged]\t<Chr,trans_startBP,trans_endBP,NumSNPs,merged>\tNumSNPs beyond cis and trans\n";
+                fputs(logstr.c_str(),logfile);
+                fflush(logfile);
+                cis_itvl=cis_itvl*1e6;
+                trans_itvl=trans_itvl*1e6;
                 cols[0]=0;
                 //in case of too many values over transThres in the trans region
                 string pretransPrbId="";
+                // for log file
+                vector<int> tran_chr;
+                vector<uint64_t> lowerBp;
+                vector<uint64_t> upperBp;
+                vector<uint64_t> nsnp;
+                vector<bool> extend;
+                vector<bool> merge;
+                //
+                 vector<int> cis_idx;
                 for(uint32_t i=0;i<eqtlinfo._probNum;i++)
                 {
                     vector<int> esi_include;
                     int probchr=eqtlinfo._epi_chr[i];
                     int probbp= eqtlinfo._epi_bp[i];
-                    uint32_t uperBounder=probbp+cis;
-                    uint32_t lowerBounder=((probbp-cis>0)?(probbp-cis):0);
-                    uint32_t cisNum=0;
-                    uint32_t otherSlctNum=0;
+                    uint64_t cisuperBounder= probbp+cis_itvl;
+                    uint64_t cislowerBounder=((probbp-cis_itvl>0)?(probbp-cis_itvl):0);
+                    uint64_t cisNum=0;
+                    uint64_t otherSlctNum=0;
+                    
+                    // for log file
+                    tran_chr.clear();
+                    lowerBp.clear();
+                    upperBp.clear();
+                    nsnp.clear();
+                    extend.clear();
+                    merge.clear();
+                    
+                    uint64_t realcisUBp=0;
+                    uint64_t realcisLBp=0;
+                    uint64_t realcisNum=0;
+                   
+                    bool trans_touch_cis_upper = false;
+                    bool trans_touch_cis_lower = false;
+                    //
+                    cis_idx.clear();
                     for(int j=0;j<eqtlinfo._snpNum;j++)
                     {
+                        if(abs(eqtlinfo._sexz[i][j]+9)<1e-6) continue;
+                        
                         double zsxz=eqtlinfo._bxz[i][j]/eqtlinfo._sexz[i][j];
                         double pxz=pchisq(zsxz*zsxz, 1);
-                        if(eqtlinfo._esi_chr[j] == probchr && eqtlinfo._esi_bp[j]<=uperBounder && eqtlinfo._esi_bp[j]>=lowerBounder && abs(eqtlinfo._sexz[i][j]+9)>1e-6)
+                        
+                        if(eqtlinfo._esi_chr[j] == probchr && eqtlinfo._esi_bp[j]<=cisuperBounder && eqtlinfo._esi_bp[j]>=cislowerBounder && abs(eqtlinfo._sexz[i][j]+9)>1e-6)
                         {
+                            cis_idx.push_back(j);
                             esi_include.push_back(j);
                             cisNum++;
                         }
-                       
                         else if(pxz<transThres)
                         {
-                            uint32_t transNum=0;
-                            string logstr="";
+                            uint64_t transNum=0;
+                            uint32_t curChr=eqtlinfo._esi_chr[j];
                             esi_include.push_back(j);
-                            long transbp=eqtlinfo._esi_bp[j];
-                            long translowerBounder=((transbp-cis>0)?(transbp-cis):0);
-                            long transuperBounder=transbp+cis;
-                            //if esi is not sorted.                            
-                           // for(int k=0;k<eqtlinfo._snpNum;k++)
-                           //     if(k!=j && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[k]  && abs(transbp-eqtlinfo._esi_bp[k])<=cis)   esi_include.push_back(k);
+                            uint64_t transbp=eqtlinfo._esi_bp[j];
+                            uint64_t translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
+                            uint64_t transuperBounder=transbp+trans_itvl;
+                            bool extended=false;
+                            bool merged=false;
                             
-                            // if esi is sorted
+                            // assume esi is sorted
                             int startptr=j-1;
-                            while(startptr>=0 && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && transbp-eqtlinfo._esi_bp[startptr]<=cis)
+                            while(startptr>=0 && curChr == eqtlinfo._esi_chr[startptr] && transbp-eqtlinfo._esi_bp[startptr]<=trans_itvl)
                             {
-                                translowerBounder=eqtlinfo._esi_bp[startptr];
-                                esi_include.push_back(startptr);
+                                if(abs(eqtlinfo._sexz[i][startptr]+9)>1e-6)
+                                {
+                                    translowerBounder=eqtlinfo._esi_bp[startptr];
+                                    esi_include.push_back(startptr);
+                                    if(upperBp.size()>0 && translowerBounder<=upperBp[upperBp.size()-1]) //trans region merges
+                                    {
+                                        merged=true;
+                                        transNum=transNum+nsnp[nsnp.size()-1];
+                                        break;
+                                    }
+                                    if(eqtlinfo._esi_chr[startptr] == probchr && translowerBounder<=cisuperBounder && translowerBounder>=cislowerBounder) // trans touches cis region
+                                    {
+                                        trans_touch_cis_upper=true;
+                                        transNum=transNum+cis_idx.size();
+                                        translowerBounder=eqtlinfo._esi_bp[cis_idx[0]];
+                                        break;
+                                    }
+                                    transNum++;
+                                }
                                 startptr--;
-                                transNum++;
-                                
                             }
                             startptr=j+1;
-							while (startptr<eqtlinfo._snpNum && eqtlinfo._esi_chr[j] == eqtlinfo._esi_chr[startptr] && eqtlinfo._esi_bp[startptr] - transbp <= cis)
+							while (startptr<eqtlinfo._snpNum && curChr == eqtlinfo._esi_chr[startptr] && eqtlinfo._esi_bp[startptr] - transbp <= trans_itvl)
                             {
-                                transuperBounder=eqtlinfo._esi_bp[startptr];
-                                esi_include.push_back(startptr);
+                                if(abs(eqtlinfo._sexz[i][startptr]+9)>1e-6)
+                                {
+                                    transuperBounder=eqtlinfo._esi_bp[startptr];
+                                    if(eqtlinfo._esi_chr[startptr] == probchr && transuperBounder>=cislowerBounder && transuperBounder<=cisuperBounder) // trans touches cis region
+                                    {
+                                        trans_touch_cis_lower=true;
+                                        cisNum=transNum;
+                                        while(eqtlinfo._esi_chr[startptr] == probchr && eqtlinfo._esi_bp[startptr]<=cisuperBounder && eqtlinfo._esi_bp[startptr]>=cislowerBounder )
+                                        {
+                                            if(abs(eqtlinfo._sexz[i][startptr]+9)>1e-6)
+                                            {
+                                                transuperBounder=eqtlinfo._esi_bp[startptr];
+                                                esi_include.push_back(startptr);
+                                                cisNum++;
+                                            }
+                                            startptr++;
+                                        }
+                                        j=startptr; // because cis_itvl >= trans_itvl. so here startptr can't satisfy the outer while loop anymore. j would jump to outer for loop
+                                        break; // I think it doesnot matter with or without break here.
+                                    }
+                                    else
+                                    {
+                                        esi_include.push_back(startptr);
+                                        double zsxz_tmp=eqtlinfo._bxz[i][startptr]/eqtlinfo._sexz[i][startptr];
+                                        double pxz_tmp=pchisq(zsxz_tmp*zsxz_tmp, 1);
+                                        if(pxz_tmp<transThres) // trans region extends
+                                        {
+                                            extended=true;
+                                            j=startptr;
+                                            transbp=eqtlinfo._esi_bp[j];
+                                        }
+                                        transNum++;
+                                        j=startptr;
+                                    }
+                                }
                                 startptr++;
-                                transNum++;
-                                
-                                //j=startptr-1; wrong!!! is there are trans upper, then the trans region should extend.
                             }
-                            // for log
-                            if( eqtlinfo._epi_prbID[i] != pretransPrbId )
+                            if(!trans_touch_cis_lower && !trans_touch_cis_upper)
                             {
-                                logstr=eqtlinfo._epi_prbID[i]+"\t"+itos(eqtlinfo._epi_chr[i])+"\ttrans"+"\t"+ltos(translowerBounder)+"\t"+ltos(transuperBounder)+"\t"+itos(transNum)+"\n";
-                                fputs(logstr.c_str(),logfile);
-                                pretransPrbId=eqtlinfo._epi_prbID[i];
-                            }                           
+                                if(merged)
+                                {
+                                    upperBp[upperBp.size()-1]=transuperBounder;
+                                    nsnp[nsnp.size()-1]=transNum;
+                                    extend[nsnp.size()-1]=extended;
+                                    merge[nsnp.size()-1]=merged;
+                                }
+                                else
+                                {
+                                    tran_chr.push_back(curChr);
+                                    upperBp.push_back(transuperBounder);
+                                    lowerBp.push_back(translowerBounder);
+                                    nsnp.push_back(transNum);
+                                    extend.push_back(extended);
+                                    merge.push_back(merged);
+                                }
+
+                            }
+                            else
+                            {
+                                realcisNum=transNum;
+                                realcisUBp=transuperBounder;
+                                realcisLBp=translowerBounder;
+                            }
                         }
                         else if(pxz<restThres)
                         {
                             esi_include.push_back(j);
                             otherSlctNum++;
                         }
-                        
                     }
-                    if(cisNum)
+                     if(cis_idx.size()>0 && !trans_touch_cis_lower && !trans_touch_cis_upper) // in case of the probe on other chr has no trans or otherSlct on current chr
+                     {
+                         realcisNum=cis_idx.size();
+                         realcisLBp=eqtlinfo._esi_bp[cis_idx[0]];
+                         realcisUBp=eqtlinfo._esi_bp[cis_idx[realcisNum-1]];
+                     }
+                    // log file
+                    if(realcisNum || nsnp.size() || otherSlctNum)
                     {
-                        string logstr=eqtlinfo._epi_prbID[i]+"\t"+itos(eqtlinfo._epi_chr[i])+"\tcis"+"\t"+ltos(lowerBounder)+"\t"+ltos(uperBounder)+"\t"+itos(cisNum)+"\n";
+                        logstr="{"+eqtlinfo._epi_prbID[i]+","+atos(eqtlinfo._epi_bp[i])+"}\t";
+                        if(realcisNum)
+                        {
+                            string overlapflg="F";
+                            if(trans_touch_cis_lower || trans_touch_cis_upper) overlapflg="T";
+                            logstr+= "["+atos(probchr)+","+ atos(realcisLBp)+","+atos(realcisUBp)+","+atos(realcisNum)+","+overlapflg+"]\t";
+                        }else logstr+="[]\t";
+                        if(nsnp.size())
+                        {
+                            for(int h=0;h<nsnp.size();h++)
+                            {
+                                string mergeflg="F";
+                                if(extend[h] || merge[h]) mergeflg="T";
+                                logstr+= "<"+atos(tran_chr[h])+","+ atos(lowerBp[h])+","+atos(upperBp[h])+","+atos(nsnp[h])+","+mergeflg+">\t";
+                            }
+                        }else logstr+="<>\t";
+                        
+                        if(otherSlctNum) logstr+="("+atos(otherSlctNum)+")\n";
+                        else logstr+="()\n";
+                        
                         fputs(logstr.c_str(),logfile);
+                        fflush(logfile);
                     }
+                   
+                    //
                     sort( esi_include.begin(), esi_include.end() );
                     vector<int> ::iterator it=unique(esi_include.begin(),esi_include.end());
                     esi_include.erase( it, esi_include.end() );
@@ -2853,7 +2991,7 @@ namespace SMRDATA
                 if(logfile) fclose(logfile);
                 free(buffer);
                 cout<<"Beta values and SE values for "<<eqtlinfo._include.size()<<" Probes and "<<eqtlinfo._snpNum<<" SNPs have been saved in the binary file [" + esdfile + "]." <<endl;
-                cout<<"Log information has been saved in the file [" + fname + "]." <<endl;
+                cout<<"Log information has been saved in the file [" + logfname + "]." <<endl;
             }
             else
             {

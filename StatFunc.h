@@ -12,7 +12,6 @@
 #define _STATFUNC_H
 
 #include <vector>
-#include <algorithm>
 #include <iostream>
 #include "CommFunc.h"
 #include "dcdflib.h"

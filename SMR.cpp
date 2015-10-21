@@ -76,7 +76,8 @@ void option(int option_num, char* option_str[])
     
     // for filtering
     bool cis_flag=false;
-    int cis=1;
+    int cis_itvl=2;
+    int trans_itvl=1;
     float transThres=5.0e-8;
     float restThres=1.0e-5;
     
@@ -220,9 +221,19 @@ void option(int option_num, char* option_str[])
         }
         else if(strcmp(option_str[i],"--cis-itvl")==0){
             cis_flag=true;
-            cis=atoi(option_str[++i]);
-            printf("--cis-itvl %d Mb\n", cis);
-            if(cis<0 )
+            cis_itvl=atoi(option_str[++i]);
+            printf("--cis-itvl %d Mb\n", cis_itvl);
+            if(cis_itvl<0 )
+            {
+                fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--trans-itvl")==0){
+            cis_flag=true;
+            trans_itvl=atoi(option_str[++i]);
+            printf("--trans-itvl %d Mb\n", trans_itvl);
+            if(trans_itvl<0 )
             {
                 fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
                 exit (EXIT_FAILURE);
@@ -297,10 +308,10 @@ void option(int option_num, char* option_str[])
     eData edata;
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
-    if(make_besd_flag || make_esd_flag || cis_flag) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis, transThres, restThres);
+    if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
-    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag);
+    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl);
     
    }

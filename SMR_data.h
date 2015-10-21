@@ -175,7 +175,9 @@ namespace SMRDATA
     void filter_snp_maf(bInfo* bdata,double maf);
     void extract_prob(eqtlInfo* eqtlinfo,string problstName);
 	void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName);
-
+    template <typename T>
+    inline string atos (T const& a);
+    
     string dtos(double value);
     string dtosf(double value);
     string itos(int value);
@@ -184,8 +186,8 @@ namespace SMRDATA
   
     int file_read_check(ifstream* in_file, const char* filename);
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag);
-    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis, float transThres, float restThres);
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl);
+    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
     

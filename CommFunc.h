@@ -25,9 +25,7 @@
 #define DENSE_FILE_TYPE_2 3
 
 #include <limits>
-#include <complex>
 #include <vector>
-#include <algorithm>
 #include <ctime>
 #include <fstream>
 #include "StrFunc.h"
