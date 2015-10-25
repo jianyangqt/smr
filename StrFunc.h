@@ -13,6 +13,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <map>
 #include <iostream>
 
@@ -48,6 +49,8 @@ namespace StrFunc
 	void match_only(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
     void set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
     int split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip);
+    void match_only(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC);
+     void set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC);
 }
 
 #endif

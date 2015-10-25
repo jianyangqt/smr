@@ -179,7 +179,19 @@ void StrFunc::match(const vector<string> &VecA, const vector<string> &VecB, vect
     }
     
 }
-
+void StrFunc::match_only(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC)
+{
+    int i = 0;
+    map<string, int> id_map;
+    map<string, int>::iterator iter;
+    VecC.clear();
+    for (i = 0; i<VecB.size(); i++) id_map.insert(pair<string, int>(VecB[i], i));
+    for (i = 0; i<VecA.size(); i++){
+        iter = id_map.find(VecA[i]);
+        if (iter != id_map.end()) VecC.push_back(iter->second);
+    }
+    
+}
 void StrFunc::match_only(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC)
 {
 	int i = 0;
@@ -199,7 +211,12 @@ void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &V
     for (int i = 0; i<VecB.size(); i++)
         if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
 }
-
+void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC)
+{
+    VecC.clear();
+    for (int i = 0; i<VecB.size(); i++)
+        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
+}
 
 int StrFunc::split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip) //form head
 {

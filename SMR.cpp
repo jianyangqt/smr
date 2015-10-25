@@ -15,17 +15,18 @@
 using namespace SMRDATA;
 using namespace StatFunc;
 using namespace E_DATA;
+int thread_num;
 
 int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.3" << endl;
+    cout << "* version 0.5" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
-    
+   
     FLAGS_VALID_CK(argc,argv);
     long int time_used = 0, start = time(NULL);
     time_t curr = time(0);
@@ -88,10 +89,12 @@ void option(int option_num, char* option_str[])
     char* refSNP=NULL;
     bool heidioffFlag = false;
     
-    int thread_num = 1;
+     thread_num = 1;
     
     bool combineFlg = false;
     char* eqtlsmaslstName = NULL;
+    //
+     char* gwasFileName2=NULL;
     
     for(int i=0;i<option_num;i++)
     {
@@ -103,10 +106,18 @@ void option(int option_num, char* option_str[])
         }
         // gwas data file as cojo format
         else if(0==strcmp(option_str[i],"--gwas-summary")){
-            gwasFileName=option_str[++i];
-            FLAG_VALID_CK("--gwas-summary", gwasFileName);
-            printf("--gwas-summary %s\n",gwasFileName);
-            CommFunc::FileExist(gwasFileName);
+            if(gwasFileName ==NULL){
+                gwasFileName=option_str[++i];
+                FLAG_VALID_CK("--gwas-summary", gwasFileName);
+                printf("--gwas-summary %s\n",gwasFileName);
+                CommFunc::FileExist(gwasFileName);
+            }else
+            {
+                gwasFileName2=option_str[++i];
+                FLAG_VALID_CK("--gwas-summary", gwasFileName2);
+                printf("--gwas-summary %s\n",gwasFileName2);
+                CommFunc::FileExist(gwasFileName2);
+            }
         }
         // eQTL files
         else if(0==strcmp(option_str[i],"--eqtl-summary")){
@@ -309,6 +320,7 @@ void option(int option_num, char* option_str[])
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
+    else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);

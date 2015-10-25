@@ -25,7 +25,9 @@
 #define DENSE_FILE_TYPE_2 3
 
 #include <limits>
+#include <complex>
 #include <vector>
+#include <algorithm>
 #include <ctime>
 #include <fstream>
 #include "StrFunc.h"
@@ -38,13 +40,18 @@
 typedef unsigned long long         uint64_t;
 typedef unsigned int         uint32_t;
 
-
 using namespace Eigen;
 using namespace std;
 
 namespace CommFunc
 {
 	const double FloatErr=numeric_limits<double>::epsilon();
+    template <typename T>
+    inline T ABS(T const& a)
+    {
+       return (T{} < a) ? a : -a;
+    }
+
 	double Abs(const double &x);
 	double sum(const vector<double> &x);
     double mean(const vector<double> &x);

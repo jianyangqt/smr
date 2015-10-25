@@ -38,6 +38,8 @@ using namespace StatFunc;
 using namespace StrFunc;
 using namespace CommFunc;
 
+extern int thread_num;
+
 namespace SMRDATA
 {
     //implementation of SoA(Struct of Array)
@@ -192,5 +194,7 @@ namespace SMRDATA
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
     
     void combineCis(char* eqtlsmaslstName, char* outFileName);
+    
+    void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */
