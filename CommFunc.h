@@ -70,6 +70,7 @@ namespace CommFunc
     int max_abs_id(vector<double> &zsxz);
     int fopen_checked(FILE** in_file, const char* filename, const char* flag);
     void getRank(vector<int> &a, vector<int> &b);
+     void getUnique(vector<uint32_t> &a);
 }
 
 #endif

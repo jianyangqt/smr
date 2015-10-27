@@ -2358,7 +2358,7 @@ namespace SMRDATA
 
     
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl)
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,bool plotflg)
     {
         setNbThreads(thread_num);
         
@@ -2436,6 +2436,12 @@ namespace SMRDATA
         vector<string> top_match1(probNum);  // origin is int
         vector<string> ldrsq(probNum); // origin is double
         
+        // for plot
+        vector<uint32_t> plot_snpidx;
+        vector<uint32_t> plot_probeidx;
+        vector<double> plot_bxz;
+        vector<double> plot_sexz;
+        
         cout<<endl<<"Performing SMR and heterogeneity analysis..... "<<endl;
         float progr0=0.0 , progr1;
         progress_print(progr0);
@@ -2465,7 +2471,7 @@ namespace SMRDATA
         MatrixXd _X;
         MatrixXd _LD;
         MatrixXd _LD_heidi;
-        cis_itvl=cis_itvl*1e6;
+        cis_itvl=cis_itvl*1000;
         for(int i=0;i<probNum;i++)
         {
          
@@ -2596,7 +2602,6 @@ namespace SMRDATA
                 make_XMat(&bdata,curId, _X); //_X: one row one individual, one column one SNP
                 //last vesion ref_snpData was used. row of ref_snpData is SNP, column of ref_snpData is individual
                 cor_calc(_LD, _X);
-               
                 
                 sn_ids.clear(); //increase order
                 if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
@@ -2609,6 +2614,15 @@ namespace SMRDATA
                     top_match1[outCount]= string("NA");
                     ldrsq[outCount]= string("NA");
                     continue;
+                }
+                
+                if(plotflg){
+                    for(int j=0;j<sn_ids.size();j++) {
+                        plot_probeidx.push_back(i);
+                        plot_snpidx.push_back(curId[sn_ids[j]]);
+                        plot_bxz.push_back(bxz[sn_ids[j]]);
+                        plot_sexz.push_back(sexz[sn_ids[j]]);
+                    }
                 }
                 _byz.resize(sn_ids.size());
                 _seyz.resize(sn_ids.size());
@@ -2650,10 +2664,43 @@ namespace SMRDATA
         }
         
         //genesn in R is just probidx here. can refer to probinfo to get probeid, probenm, chr, gene, bp
-        
+        if(plotflg && !heidioffFlag)
+        {
+            string ldfile = string(outFileName)+".engs";
+            ofstream ldio(ldfile.c_str());
+            if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
+            ldio << "Chr" <<'\t' << "ProbeID"  << '\t' << "Prob_bp" << '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
+            for (int i = 0;i <plot_snpidx.size(); i++) {
+                ldio<<esdata._epi_chr[plot_probeidx[i]]<<'\t'<<esdata._epi_prbID[plot_probeidx[i]]<<'\t'<<esdata._epi_bp[plot_probeidx[i]]<<'\t'<<esdata._esi_rs[plot_snpidx[i]]<<'\t'<<esdata._esi_bp[plot_snpidx[i]]<<'\t'<<esdata._esi_allele1[plot_snpidx[i]]<<'\t'<<esdata._esi_allele2[plot_snpidx[i]]<<'\t'<<gdata.byz[plot_snpidx[i]]<<'\t'<<gdata.seyz[plot_snpidx[i]]<<'\t'<<plot_bxz[i]<<'\t'<<plot_sexz[i]<<'\n';
+            }
+            cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
+            ldio.close();
+            
+            getUnique(plot_snpidx);
+            make_XMat(&bdata,plot_snpidx, _X);
+            cor_calc(_LD, _X);
+           
+            string ldidfile = string(outFileName)+".ld.id";
+            ldio.open(ldidfile.c_str());
+            if (!ldio) throw ("Error: can not open the file " + ldidfile + " to save!");
+            for (int i = 0;i <plot_snpidx.size(); i++)
+                ldio<<esdata._esi_rs[plot_snpidx[i]]<<'\n';
+            cout<<"rs id of "<<plot_snpidx.size()<<" unique SNPs for plot have been saved in the file [" + ldidfile + "]."<<endl;
+            ldio.close();
+            
+            string ldinfofile = string(outFileName)+".ld.gz";
+            gzFile gz_outfile = gzopen(ldinfofile.c_str(), "wb");
+            string ldstrs="";
+            for(int i=0;i<_LD.cols();i++)
+                for(int j=0;j<i;j++) ldstrs+=atos(_LD(i,j))+"\n";
+          
+            if(gzputs(gz_outfile, ldstrs.c_str()) == -1) cout<<"error"<<endl;
+            gzclose(gz_outfile);
+            cout<< "Lower triangle of LD score matrix of "<<plot_snpidx.size()<<" SNPs have been saved by row-major in the file ["+ ldinfofile + "]."<<endl;
+        }
         string smrfile = string(outFileName)+".smr";
         ofstream smr(smrfile.c_str());
-        if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
+        if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
         if(heidioffFlag)
         {
             smr << "ProbeID" <<'\t'<< "Chr" <<'\t' << "Gene"  << '\t' << "Prob_bp" << '\t'<< "SNP"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<< "p_GWAS" << '\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\t'<< "p_eQTL" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << '\n';
@@ -2820,7 +2867,7 @@ namespace SMRDATA
                     printf("Error: Failed to open log file.\n");
                     exit(1);
                 }
-                string logstr="--cis-itvl:\t"+itos(cis_itvl)+"Mb\n--trans-itvl:\t"+itos(trans_itvl)+"Mb\n--trans-thres:\t"+dtos(transThres)+"\n--rest-thres:\t"+dtos(restThres)+"\n";
+                string logstr="--cis-itvl:\t"+itos(cis_itvl)+"Kb\n--trans-itvl:\t"+itos(trans_itvl)+"Kb\n--trans-thres:\t"+dtos(transThres)+"\n--rest-thres:\t"+dtos(restThres)+"\n";
                 logstr+="cis region is represent as [Chr, Start bp, End bp, nsnp,trans_touch_cis]; trans region is represent as <Chr, Start bp, End bp, nsnp, extend, merge>.\n";
                 logstr+="trans_touch_cis: cis region and trans region are overlapped then merged into one big cis region.\n";
                 logstr+="extend: trans region contains more than two SNPs that meet the trans threshold.\n";
@@ -2828,8 +2875,8 @@ namespace SMRDATA
                 logstr+="{ProbeID,ProbeBP}\t[Chr,cis_startBP,cis_endBP,NumSNPs,merged]\t<Chr,trans_startBP,trans_endBP,NumSNPs,merged>\tNumSNPs beyond cis and trans\n";
                 fputs(logstr.c_str(),logfile);
                 fflush(logfile);
-                cis_itvl=cis_itvl*1e6;
-                trans_itvl=trans_itvl*1e6;
+                cis_itvl=cis_itvl*1000;
+                trans_itvl=trans_itvl*1000;
                 cols[0]=0;
                 //in case of too many values over transThres in the trans region
                 string pretransPrbId="";

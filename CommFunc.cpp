@@ -172,4 +172,10 @@ void CommFunc::getRank(vector<int> &a, vector<int> &b)
         b[i] = count;
     }
 }
+void CommFunc::getUnique(vector<uint32_t> &a)
+{
+    sort(a.begin(),a.end());
+    vector<uint32_t> ::iterator it=unique(a.begin(),a.end());
+    a.erase(it,a.end());
+}
 

@@ -77,8 +77,8 @@ void option(int option_num, char* option_str[])
     
     // for filtering
     bool cis_flag=false;
-    int cis_itvl=2;
-    int trans_itvl=1;
+    int cis_itvl=2000;
+    int trans_itvl=1000;
     float transThres=5.0e-8;
     float restThres=1.0e-5;
     
@@ -95,6 +95,8 @@ void option(int option_num, char* option_str[])
     char* eqtlsmaslstName = NULL;
     //
      char* gwasFileName2=NULL;
+    //
+    bool plotflg=false;
     
     for(int i=0;i<option_num;i++)
     {
@@ -233,7 +235,7 @@ void option(int option_num, char* option_str[])
         else if(strcmp(option_str[i],"--cis-itvl")==0){
             cis_flag=true;
             cis_itvl=atoi(option_str[++i]);
-            printf("--cis-itvl %d Mb\n", cis_itvl);
+            printf("--cis-itvl %d Kb\n", cis_itvl);
             if(cis_itvl<0 )
             {
                 fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
@@ -243,7 +245,7 @@ void option(int option_num, char* option_str[])
         else if(strcmp(option_str[i],"--trans-itvl")==0){
             cis_flag=true;
             trans_itvl=atoi(option_str[++i]);
-            printf("--trans-itvl %d Mb\n", trans_itvl);
+            printf("--trans-itvl %d Kb\n", trans_itvl);
             if(trans_itvl<0 )
             {
                 fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
@@ -252,14 +254,14 @@ void option(int option_num, char* option_str[])
         }
         else if(strcmp(option_str[i],"--trans-thres")==0){
             transThres=atof(option_str[++i]);
-            printf("--trans-thres %10.2e\n", transThres);
+            printf("--trans-thresh %10.2e\n", transThres);
             if(transThres<0 || transThres>1)
             {
                 fprintf (stderr, "Error: --trans-thres should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
         }
-        else if(strcmp(option_str[i],"--rest-thres")==0){
+        else if(strcmp(option_str[i],"--rest-thresh")==0){
             restThres=atof(option_str[++i]);
             printf("--rest-thres %10.2e\n", restThres);
             if(restThres<0 || restThres>1)
@@ -276,7 +278,8 @@ void option(int option_num, char* option_str[])
         }
         else if (0 == strcmp(option_str[i], "--lookup")){
             lookup_flag=true;
-            plookup = atof (option_str[++i]);
+            if(i+1==option_num || has_prefix(option_str[i+1],"--"))  plookup = 5.0e-8;
+            else plookup = atof (option_str[++i]);
             printf("--lookup %10.2e\n", plookup);
             if(plookup<0 || plookup>1)
             {
@@ -306,6 +309,11 @@ void option(int option_num, char* option_str[])
             FLAG_VALID_CK("--beqtl-summaries", eqtlsmaslstName);
             printf("--beqtl-summaries %s\n", eqtlsmaslstName);
         }
+        else if (0 == strcmp(option_str[i], "--plot")){
+            plotflg = true;
+            printf("--plot \n" );
+        }
+
     }
     
 #ifndef __APPLE__
@@ -320,10 +328,10 @@ void option(int option_num, char* option_str[])
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
-    else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde);
+    else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
-    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl);
+    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
     
    }
