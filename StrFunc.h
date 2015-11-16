@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <map>
 #include <iostream>
-
+typedef unsigned int         uint32_t;
 using namespace std;
 
 namespace StrFunc

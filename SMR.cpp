@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.5" << endl;
+    cout << "* version 0.6" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -65,6 +65,7 @@ void option(int option_num, char* option_str[])
     double ld_prune=0.9;
     unsigned int m_hetero=10;
     bool smr_flag=true;
+    bool smr_trans_flag=false;
     
     // for data management
     bool make_besd_flag=false;
@@ -97,6 +98,11 @@ void option(int option_num, char* option_str[])
      char* gwasFileName2=NULL;
     //
     bool plotflg=false;
+    //
+    char* syllabusName=NULL;
+    bool gctaflag=false;
+    bool plinkflag=false;
+    bool gemmaflag=false;
     
     for(int i=0;i<option_num;i++)
     {
@@ -205,19 +211,19 @@ void option(int option_num, char* option_str[])
                 exit (EXIT_FAILURE);
             }
         }
-        else if (0 == strcmp(option_str[i], "--peqtl-hetero")){
+        else if (0 == strcmp(option_str[i], "--peqtl-heidi")){
             p_hetero = atof(option_str[++i]);
-            printf("--peqtl-hetero %10.2e\n", p_hetero);
+            printf("--peqtl-heidi %10.2e\n", p_hetero);
             if(p_hetero<0 || p_hetero>1)
             {
-                fprintf (stderr, "Error: --peqtl-hetero should be within the range from 0 to 1.\n");
+                fprintf (stderr, "Error: --peqtl-heidi should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
             
         }
-        else if (0 == strcmp(option_str[i], "--m-hetero")){
+        else if (0 == strcmp(option_str[i], "--heidi-m")){
             m_hetero = atoi(option_str[++i]);
-            printf("--m-hetero %d\n", m_hetero);
+            printf("--heidi-m %d\n", m_hetero);
         }
         else if (0 == strcmp(option_str[i], "--ld-pruning")){
             ld_prune = atof(option_str[++i]);
@@ -232,41 +238,41 @@ void option(int option_num, char* option_str[])
             smr_flag=true;
             printf("--smr \n");
         }
-        else if(strcmp(option_str[i],"--cis-itvl")==0){
+        else if(strcmp(option_str[i],"--cis-wind")==0){
             cis_flag=true;
             cis_itvl=atoi(option_str[++i]);
-            printf("--cis-itvl %d Kb\n", cis_itvl);
+            printf("--cis-wind %d Kb\n", cis_itvl);
             if(cis_itvl<0 )
             {
-                fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
+                fprintf (stderr, "Error: --cis-wind should be over 0.\n");
                 exit (EXIT_FAILURE);
             }
         }
-        else if(strcmp(option_str[i],"--trans-itvl")==0){
+        else if(strcmp(option_str[i],"--trans-wind")==0){
             cis_flag=true;
             trans_itvl=atoi(option_str[++i]);
-            printf("--trans-itvl %d Kb\n", trans_itvl);
+            printf("--trans-wind %d Kb\n", trans_itvl);
             if(trans_itvl<0 )
             {
-                fprintf (stderr, "Error: --cis-itvl should be over 0.\n");
+                fprintf (stderr, "Error: --trans-wind should be over 0.\n");
                 exit (EXIT_FAILURE);
             }
         }
-        else if(strcmp(option_str[i],"--trans-thres")==0){
+        else if(strcmp(option_str[i],"--peqtl-trans")==0){
             transThres=atof(option_str[++i]);
-            printf("--trans-thresh %10.2e\n", transThres);
+            printf("--peqtl-trans %10.2e\n", transThres);
             if(transThres<0 || transThres>1)
             {
-                fprintf (stderr, "Error: --trans-thres should be within the range from 0 to 1.\n");
+                fprintf (stderr, "Error: --peqtl-trans should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
         }
-        else if(strcmp(option_str[i],"--rest-thresh")==0){
+        else if(strcmp(option_str[i],"--peqtl-other")==0){
             restThres=atof(option_str[++i]);
-            printf("--rest-thres %10.2e\n", restThres);
+            printf("--peqtl-other %10.2e\n", restThres);
             if(restThres<0 || restThres>1)
             {
-                fprintf (stderr, "Error: --rest-thres should be within the range from 0 to 1.\n");
+                fprintf (stderr, "Error: --peqtl-other should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
         }
@@ -287,10 +293,10 @@ void option(int option_num, char* option_str[])
                 exit (EXIT_FAILURE);
             }
         }
-        else if (0 == strcmp(option_str[i], "--heidi-snp")){
+        else if (0 == strcmp(option_str[i], "--target-snp")){
             refSNP = option_str[++i];
-            FLAG_VALID_CK("--heidi-snp", refSNP);
-            printf("--heidi-snp %s\n", refSNP);
+            FLAG_VALID_CK("--target-snp", refSNP);
+            printf("--target-snp %s\n", refSNP);
         }
         else if (0 == strcmp(option_str[i], "--heidi-off")){
             heidioffFlag = true;            
@@ -313,7 +319,30 @@ void option(int option_num, char* option_str[])
             plotflg = true;
             printf("--plot \n" );
         }
-
+        else if (0 == strcmp(option_str[i], "--trans")){
+            smr_trans_flag = true;
+            printf("--trans \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--eqtl-syllabus")){
+            syllabusName = option_str[++i];
+            if(syllabusName !=NULL && has_prefix(syllabusName, "--"))
+            {
+                syllabusName=NULL;
+                i--;
+            }else   printf("--eqtl-syllabus %s\n", syllabusName);
+        }
+        else if (0 == strcmp(option_str[i], "--gcta-format")){
+            gctaflag = true;
+            printf("--gcta-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--plink-format")){
+            plinkflag = true;
+            printf("--plink-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--gemma-format")){
+            gemmaflag = true;
+            printf("--gemma-format \n" );
+        }
     }
     
 #ifndef __APPLE__
@@ -327,11 +356,13 @@ void option(int option_num, char* option_str[])
     eData edata;
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
-    if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
+    if(make_besd_flag && (gctaflag || plinkflag || gemmaflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag);
+    else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
-    else if(smr_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
+    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
+    else if(smr_flag && smr_trans_flag) smr_trans(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
     
    }

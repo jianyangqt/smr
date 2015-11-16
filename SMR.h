@@ -16,8 +16,9 @@ static inline bool not_in_flags(vector<string> &flags, string str)
 static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
 {
     const char *flgs[] = { "--bfile","--gwas-summary","--beqtl-summary","--maf","--keep","--remove","--extract-snp","--exclude-snp","--extract-probe",
-        "--exclude-probe","--eqtl-summary","--ld-pruning","--peqtl-hetero","--m-hetero","--make-besd","--make-esd","--out", "--peqtl-smr","--smr",
-        "--cis-itvl","--trans-thresh","--rest-thresh","--efile","--lookup","--heidi-off","--heidi-snp","--thread-num","--combine-cis","--beqtl-summaries","--trans-itvl","--plot"};
+        "--exclude-probe","--eqtl-summary","--ld-pruning","--peqtl-heidi","--heidi-m","--make-besd","--make-esd","--out", "--peqtl-smr","--smr",
+        "--cis-wind","--peqtl-trans","--peqtl-other","--efile","--lookup","--heidi-off","--target-snp","--thread-num","--combine-cis","--beqtl-summaries",
+        "--trans-wind","--plot","--trans","--eqtl-syllabus","--gcta-format","--plink-format","--gemma-format"};
     
     vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));
     
