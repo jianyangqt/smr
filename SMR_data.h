@@ -30,6 +30,11 @@
 #include <omp.h>
 #endif
 
+#define MAX_LEN_PRBNAME 40
+#define MAX_LEN_GENENAME 40
+#define MAX_LEN_PATH 512
+
+
 typedef MatrixXf eigenMatrix;
 typedef VectorXf eigenVector;
 
@@ -136,14 +141,14 @@ namespace SMRDATA
     
     typedef struct{
         int probechr;
-        string probeId;
+        char probeId[MAX_LEN_PRBNAME];
         int gd;
         int bp;
-        string genename;
+        char genename[MAX_LEN_GENENAME];
         char orien;
-        string esdpath;
+        char esdpath[MAX_LEN_PATH];
         int snpchr;
-        string bfilepath;
+        char bfilepath[MAX_LEN_PATH];
         
     } probeinfolst;
     
@@ -204,6 +209,8 @@ namespace SMRDATA
     
     void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,bool plotflg);
     void smr_trans(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int trans_itvl,bool plotflg);
+    void smr_trans_wholeInOne(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int trans_itvl,bool plotflg);
+    
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
@@ -213,5 +220,6 @@ namespace SMRDATA
     void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
     
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag);
+    void esd2sbesd(char* outFileName, char* eqtlFileName );
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

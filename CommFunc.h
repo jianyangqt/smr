@@ -15,7 +15,7 @@
 #ifdef _WIN64
 #define MAX_LINE_SIZE 655360
 #else
-#define MAX_LINE_SIZE 0x00753000
+#define MAX_LINE_SIZE 0x00780000
 #endif
 
 #define MAX_SNP_NAME 64
