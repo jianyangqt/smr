@@ -18,7 +18,7 @@ static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
     const char *flgs[] = { "--bfile","--gwas-summary","--beqtl-summary","--maf","--keep","--remove","--extract-snp","--exclude-snp","--extract-probe",
         "--exclude-probe","--eqtl-summary","--ld-pruning","--peqtl-heidi","--heidi-m","--make-besd","--make-esd","--out", "--peqtl-smr","--smr",
         "--cis-wind","--peqtl-trans","--peqtl-other","--efile","--lookup","--heidi-off","--target-snp","--thread-num","--combine-cis","--beqtl-summaries",
-        "--trans-wind","--plot","--trans","--eqtl-outline","--gcta-format","--plink-format","--gemma-format","--make-sbesd"};
+        "--trans-wind","--plot","--trans","--eqtl-flist","--smr-format","--plink-qassoc-format","--gemma-format","--make-sbesd"};
     
     vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));
     

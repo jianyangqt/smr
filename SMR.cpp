@@ -326,24 +326,27 @@ void option(int option_num, char* option_str[])
             smr_trans_flag = true;
             printf("--trans \n" );
         }
-        else if (0 == strcmp(option_str[i], "--eqtl-outline")){
+        else if (0 == strcmp(option_str[i], "--eqtl-flist")){
             syllabusName = option_str[++i];
+             gctaflag = true;
             if(syllabusName !=NULL && has_prefix(syllabusName, "--"))
             {
                 syllabusName=NULL;
                 i--;
-            }else   printf("--eqtl-outline %s\n", syllabusName);
+            }else   printf("--eqtl-flist %s\n", syllabusName);
         }
-        else if (0 == strcmp(option_str[i], "--gcta-format")){
+        else if (0 == strcmp(option_str[i], "--smr-format")){
             gctaflag = true;
-            printf("--gcta-format \n" );
+            printf("--smr-format \n" );
         }
-        else if (0 == strcmp(option_str[i], "--plink-format")){
+        else if (0 == strcmp(option_str[i], "--plink-qassoc-format")){
             plinkflag = true;
-            printf("--plink-format \n" );
+             gctaflag = false;
+            printf("--plink-qassoc-format \n" );
         }
         else if (0 == strcmp(option_str[i], "--gemma-format")){
             gemmaflag = true;
+            gctaflag = false;
             printf("--gemma-format \n" );
         }
         else if (0 == strcmp(option_str[i], "--make-sbesd")){

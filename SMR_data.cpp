@@ -4696,7 +4696,7 @@ namespace SMRDATA
         
     }
     
-    
+    // below for txt 2 besd
     int read_probeinfolst(probeinfolst** prbiflst,char* syllabusName)
     {
         ifstream flptr(syllabusName);
@@ -4721,6 +4721,10 @@ namespace SMRDATA
         {
             string tmpStr;
             flptr.getline(buf,MAX_LINE_SIZE);
+            
+            // vector<string> vec_str;
+            //  int num= split_string(buf, vec_str);
+            
             istringstream iss(buf);
             iss>>tmpStr;
             prbiflst_tmp[i].probechr =atoi(tmpStr.c_str());
@@ -4737,18 +4741,19 @@ namespace SMRDATA
             iss>>tmpStr;
             prbiflst_tmp[i].orien=tmpStr.c_str()[0];
             iss>>tmpStr;
-            strncpy(prbiflst_tmp[i].esdpath,tmpStr.c_str(),MAX_LEN_PATH);
-            iss>>tmpStr;
             prbiflst_tmp[i].snpchr=atoi(tmpStr.c_str());
             iss>>tmpStr;
-            strncpy(prbiflst_tmp[i].bfilepath,tmpStr.c_str(),MAX_LEN_PATH);
+            strncpy(prbiflst_tmp[i].esdpath,tmpStr.c_str(),MAX_LEN_PATH);
+            tmpStr="";
+            iss>>tmpStr;
+            if(tmpStr.size())  strncpy(prbiflst_tmp[i].bfilepath,tmpStr.c_str(),MAX_LEN_PATH);           
         }
         *prbiflst=prbiflst_tmp;
         flptr.close();
         return lineNum;
         
     }
-    void read_gcta_cojo(vector<string> &rs,vector<char> &a1, vector<char> &a2, vector<float> &beta,vector<float> &se,string esdpath){
+    void read_smr_sa(vector<string> &rs,vector<char> &a1, vector<char> &a2, vector<int> &bp, vector<float> &beta,vector<float> &se,string esdpath){
         
         ifstream flptr(esdpath.c_str());
         if (!flptr) throw ("Error: can not open the file [" + string(esdpath) + "] to read.");
@@ -4767,6 +4772,7 @@ namespace SMRDATA
         rs.resize(lineNum);
         a1.resize(lineNum);
         a2.resize(lineNum);
+        bp.resize(lineNum);
         beta.resize(lineNum);
         se.resize(lineNum);
         
@@ -4780,6 +4786,8 @@ namespace SMRDATA
             istringstream iss(buf);
             iss>>tmpStr; //SNP
             rs[i]=tmpStr.c_str();
+            iss>>tmpStr; //BP
+            bp[i]=atoi(tmpStr.c_str());
             iss>>tmpStr; //A1
             a1[i]=tmpStr.c_str()[0];
             iss>>tmpStr; //A2
@@ -4792,7 +4800,6 @@ namespace SMRDATA
             if(!tmpStr.compare("NA")) se[i]=-9;
             else  se[i]=atof(tmpStr.c_str());
             iss>>tmpStr; //p
-            iss>>tmpStr; //n
         }
         
         flptr.close();
@@ -4897,7 +4904,126 @@ namespace SMRDATA
     //sort in ascend order
     int comp(const void *a,const void *b){ return (*(probeinfolst *)a).snpchr>(*(probeinfolst *)b).snpchr?1:-1; }
     
-     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag)
+    void get_curCHR_esi_info(vector<string> &_esi_rs, vector<int> &_esi_bp, vector<int> &_esi_gd,vector<char> &_esi_a1, vector<char> &_esi_a2,probeinfolst** prbiflst,int cur_chr, int rss,int prb_num_cur_chr,int fformat)
+    {
+        probeinfolst* locinfolst=*prbiflst;
+        map<string, int> rs_map;
+        long size = 0;
+        _esi_rs.clear();
+        _esi_bp.clear();
+        _esi_gd.clear();
+        _esi_a2.clear();
+        _esi_a1.clear();
+        for(int j=0;j<prb_num_cur_chr;j++)
+        {
+            ifstream flptr((locinfolst+rss+j)->esdpath);
+            if (!flptr) throw ("Error: can not open the file [" + string((locinfolst+rss+j)->esdpath) + "] to read.");
+            char buf[MAX_LINE_SIZE];
+            flptr.getline(buf,MAX_LINE_SIZE);// the header
+            if(fformat==0)
+            {
+                while(!flptr.eof())
+                {
+                    if(buf[0]!='\0')
+                    {
+                        string tmpStr;
+                        flptr.getline(buf,MAX_LINE_SIZE);
+                        istringstream iss(buf);
+                        iss>>tmpStr; //SNP
+                        
+                        if(tmpStr[0]!='\0') rs_map.insert(pair<string, int>(tmpStr.c_str(), cur_chr));
+                        if (size < rs_map.size())
+                        {
+                            _esi_rs.push_back(tmpStr.c_str());
+                            iss>>tmpStr; //BP
+                            _esi_bp.push_back(atoi(tmpStr.c_str()));
+                            iss>>tmpStr; //A1
+                            _esi_a1.push_back(tmpStr.c_str()[0]);
+                            iss>>tmpStr; //A2
+                            _esi_a2.push_back(tmpStr.c_str()[0]);
+                            _esi_gd.push_back(0);
+                            size = rs_map.size();
+                        }
+                    }
+                }
+            }
+            else if(fformat==1)
+            {
+                while(!flptr.eof())
+                {
+                    if(buf[0]!='\0')
+                    {
+                        string tmpStr;
+                        flptr.getline(buf,MAX_LINE_SIZE);
+                        istringstream iss(buf);
+                        iss>>tmpStr; //chr
+                        iss>>tmpStr; //rs
+                        if(tmpStr[0]!='\0') rs_map.insert(pair<string, int>(tmpStr.c_str(), cur_chr));
+                        if (size < rs_map.size())
+                        {
+                            _esi_rs.push_back(tmpStr.c_str());
+                            iss>>tmpStr; //BP
+                            _esi_bp.push_back(atoi(tmpStr.c_str()));
+                            _esi_gd.push_back(0);
+                            size = rs_map.size();
+                        }
+                    }
+                }
+            }
+            else if(fformat==2)
+            {
+                while(!flptr.eof())
+                {
+                    if(buf[0]!='\0')
+                    {
+                        string tmpStr;
+                        flptr.getline(buf,MAX_LINE_SIZE);
+                        istringstream iss(buf);
+                        iss>>tmpStr; //chr
+                        iss>>tmpStr; //rs
+                        if(tmpStr[0]!='\0') rs_map.insert(pair<string, int>(tmpStr.c_str(), cur_chr));
+                        if (size < rs_map.size())
+                        {
+                            _esi_rs.push_back(tmpStr.c_str());
+                            iss>>tmpStr; //BP
+                            _esi_bp.push_back(atoi(tmpStr.c_str()));
+                            iss>>tmpStr;//n_miss
+                            iss>>tmpStr; //A1 minor allele
+                            _esi_a1.push_back(tmpStr.c_str()[0]);
+                            iss>>tmpStr; //A0 major allele
+                            _esi_a2.push_back(tmpStr.c_str()[0]);
+                            
+                            _esi_gd.push_back(0);
+                            size = rs_map.size();
+                        }
+                    }
+                }
+            }
+            flptr.close();
+        }
+        if(fformat==1)
+        {
+            vector<int> rsid;
+            bInfo binfo;
+            string bimfname=string((locinfolst+rss)->bfilepath)+".bim";
+            read_bimfile(&binfo, bimfname);
+            match_only(_esi_rs,binfo._snp_name,rsid); //general speaking, _esi_rs is the subset of bimrs.
+            long rsnum=rsid.size();
+            long _rsnum=_esi_rs.size();
+            if(rsnum==_rsnum)
+            {
+                for(int k=0;k<rsid.size();k++) _esi_a1.push_back(binfo._allele1[rsid[k]]);
+                for(int k=0;k<rsid.size();k++) _esi_a2.push_back(binfo._allele2[rsid[k]]);
+            }
+            else
+            {
+                printf("Not all SNPs in eQTL summary data files are in genotype Bim file. Please check!");
+                exit(1);
+            }
+        }
+    }
+
+   void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag)
     {
         if(syllabusName==NULL) throw("Error: please input eQTL syllabus file by the flag --eqtl-outline.");
         int flagcount=0, fformat=0;
@@ -4943,18 +5069,24 @@ namespace SMRDATA
             cout<<prb_num_cur_chr<<" probes have been saved in the file [" + epifile + "]."<<endl;
             
             //get esi: from bim file
-            bInfo binfo;
-            read_bimfile(&binfo, string(prbiflst[rss].bfilepath)+".bim");
+            vector<string> _esi_rs;
+            vector<int> _esi_bp;
+             vector<int> _esi_gd;
+            vector<char> _esi_a1;
+            vector<char> _esi_a2;
+            get_curCHR_esi_info(_esi_rs,_esi_bp,_esi_gd,_esi_a1,_esi_a2,&prbiflst,cur_chr,rss,prb_num_cur_chr,fformat);
+            
             string esifile =  string(outFileName)+".chr"+atos(cur_chr)+string(".esi");
             ofstream esi(esifile.c_str());
             if (!esi) throw ("Error: can not open the esi file to save!");
-            for (int j = 0;j <binfo._snp_num; j++) {
-                esi<<binfo._chr[j]<<'\t'<<binfo._snp_name[j]<<'\t'<<binfo._genet_dst[j]<<'\t'<<binfo._bp[j]<<'\t'<<binfo._allele1[j]<<'\t'<<binfo._allele2[j]<<'\n';
+            for (int j = 0;j <_esi_rs.size(); j++) {
+                esi<<cur_chr<<'\t'<<_esi_rs[j]<<'\t'<<_esi_gd[j]<<'\t'<<_esi_bp[j]<<'\t'<<_esi_a1[j]<<'\t'<<_esi_a2[j]<<'\n';
             }
             esi.close();
-            cout<<binfo._snp_num<<" SNPs have been saved in the file [" + esifile + "]."<<endl;
-            long snp_num_cur_chr=binfo._snp_num;
+            cout<<_esi_rs.size()<<" SNPs have been saved in the file [" + esifile + "]."<<endl;
+            long snp_num_cur_chr=_esi_rs.size();
             long snp_num_saved = snp_num_cur_chr;
+            
             
             // get esd info
             uint64_t bsize=((uint64_t)snp_num_cur_chr*prb_num_cur_chr<<1)+1;
@@ -4966,7 +5098,7 @@ namespace SMRDATA
             for(int j=0;j<bsize;j++) buffer[j]=-9; //init
            
             float* ptr=buffer;
-            *ptr++=0.0;
+            *ptr++=0.0; //dense
             for(int j=0;j<prb_num_cur_chr;j++)
             {
                 vector<string> _rs;
@@ -4979,7 +5111,7 @@ namespace SMRDATA
                 switch (fformat)
                 {
                     case 0:
-                        read_gcta_cojo(_rs, _a1, _a2, _beta, _se, prbiflst[rss+j].esdpath);
+                        read_smr_sa(_rs, _a1, _a2,_bp, _beta, _se, prbiflst[rss+j].esdpath);
                         break;
                     case 1:
                         read_plink_qassoc(_rs, _bp, _beta, _se, prbiflst[rss+j].esdpath);
@@ -4990,7 +5122,7 @@ namespace SMRDATA
                 }
                 
                 vector<int> rsid;
-                match_only(_rs,binfo._snp_name,rsid); //general speaking, _rs is the subset of binfo._snp_name. but in case that some users mismatched dataset, common SNPs should be extracted.
+                match_only(_rs,_esi_rs,rsid); //general speaking, _rs is the subset of binfo._snp_name. but in case that some users mismatched dataset, common SNPs should be extracted.
                 if(rsid.size()==_rs.size())
                 {
                     for(int k=0;k<rsid.size();k++) ptr[(j<<1)*snp_num_cur_chr+rsid[k]]=_beta[k];
@@ -4999,7 +5131,7 @@ namespace SMRDATA
                 else
                 {
                     vector<string> commsnp;
-                    for(int k=0;k<rsid.size();k++) commsnp.push_back(binfo._snp_name[rsid[k]]);
+                    for(int k=0;k<rsid.size();k++) commsnp.push_back(_esi_rs[rsid[k]]);
                     vector<int> _rsid;
                     match_only(commsnp,_rs,_rsid);
                     for(int k=0;k<rsid.size();k++) ptr[(j<<1)*snp_num_cur_chr+rsid[k]]=_beta[_rsid[k]];
