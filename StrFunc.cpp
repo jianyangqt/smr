@@ -205,17 +205,17 @@ void StrFunc::match_only(const vector<string> &VecA, const vector<string> &VecB,
 	}
 
 }
-void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC)
+void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB,const vector<int> &tmp, vector<int> &VecC)
 {
     VecC.clear();
     for (int i = 0; i<VecB.size(); i++)
-        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
+        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(tmp[i]);
 }
-void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC)
+void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB,const vector<int> &tmp, vector<uint32_t> &VecC)
 {
     VecC.clear();
     for (int i = 0; i<VecB.size(); i++)
-        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(i);
+        if(find(VecA.begin(),VecA.end(),VecB[i])==VecA.end()) VecC.push_back(tmp[i]);
 }
 
 int StrFunc::split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip) //form head
@@ -247,4 +247,9 @@ int StrFunc::split_string_skip(const string &str, vector<string> &vec_str, strin
     if(look) vec_str.push_back(str_buf);
     
     return vec_str.size();
+}
+bool StrFunc::has_suffix(const std::string &str, const std::string &suffix)
+{
+    return str.size() >= suffix.size() &&
+    str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }

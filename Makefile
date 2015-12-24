@@ -6,19 +6,19 @@
 # ---------------------------------------------------------------------
 
 # Directory of the target
-OUTPUT = SMR
+OUTPUT = smr_linux
 
 # Compiler
 CXX = g++
 
 # EIGEN library
-EIGEN_PATH = ../../Lib/eigen
+EIGEN_PATH = ../Lib/eigen
 
 # Intel MKL library
 #MKL_PATH = /opt/intel/mkl
 
 # Compiler flags
-CXXFLAGS = -w -O3 -m64 -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG 
+CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG 
 LIB += -static -lz -Wl,-lm -ldl
 #LIB += -lz -Wl, -lm -ldl
 

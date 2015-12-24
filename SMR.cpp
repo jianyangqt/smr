@@ -95,7 +95,9 @@ void option(int option_num, char* option_str[])
     bool combineFlg = false;
     char* eqtlsmaslstName = NULL;
     //
-     char* gwasFileName2=NULL;
+    char* gwasFileName2=NULL;
+    char* eqtlFileName2=NULL;
+    char* traitlstName=NULL;
     //
     bool plotflg=false;
     //
@@ -103,7 +105,7 @@ void option(int option_num, char* option_str[])
     bool gctaflag=false;
     bool plinkflag=false;
     bool gemmaflag=false;
-    
+    bool merlinflag=false;
     
     bool tosbesdflag=false;
     
@@ -132,9 +134,19 @@ void option(int option_num, char* option_str[])
         }
         // eQTL files
         else if(0==strcmp(option_str[i],"--eqtl-summary")){
-            eqtlFileName=option_str[++i];
-            FLAG_VALID_CK("--eqtl-summary", eqtlFileName);
-            printf("--eqtl-summary %s\n",eqtlFileName);
+            if(eqtlFileName==NULL)
+            {
+                eqtlFileName=option_str[++i];
+                FLAG_VALID_CK("--eqtl-summary", eqtlFileName);
+                printf("--eqtl-summary %s\n",eqtlFileName);
+                CommFunc::FileExist(eqtlFileName);
+            }else{
+                eqtlFileName2=option_str[++i];
+                FLAG_VALID_CK("--eqtl-summary", eqtlFileName2);
+                printf("--eqtl-summary %s\n",eqtlFileName2);
+                CommFunc::FileExist(eqtlFileName2);
+            }
+           
             
         }
         else if(0==strcmp(option_str[i],"--beqtl-summary")){
@@ -349,9 +361,20 @@ void option(int option_num, char* option_str[])
             gctaflag = false;
             printf("--gemma-format \n" );
         }
+        else if (0 == strcmp(option_str[i], "--merlin-fastassoc-format")){
+            merlinflag = true;
+            gctaflag = false;
+            printf("----merlin-fastassoc-format \n" );
+        }
         else if (0 == strcmp(option_str[i], "--make-sbesd")){
             tosbesdflag = true;
             printf("--make-sbesd \n" );
+        }
+        else if(strcmp(option_str[i],"--extract-trait")==0){
+            traitlstName=option_str[++i];
+            FLAG_VALID_CK("--extract-trait", traitlstName);
+            cout<<"--extract-trait "<<traitlstName<<endl;
+            CommFunc::FileExist(traitlstName);
         }
     }
     
@@ -366,10 +389,11 @@ void option(int option_num, char* option_str[])
     eData edata;
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
-    if(make_besd_flag && (gctaflag || plinkflag || gemmaflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag); // from text to besd
+    if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag); // from text to besd
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
     else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
+    else if(eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);

@@ -219,7 +219,8 @@ namespace SMRDATA
     
     void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
     
-    void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag);
+    void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag);
     void esd2sbesd(char* outFileName, char* eqtlFileName );
+    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

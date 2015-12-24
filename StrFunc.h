@@ -47,10 +47,12 @@ namespace StrFunc
 	// match two vectors
 	void match(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
 	void match_only(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
-    void set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
+    
+    void set_complement(const vector<string> &VecA, const vector<string> &VecB,const vector<int> &tmp, vector<int> &VecC);
+    void set_complement(const vector<string> &VecA, const vector<string> &VecB,const vector<int> &tmp, vector<uint32_t> &VecC);
     int split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip);
     void match_only(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC);
-     void set_complement(const vector<string> &VecA, const vector<string> &VecB, vector<uint32_t> &VecC);
+    bool has_suffix(const std::string &str, const std::string &suffix);
 }
 
 #endif

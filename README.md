@@ -1,1 +1,2 @@
-# octa
+# functions including:
+# SMR test
