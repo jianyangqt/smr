@@ -125,6 +125,8 @@ namespace SMRDATA
         vector<string> _epi_gene;
         vector<char> _epi_orien;
         vector<int> _include; // initialized in the readepi
+        map<string,int> _probe_name_map;
+        
         //for sparse
         vector<uint32_t> _cols;
         vector<uint32_t> _rowid;
@@ -221,6 +223,6 @@ namespace SMRDATA
     
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag);
     void esd2sbesd(char* outFileName, char* eqtlFileName );
-    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName);
+    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

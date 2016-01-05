@@ -139,22 +139,26 @@ void option(int option_num, char* option_str[])
                 eqtlFileName=option_str[++i];
                 FLAG_VALID_CK("--eqtl-summary", eqtlFileName);
                 printf("--eqtl-summary %s\n",eqtlFileName);
-                CommFunc::FileExist(eqtlFileName);
             }else{
                 eqtlFileName2=option_str[++i];
                 FLAG_VALID_CK("--eqtl-summary", eqtlFileName2);
                 printf("--eqtl-summary %s\n",eqtlFileName2);
-                CommFunc::FileExist(eqtlFileName2);
             }
            
             
         }
         else if(0==strcmp(option_str[i],"--beqtl-summary")){
-            eqtlFileName=option_str[++i];
-            FLAG_VALID_CK("--beqtl-summary", eqtlFileName);
-            bFlag=true;
-            printf("--beqtl-summary %s\n",eqtlFileName);
-            
+             bFlag=true;
+            if(eqtlFileName==NULL)
+            {
+                eqtlFileName=option_str[++i];
+                FLAG_VALID_CK("--beqtl-summary", eqtlFileName);
+                printf("--beqtl-summary %s\n",eqtlFileName);
+            }else{
+                eqtlFileName2=option_str[++i];
+                FLAG_VALID_CK("--beqtl-summary", eqtlFileName2);
+                printf("--beqtl-summary %s\n",eqtlFileName2);
+            }
         }
         else if(strcmp(option_str[i],"--keep")==0){
             indilstName=option_str[++i];
@@ -321,9 +325,9 @@ void option(int option_num, char* option_str[])
             thread_num=atoi(option_str[++i]);
             printf("--thread-num %d\n", thread_num);
         }
-        else if (0 == strcmp(option_str[i], "--combine-cis")){
+        else if (0 == strcmp(option_str[i], "--combine-besd")){
             combineFlg = true;
-            printf("--combine-cis \n");
+            printf("--combine-besd \n");
         }
         else if (0 == strcmp(option_str[i], "--beqtl-summaries")){
             eqtlsmaslstName = option_str[++i];
@@ -393,7 +397,7 @@ void option(int option_num, char* option_str[])
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
     else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
-    else if(eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName);
+    else if(eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
