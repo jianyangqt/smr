@@ -217,7 +217,7 @@ namespace SMRDATA
     
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
     
-    void combineCis(char* eqtlsmaslstName, char* outFileName);
+    void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
     void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
     
