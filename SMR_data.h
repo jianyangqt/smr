@@ -128,7 +128,7 @@ namespace SMRDATA
         map<string,int> _probe_name_map;
         
         //for sparse
-        vector<uint32_t> _cols;
+        vector<uint64_t> _cols;
         vector<uint32_t> _rowid;
         vector<float> _val;
         // for dense

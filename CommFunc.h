@@ -22,7 +22,8 @@
 #define DENSE_FILE_TYPE_1 0  // float + floats
 #define SPARSE_FILE_TYPE_1 1 // float + float + floats + floats +floats
 #define SPARSE_FILE_TYPE_2 2 // float + uint64_t + uint32_ts + uint32_ts + floats
-#define DENSE_FILE_TYPE_2 3
+#define SPARSE_FILE_TYPE_3 3 // float + uint64_t + uint64_ts + uint32_ts + floats
+#define DENSE_FILE_TYPE_2 4
 
 #include <limits>
 #include <complex>

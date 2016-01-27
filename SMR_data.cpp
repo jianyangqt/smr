@@ -939,6 +939,103 @@ namespace SMRDATA
             // terminate
             free (buffer);
         }
+        else if ((int)*flag == SPARSE_FILE_TYPE_3)
+        {
+            // clear datastruct for dense befor read sparse
+            eqtlinfo->_bxz.clear();
+            eqtlinfo->_sexz.clear();
+            
+            uint64_t colNum=(eqtlinfo->_probNum<<1)+1;
+            uint64_t valNum;
+            uint64_t lSize;
+            char* buffer;
+            besd.seekg(0,besd.end);
+            lSize = besd.tellg();
+            
+            besd.seekg(4); // same as besd.seekg(4, besd.beg);
+            besd.read(buf, sizeof(uint64_t));
+            valNum=*(uint64_t *)buf;
+            if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            
+            
+            buffer = (char*) malloc (sizeof(char)*(lSize));
+            if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
+            besd.read(buffer,lSize);
+            if (besd.gcount()+sizeof(float) + sizeof(uint64_t) != lSize) {fputs ("Reading error",stderr); exit (2);}
+            
+            
+            uint64_t* ptr;
+            ptr=(uint64_t *)buffer;
+            
+            if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum)
+            {
+                eqtlinfo->_cols.resize((eqtlinfo->_include.size()<<1)+1);
+                eqtlinfo->_cols[0]=*ptr;
+                uint32_t* row_ptr;
+                row_ptr=(uint32_t *)(ptr+colNum);
+                float* val_ptr;
+                val_ptr=(float*)(row_ptr+valNum);
+                
+                map<int, int > _incld_id_map;
+                long size = 0;
+                for (int i = 0; i<eqtlinfo->_esi_include.size(); i++)
+                {
+                    _incld_id_map.insert(pair<int, int>(eqtlinfo->_esi_include[i], i));
+                    if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
+                    size = _incld_id_map.size();
+                }
+                
+                for(int i=0;i<eqtlinfo->_include.size();i++)
+                {
+                    uint32_t pid=eqtlinfo->_include[i];
+                    uint64_t pos=*(ptr+(pid<<1));
+                    uint64_t pos1=*(ptr+(pid<<1)+1);
+                    uint64_t num=pos1-pos;
+                    uint64_t real_num=0;
+                    for(int j=0;j<num<<1;j++)
+                    {
+                        uint32_t rid=*(row_ptr+pos+j);
+                        
+                        map<int, int>::iterator iter;
+                        iter=_incld_id_map.find(rid);
+                        if(iter!=_incld_id_map.end())
+                        {
+                            int sid=iter->second;
+                            
+                            // long sid=find(eqtlinfo->_esi_include.begin(),eqtlinfo->_esi_include.end(),rid)-eqtlinfo->_esi_include.begin(); //slow
+                            //  if(sid<eqtlinfo->_esi_include.size())
+                            //  {
+                            eqtlinfo->_rowid.push_back(sid);
+                            eqtlinfo->_val.push_back(*(val_ptr+pos+j));
+                            real_num++;
+                        }
+                        
+                    }
+                    eqtlinfo->_cols[(i<<1)+1]=(real_num>>1)+eqtlinfo->_cols[i<<1];
+                    eqtlinfo->_cols[i+1<<1]=real_num+eqtlinfo->_cols[i<<1];
+                }
+                eqtlinfo->_valNum = eqtlinfo->_val.size();
+                cout<<"eQTL summary-level statistics of "<<eqtlinfo->_include.size()<<" Probes and "<<eqtlinfo->_esi_include.size()<<" SNPs to be included from [" + besdfile + "]." <<endl;
+                if(eqtlinfo->_include.size()<eqtlinfo->_probNum ) update_epi(eqtlinfo);
+                if(eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum) update_esi(eqtlinfo);
+            }
+            else
+            {
+                eqtlinfo->_cols.resize(colNum);
+                eqtlinfo->_rowid.resize(valNum);
+                eqtlinfo->_val.resize(valNum);
+                
+                for(int i=0;i<colNum;i++) eqtlinfo->_cols[i]=*ptr++;
+                uint32_t* ptr4B=(uint32_t *)ptr;
+                for(int i=0;i<valNum;i++) eqtlinfo->_rowid[i]=*ptr4B++;
+                float* val_ptr=(float*)ptr4B;
+                for(int i=0;i<valNum;i++) eqtlinfo->_val[i]=*val_ptr++;
+                eqtlinfo->_valNum = valNum;
+                cout<<"eQTL summary-level statistics of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
+            }
+            // terminate
+            free (buffer);
+        }
         besd.close();
         
         if(eqtlinfo->_rowid.empty() && eqtlinfo->_bxz.empty())
@@ -1190,7 +1287,7 @@ namespace SMRDATA
         esdfile = string(outFileName)+".besd";
         FILE * smrbesd;
         smrbesd = fopen (esdfile.c_str(), "wb");
-           uint64_t colSize=sizeof(uint32_t)*((eqtlinfo._include.size()<<1)+1);
+           uint64_t colSize=sizeof(uint64_t)*((eqtlinfo._include.size()<<1)+1);
             uint64_t rowSize=sizeof(uint32_t)*eqtlinfo._valNum;
             uint64_t valSize=sizeof(float)*eqtlinfo._valNum;
             uint64_t valNum=eqtlinfo._valNum;
@@ -1198,12 +1295,12 @@ namespace SMRDATA
             
             char* buffer=(char*)malloc (sizeof(char)*bufsize);
             memset(buffer,0,sizeof(char)*bufsize);
-            float ftype=SPARSE_FILE_TYPE_2;
+            float ftype=SPARSE_FILE_TYPE_3;
             memcpy(buffer,&ftype,sizeof(float));
             char* wptr=buffer+sizeof(float);
             memcpy(wptr,&valNum,sizeof(uint64_t));
             wptr+=sizeof(uint64_t);
-            uint32_t* uptr=(uint32_t*)wptr; *uptr++=0;
+            uint64_t* uptr=(uint64_t*)wptr; *uptr++=0;
             for(int i=0;i<eqtlinfo._include.size();i++)
             {
                 *uptr++=eqtlinfo._cols[(eqtlinfo._include[i]<<1)+1];
@@ -2880,7 +2977,7 @@ namespace SMRDATA
         esdfile = string(outFileName) + ".besd";
         FILE * smrbesd;
         smrbesd = fopen(esdfile.c_str(), "wb");
-        uint64_t colSize = sizeof(uint32_t)*((eqtlinfo->_include.size() << 1) + 1);
+        uint64_t colSize = sizeof(uint64_t)*((eqtlinfo->_include.size() << 1) + 1);
         uint64_t rowSize = sizeof(uint32_t)*eqtlinfo->_valNum;
         uint64_t valSize = sizeof(float)*eqtlinfo->_valNum;
         uint64_t valNum = eqtlinfo->_valNum;
@@ -2888,12 +2985,12 @@ namespace SMRDATA
         
         char* buffer = (char*)malloc(sizeof(char)*bufsize);
         memset(buffer, 0, sizeof(char)*bufsize);
-        float ftype = SPARSE_FILE_TYPE_2;
+        float ftype = SPARSE_FILE_TYPE_3;
         memcpy(buffer, &ftype, sizeof(float));
         char* wptr = buffer + sizeof(float);
         memcpy(wptr, &valNum, sizeof(uint64_t));
         wptr += sizeof(uint64_t);
-        uint32_t* uptr = (uint32_t*)wptr; *uptr++ = 0;
+        uint64_t* uptr = (uint64_t*)wptr; *uptr++ = 0;
         for (int i = 0; i<eqtlinfo->_include.size(); i++)
         {
             *uptr++ = eqtlinfo->_cols[(eqtlinfo->_include[i] << 1) + 1];
@@ -3054,7 +3151,7 @@ namespace SMRDATA
     void combine_epi_esd_dense2sparse(eqtlInfo* eqtlinfo, vector<string> &smasNames, string outFileName,int cis_itvl, int trans_itvl, float transThres, float restThres)
     {
         cout<<"Transforming dense file to sparse file ..."<<endl;
-        vector<uint32_t> cols;
+        vector<uint64_t> cols;
         vector<uint32_t> rowids;
         vector<float> val;
         FILE* logfile=NULL;
@@ -3101,6 +3198,9 @@ namespace SMRDATA
                 
                 for (int j = 0; j < tmp_info._include.size(); j++)
                 {
+                    uint32_t snpCount=0;
+                    long mapsize=0;
+                    map<int,uint32_t> snp_id_map;
                     vector<int> esi_include;
                     int probchr=tmp_info._epi_chr[j];
                     int probbp= tmp_info._epi_bp[j];
@@ -3134,15 +3234,24 @@ namespace SMRDATA
                         
                         if(tmp_info._esi_chr[k] == probchr && tmp_info._esi_bp[k]<=cisuperBounder && tmp_info._esi_bp[k]>=cislowerBounder && abs(tmp_info._sexz[j][k]+9)>1e-6)
                         {
+                            snp_id_map.insert(pair<int, int>(k,snpCount++));
+                            if(mapsize<snp_id_map.size()){
+                                esi_include.push_back(k);
+                                mapsize=snp_id_map.size();
+                            }
+                            
                             cis_idx.push_back(k);
-                            esi_include.push_back(k);
                             cisNum++;
                         }
                         else if(pxz<transThres)
                         {
                             uint64_t transNum=0;
                             uint32_t curChr=tmp_info._esi_chr[k];
-                            esi_include.push_back(k);
+                            snp_id_map.insert(pair<int, int>(k,snpCount++));
+                            if(mapsize<snp_id_map.size()){
+                                esi_include.push_back(k);
+                                mapsize=snp_id_map.size();
+                            }
                             uint64_t transbp=tmp_info._esi_bp[k];
                             uint64_t translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
                             uint64_t transuperBounder=transbp+trans_itvl;
@@ -3156,7 +3265,11 @@ namespace SMRDATA
                                 if(abs(tmp_info._sexz[j][startptr]+9)>1e-6)
                                 {
                                     translowerBounder=tmp_info._esi_bp[startptr];
-                                    esi_include.push_back(startptr);
+                                    snp_id_map.insert(pair<int, int>(startptr,snpCount++));
+                                    if(mapsize<snp_id_map.size()){
+                                        esi_include.push_back(startptr);
+                                        mapsize=snp_id_map.size();
+                                    }
                                     if(upperBp.size()>0 && translowerBounder<=upperBp[upperBp.size()-1]) //trans region merges
                                     {
                                         merged=true;
@@ -3189,7 +3302,11 @@ namespace SMRDATA
                                             if(abs(tmp_info._sexz[j][startptr]+9)>1e-6)
                                             {
                                                 transuperBounder=tmp_info._esi_bp[startptr];
-                                                esi_include.push_back(startptr);
+                                                snp_id_map.insert(pair<int, int>(startptr,snpCount++));
+                                                if(mapsize<snp_id_map.size()){
+                                                    esi_include.push_back(startptr);
+                                                    mapsize=snp_id_map.size();
+                                                }
                                                 cisNum++;
                                             }
                                             startptr++;
@@ -3199,7 +3316,11 @@ namespace SMRDATA
                                     }
                                     else
                                     {
-                                        esi_include.push_back(startptr);
+                                        snp_id_map.insert(pair<int, int>(startptr,snpCount++));
+                                        if(mapsize<snp_id_map.size()){
+                                            esi_include.push_back(startptr);
+                                            mapsize=snp_id_map.size();
+                                        }
                                         double zsxz_tmp=tmp_info._bxz[j][startptr]/tmp_info._sexz[j][startptr];
                                         double pxz_tmp=pchisq(zsxz_tmp*zsxz_tmp, 1);
                                         if(pxz_tmp<transThres) // trans region extends
@@ -3243,7 +3364,11 @@ namespace SMRDATA
                         }
                         else if(pxz<restThres)
                         {
-                            esi_include.push_back(k);
+                            snp_id_map.insert(pair<int, int>(k,snpCount++));
+                            if(mapsize<snp_id_map.size()){
+                                esi_include.push_back(k);
+                                mapsize=snp_id_map.size();
+                            }
                             otherSlctNum++;
                         }
                     }
@@ -3295,8 +3420,8 @@ namespace SMRDATA
                         val.push_back(tmp_info._sexz[j][esi_include[k]]);
                         rowids.push_back(esi_include[k]);
                     }
-                    uint32_t real_num=esi_include.size();
-                    uint32_t curnum=cols[cols.size()-1];
+                    uint64_t real_num=esi_include.size();
+                    uint64_t curnum=cols[cols.size()-1];
                     cols.push_back(real_num+curnum);
                     cols.push_back((real_num<<1)+curnum);
                 }
@@ -3306,21 +3431,20 @@ namespace SMRDATA
             {
                 vector<int> idx;
                 match_only(tmp_info._esi_rs,eqtlinfo->_esi_rs,idx);
-                long snp_num=eqtlinfo->_esi_include.size();
                 cout<<"Not finished this part!"<<endl;
                 exit(1);
             }
             
         }
         
-        uint64_t colSize=sizeof(uint32_t)*cols.size();
+        uint64_t colSize=sizeof(uint64_t)*cols.size();
         uint64_t rowSize=sizeof(uint32_t)*rowids.size();
         uint64_t valSize=sizeof(float)*val.size();
         uint64_t valNum=val.size();
         uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
         char* buffer=(char*)malloc (bufsize*sizeof(char));
         char* wptr=buffer;
-        float ftype=SPARSE_FILE_TYPE_2;
+        float ftype=SPARSE_FILE_TYPE_3;
         memcpy(wptr,&ftype,sizeof(float));
         wptr+=sizeof(float);
         memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -4700,7 +4824,7 @@ namespace SMRDATA
                 cout<<"Transforming dense file to sparse file ..."<<endl;
                 if(eqtlinfo._valNum>0) throw("Error: please input dense format eQTL summary data file.");
                 //if got flag (--extract-snp), filter_probe_null() should be invoked, then _include.
-                vector<uint32_t> cols((eqtlinfo._probNum<<1)+1);
+                vector<uint64_t> cols((eqtlinfo._probNum<<1)+1);
                 vector<uint32_t> rowids;
                 vector<float> val;
                 FILE* logfile=NULL;
@@ -4943,14 +5067,14 @@ namespace SMRDATA
                     cols[i+1<<1]=(real_num<<1)+cols[i<<1];
                 }
                 
-                uint64_t colSize=sizeof(uint32_t)*cols.size();
+                uint64_t colSize=sizeof(uint64_t)*cols.size();
                 uint64_t rowSize=sizeof(uint32_t)*rowids.size();
                 uint64_t valSize=sizeof(float)*val.size();
                 uint64_t valNum=val.size();
                 uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
                 char* buffer=(char*)malloc (bufsize*sizeof(char));
                 char* wptr=buffer;
-                float ftype=SPARSE_FILE_TYPE_2;
+                float ftype=SPARSE_FILE_TYPE_3;
                 memcpy(wptr,&ftype,sizeof(float));
                 wptr+=sizeof(float);
                 memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -5045,10 +5169,10 @@ namespace SMRDATA
                             }
                         for(uint32_t i=0;i<eqtlinfo._include.size();i++)
                         {
-                            int proid=eqtlinfo._include[i];
-                            int pos=eqtlinfo._cols[proid<<1];
-                            int pos1=eqtlinfo._cols[(proid<<1)+1];
-                            int num=pos1-pos;
+                            uint64_t proid=eqtlinfo._include[i];
+                            uint64_t pos=eqtlinfo._cols[proid<<1];
+                            uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
+                            uint64_t num=pos1-pos;
                             for(int j=0;j<num;j++)
                             {
                                 eqtlinfo._bxz[i][eqtlinfo._rowid[pos+j]]=eqtlinfo._val[pos+j];
@@ -5116,7 +5240,7 @@ namespace SMRDATA
                     }
                     else
                     {
-                        uint64_t colSize=sizeof(uint32_t)*((eqtlinfo._include.size()<<1)+1);
+                        uint64_t colSize=sizeof(uint64_t)*((eqtlinfo._include.size()<<1)+1);
                         uint64_t rowSize=sizeof(uint32_t)*eqtlinfo._valNum;
                         uint64_t valSize=sizeof(float)*eqtlinfo._valNum;
                         uint64_t valNum=eqtlinfo._valNum;
@@ -5124,12 +5248,12 @@ namespace SMRDATA
                         
                         char* buffer=(char*)malloc (sizeof(char)*bufsize);
                         memset(buffer,0,sizeof(char)*bufsize);
-                        float ftype=SPARSE_FILE_TYPE_2;
+                        float ftype=SPARSE_FILE_TYPE_3;
                         memcpy(buffer,&ftype,sizeof(float));
                         char* wptr=buffer+sizeof(float);
                         memcpy(wptr,&valNum,sizeof(uint64_t));
                         wptr+=sizeof(uint64_t);
-                        uint32_t* uptr=(uint32_t*)wptr; *uptr++=0;
+                        uint64_t* uptr=(uint64_t*)wptr; *uptr++=0;
                         for(int i=0;i<eqtlinfo._include.size();i++)
                         {
                             *uptr++=eqtlinfo._cols[(eqtlinfo._include[i]<<1)+1];
@@ -5208,9 +5332,9 @@ namespace SMRDATA
 
                 for (int i = 0; i < eqtlinfo._probNum; i++)
                 {
-                    uint32_t pos1=eqtlinfo._cols[(i<<1)+1];
-                    uint32_t pos=eqtlinfo._cols[i<<1];
-                    uint32_t num=pos1-pos;
+                    uint64_t pos1=eqtlinfo._cols[(i<<1)+1];
+                    uint64_t pos=eqtlinfo._cols[i<<1];
+                    uint64_t num=pos1-pos;
                     if (num>0)
                     {
                         for(int j=0;j<num;j++)
@@ -5291,10 +5415,10 @@ namespace SMRDATA
                         }
                     for(uint32_t i=0;i<include.size();i++)
                     {
-                        int proid=include[i];
-                        int pos=eqtlinfo._cols[proid<<1];
-                        int pos1=eqtlinfo._cols[(proid<<1)+1];
-                        int num=pos1-pos;
+                        uint64_t proid=include[i];
+                        uint64_t pos=eqtlinfo._cols[proid<<1];
+                        uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
+                        uint64_t num=pos1-pos;
                         for(int j=0;j<num;j++)
                         {
                             uint32_t rid=eqtlinfo._rowid[pos+j];
@@ -5349,7 +5473,7 @@ namespace SMRDATA
                 }
                 else{
                     
-                    vector<uint32_t> cols((include.size()<<1)+1);
+                    vector<uint64_t> cols((include.size()<<1)+1);
                     vector<uint32_t> rowid;
                     vector<float> val;
                     vector<int> rk;
@@ -5361,15 +5485,15 @@ namespace SMRDATA
                         _incld_id_map.insert(pair<int, int>(slctId[i], i));
                         
                     }
-                    cols[0]=0.0;
+                    cols[0]=0;
                     for(int i=0;i<include.size();i++)
                     {
                         tmp.clear();
-                        uint32_t pos=eqtlinfo._cols[include[i]<<1];
-                        uint32_t pos1=eqtlinfo._cols[(include[i]<<1)+1];
-                        uint32_t num=pos1-pos;
-                        uint32_t real_num=0;
-                        for(uint32_t j=0;j<num;j++)
+                        uint64_t pos=eqtlinfo._cols[include[i]<<1];
+                        uint64_t pos1=eqtlinfo._cols[(include[i]<<1)+1];
+                        uint64_t num=pos1-pos;
+                        uint64_t real_num=0;
+                        for(uint64_t j=0;j<num;j++)
                         {
                             uint32_t rid=eqtlinfo._rowid[pos+j];
                             map<int, int>::iterator iter;
@@ -5393,7 +5517,7 @@ namespace SMRDATA
                         cols[i+1<<1]=(real_num<<1)+cols[i<<1];
                     }
                     
-                    uint64_t colSize=sizeof(uint32_t)*cols.size();
+                    uint64_t colSize=sizeof(uint64_t)*cols.size();
                     uint64_t rowSize=sizeof(uint32_t)*rowid.size();
                     uint64_t valNum=val.size();
                     uint64_t valSize=sizeof(float)*valNum;
@@ -5401,7 +5525,7 @@ namespace SMRDATA
                     
                     char* buffer=(char*)malloc (sizeof(char)*bufsize);
                     memset(buffer,0,sizeof(char)*bufsize);
-                    float ftype=SPARSE_FILE_TYPE_2;
+                    float ftype=SPARSE_FILE_TYPE_3;
                     memcpy(buffer,&ftype,sizeof(float));
                     char* wptr=buffer+sizeof(float);
                     memcpy(wptr,&valNum,sizeof(uint64_t));
@@ -5474,10 +5598,10 @@ namespace SMRDATA
             
             for(uint32_t i=0;i<eqtlinfo._probNum;i++)
             {
-                int proid=eqtlinfo._include[i];
-                int pos=eqtlinfo._cols[proid<<1];
-                int pos1=eqtlinfo._cols[(proid<<1)+1];
-                int num=pos1-pos;
+                uint64_t proid=eqtlinfo._include[i];
+                uint64_t pos=eqtlinfo._cols[proid<<1];
+                uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
+                uint64_t num=pos1-pos;
                 for(int j=0;j<num;j++)
                 {
                     double beta=eqtlinfo._val[pos+j];
