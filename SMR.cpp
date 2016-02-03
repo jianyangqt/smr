@@ -109,6 +109,11 @@ void option(int option_num, char* option_str[])
     
     bool tosbesdflag=false;
     
+    char* freqName=NULL;
+    bool esdstd=false;
+    
+    bool metaflg=false;
+    
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -380,6 +385,21 @@ void option(int option_num, char* option_str[])
             cout<<"--extract-trait "<<traitlstName<<endl;
             CommFunc::FileExist(traitlstName);
         }
+        else if(strcmp(option_str[i],"--esd-std")==0){
+            esdstd=true;
+            cout<<"--esd-std "<<endl;
+        }
+        else if(strcmp(option_str[i],"--freq")==0){
+            freqName=option_str[++i];
+            FLAG_VALID_CK("--freq", freqName);
+            cout<<"--freq "<<freqName<<endl;
+            CommFunc::FileExist(freqName);
+        }
+        else if(strcmp(option_str[i],"--meta")==0){
+            metaflg=true;
+            cout<<"--meta "<<endl;
+        }
+
     }
     
 #ifndef __APPLE__
@@ -394,6 +414,8 @@ void option(int option_num, char* option_str[])
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag); // from text to besd
+    else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName);
+    else if (metaflg) meta(outFileName,eqtlFileName, eqtlFileName2);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
     else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde, cis_flag, cis_itvl,trans_itvl, transThres, restThres);

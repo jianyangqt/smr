@@ -178,4 +178,16 @@ void CommFunc::getUnique(vector<uint32_t> &a)
     vector<uint32_t> ::iterator it=unique(a.begin(),a.end());
     a.erase(it,a.end());
 }
-
+void CommFunc::match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB, vector<int> &VecC)
+{
+    int i=0;
+    map<uint32_t, int> id_map;
+    map<uint32_t, int>::iterator iter;
+    VecC.clear();
+    for(i=0; i<VecB.size(); i++) id_map.insert(pair<uint32_t,int>(VecB[i], i));
+    for(i=0; i<VecA.size(); i++){
+        iter=id_map.find(VecA[i]);
+        if(iter==id_map.end()) VecC.push_back(-9);
+        else VecC.push_back(iter->second);
+    }    
+}

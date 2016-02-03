@@ -116,7 +116,7 @@ namespace SMRDATA
         vector<char> _esi_allele2;
 		vector<int> _esi_include; // initialized in the readesi
         map<string,int> _snp_name_map;
-       
+       vector<float> _esi_maf;
         
         vector<uint32_t> _epi_chr;
         vector<string> _epi_prbID;
@@ -224,5 +224,7 @@ namespace SMRDATA
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag);
     void esd2sbesd(char* outFileName, char* eqtlFileName );
     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg);
+    void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName);
+    void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */
