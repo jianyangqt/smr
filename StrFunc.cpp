@@ -253,3 +253,17 @@ bool StrFunc::has_suffix(const std::string &str, const std::string &suffix)
     return str.size() >= suffix.size() &&
     str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
+
+void StrFunc::set_intersect(const vector<string> &VecA, const vector<string> &VecB, vector<string> &VecC)
+{
+    int i = 0;
+    map<string, int> id_map;
+    map<string, int>::iterator iter;
+    VecC.clear();
+    for (i = 0; i<VecB.size(); i++) id_map.insert(pair<string, int>(VecB[i], i));
+    for (i = 0; i<VecA.size(); i++){
+        iter = id_map.find(VecA[i]);
+        if (iter != id_map.end()) VecC.push_back(iter->first);
+    }
+    
+}

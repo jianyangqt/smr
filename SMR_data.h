@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <zlib.h>
 #include <bitset>
+#include <sys/types.h>
+#include <sys/stat.h>
 #if defined _WIN64 || defined _WIN32
 #include <direct.h>
 #define GetCurrentDir _getcwd
@@ -215,7 +217,7 @@ namespace SMRDATA
     
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, float plookup,bool bFlag);
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, char* genelistName, float plookup,bool bFlag);
     
     void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     

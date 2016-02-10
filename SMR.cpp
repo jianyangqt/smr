@@ -86,7 +86,9 @@ void option(int option_num, char* option_str[])
     // for lookup
     float plookup=5e-8;
     bool lookup_flag=false;
-       
+    char* genelistName=NULL;
+    
+    
     char* refSNP=NULL;
     bool heidioffFlag = false;
     
@@ -113,6 +115,8 @@ void option(int option_num, char* option_str[])
     bool esdstd=false;
     
     bool metaflg=false;
+    
+    
     
     for(int i=0;i<option_num;i++)
     {
@@ -317,6 +321,12 @@ void option(int option_num, char* option_str[])
                 exit (EXIT_FAILURE);
             }
         }
+        else if(strcmp(option_str[i],"--gene-list")==0){
+            genelistName=option_str[++i];
+            FLAG_VALID_CK("--gene-list", genelistName);
+            cout<<"--gene-list "<<genelistName<<endl;
+            CommFunc::FileExist(genelistName);
+        }
         else if (0 == strcmp(option_str[i], "--target-snp")){
             refSNP = option_str[++i];
             FLAG_VALID_CK("--target-snp", refSNP);
@@ -422,7 +432,7 @@ void option(int option_num, char* option_str[])
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
     else if(eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg);
     else if(eremlFlag) read_efile(&edata, eFileName);
-    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, plookup, bFlag);
+    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag);
     else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
     else if(smr_flag && smr_trans_flag) smr_trans_wholeInOne(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
     
