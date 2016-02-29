@@ -3313,9 +3313,9 @@ namespace SMRDATA
                                 esi_include.push_back(k);
                                 mapsize=snp_id_map.size();
                             }
-                            uint64_t transbp=tmp_info._esi_bp[k];
-                            uint64_t translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
-                            uint64_t transuperBounder=transbp+trans_itvl;
+                            long transbp=tmp_info._esi_bp[k];
+                            long translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
+                            long transuperBounder=transbp+trans_itvl;
                             bool extended=false;
                             bool merged=false;
                             
@@ -3887,9 +3887,9 @@ namespace SMRDATA
                     string ldfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".engs";
                     ofstream ldio(ldfile.c_str());
                     if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                    ldio << "Chr" <<'\t' << "ProbeID"  << '\t' << "Prob_bp" << '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
+                    ldio << "ProbeChr" <<'\t' << "ProbeID"  << '\t' << "Probe_bp" << '\t'<< "SNP_Chr"<< '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
                     for (int ii = 0;ii <plot_snpidx.size(); ii++) {
-                        ldio<<esdata._epi_chr[plot_probeidx[ii]]<<'\t'<<esdata._epi_prbID[plot_probeidx[ii]]<<'\t'<<esdata._epi_bp[plot_probeidx[ii]]<<'\t'<<esdata._esi_rs[plot_snpidx[ii]]<<'\t'<<esdata._esi_bp[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele1[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele2[plot_snpidx[ii]]<<'\t'<<gdata.byz[plot_snpidx[ii]]<<'\t'<<gdata.seyz[plot_snpidx[ii]]<<'\t'<<plot_bxz[ii]<<'\t'<<plot_sexz[ii]<<'\n';
+                        ldio<<esdata._epi_chr[plot_probeidx[ii]]<<'\t'<<esdata._epi_prbID[plot_probeidx[ii]]<<'\t'<<esdata._epi_bp[plot_probeidx[ii]]<<'\t'<<esdata._esi_chr[plot_snpidx[ii]]<<'\t'<<esdata._esi_rs[plot_snpidx[ii]]<<'\t'<<esdata._esi_bp[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele1[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele2[plot_snpidx[ii]]<<'\t'<<gdata.byz[plot_snpidx[ii]]<<'\t'<<gdata.seyz[plot_snpidx[ii]]<<'\t'<<plot_bxz[ii]<<'\t'<<plot_sexz[ii]<<'\n';
                     }
                     cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
                     ldio.close();
@@ -4016,7 +4016,7 @@ namespace SMRDATA
         ofstream smr(smrfile.c_str());
         if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
        
-            smr << "ProbeID" <<'\t'<< "ProbeChr" <<'\t' << "Gene"  << '\t' << "Prob_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<< "p_GWAS" << '\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\t'<< "p_eQTL" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
+            smr << "ProbeID" <<'\t'<< "ProbeChr" <<'\t' << "Gene"  << '\t' << "Probe_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<< "p_GWAS" << '\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\t'<< "p_eQTL" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
             
             for (int i = 0;i <=outCount; i++) {
                 smr<<esdata._epi_prbID[out_probid[i]]<<'\t'<<esdata._epi_chr[out_probid[i]]<<'\t'<<esdata._epi_gene[out_probid[i]]<<'\t'<<esdata._epi_bp[out_probid[i]]<<'\t'<<rsid[i]<<'\t'<<rschr[i]<<'\t'<<rsbp[i]<<'\t'<<rsa1[i]<<'\t'<<rsa2[i]<<'\t'<<rsfreq[i]<<'\t'<<bgwas[i]<<'\t'<<segwas[i]<<'\t'<<pgwas[i]<<'\t'<<beqtl[i]<<'\t'<<seeqtl[i]<<'\t'<<peqtl[i]<<'\t'<<bxy[i]<<'\t'<<sexy[i]<<'\t'<<pxy[i]<<'\t'<<prb1[i]<<'\t'<<nsnp_test1[i]<<'\n';
@@ -4473,6 +4473,7 @@ namespace SMRDATA
         read_epifile(&esdata, string(eqtlFileName)+".epi");
         if(problstName != NULL) extract_prob(&esdata, problstName);
         if(problst2exclde != NULL) exclude_prob(&esdata, problst2exclde); //no switch the place ahead of extract_prob()
+       
         if(bFlag) read_besdfile(&esdata, string(eqtlFileName)+".besd");
         else      read_esdfile(&esdata, string(eqtlFileName)+".esd");
         
@@ -4871,7 +4872,8 @@ namespace SMRDATA
             if(snplst2exclde != NULL) exclude_eqtl_snp(&eqtlinfo, snplst2exclde); //no switch the place ahead of extract_eqtl_snp()
             read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
             if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
-            if(problst2exclde != NULL) exclude_prob(&eqtlinfo, problst2exclde); //no switch the place ahead of extract_prob()
+            if(problst2exclde != NULL) exclude_prob(&eqtlinfo, problst2exclde);
+            
             if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
             
@@ -5048,9 +5050,9 @@ namespace SMRDATA
                             uint64_t transNum=0;
                             uint32_t curChr=eqtlinfo._esi_chr[j];
                             esi_include.push_back(j);
-                            uint64_t transbp=eqtlinfo._esi_bp[j];
-                            uint64_t translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
-                            uint64_t transuperBounder=transbp+trans_itvl;
+                            long transbp=eqtlinfo._esi_bp[j];
+                            long translowerBounder=((transbp-trans_itvl>0)?(transbp-trans_itvl):0);
+                            long transuperBounder=transbp+trans_itvl;
                             bool extended=false;
                             bool merged=false;
                             
@@ -5773,17 +5775,9 @@ namespace SMRDATA
         cout<<"Extracted results of "<<out_esi_id.size()<<" SNPs have been saved in the file [" + smrfile + "]."<<endl;
         
     }
-    
-    void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres)
+    int get_besd_format(string besdfName)
     {
-        
-        eqtlInfo eqtlinfo;
-        vector<string> smasNames;
-        
-        read_smaslist(smasNames, string(eqtlsmaslstName));
-        if(smasNames.size()==0) throw("No eqtl summary file list in [ "+ string(eqtlsmaslstName)  +" ]");
-        combine_esi(&eqtlinfo, smasNames);
-        string besdfile = smasNames[0] + ".besd";
+        string besdfile = besdfName + ".besd";
         char buf[8];
         ifstream besd(besdfile.c_str(), ios::in|ios::binary);
         if(!besd)
@@ -5795,9 +5789,36 @@ namespace SMRDATA
         
         besd.read(buf, 4);
         besd.close();
-        float* flag;
-        flag=(float *)buf;
-        if((int)*flag == DENSE_FILE_TYPE_1)
+        
+        float* flag=(float *)buf;
+        return  (int)*flag;
+
+    }
+    void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres)
+    {
+        
+        eqtlInfo eqtlinfo;
+        vector<string> smasNames;
+        
+        read_smaslist(smasNames, string(eqtlsmaslstName));
+        if(smasNames.size()==0) throw("No eqtl summary file list in [ "+ string(eqtlsmaslstName)  +" ]");
+        combine_esi(&eqtlinfo, smasNames);
+        vector<int> flags;
+        int fileflg=get_besd_format(smasNames[0]);
+        
+        for(int i=1;i<smasNames.size();i++)
+        {
+            if(fileflg == DENSE_FILE_TYPE_1 && DENSE_FILE_TYPE_1!=get_besd_format(smasNames[i])) {
+                cout<<"Erroe: You got dense file and sparse file mixed in you file list!"<<endl;
+                exit(1);
+            }
+            if(fileflg != DENSE_FILE_TYPE_1 && DENSE_FILE_TYPE_1==get_besd_format(smasNames[i])) {
+                cout<<"Erroe: You got dense file and sparse file mixed in you file list!"<<endl;
+                exit(1);
+            }
+        }
+        
+        if(fileflg == DENSE_FILE_TYPE_1)
         {
             combine_epi(&eqtlinfo, smasNames);
             if(cisflag) combine_epi_esd_dense2sparse(&eqtlinfo, smasNames, string(outFileName),cis_itvl, trans_itvl, transThres, restThres);
@@ -6511,7 +6532,7 @@ namespace SMRDATA
         
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg)
     {
         setNbThreads(thread_num);
         
@@ -6530,8 +6551,10 @@ namespace SMRDATA
         if (snplstName != NULL) extract_eqtl_snp(&etrait, snplstName);
         if(snplst2exclde != NULL) exclude_eqtl_snp(&etrait, snplst2exclde);
         read_epifile(&etrait, string(eqtlFileName)+".epi");
-        if(problstName != NULL) extract_prob(&etrait, problstName);
-        if(problst2exclde != NULL) exclude_prob(&etrait, problst2exclde);
+        if(eproblstName != NULL) extract_prob(&etrait, eproblstName);
+        if(eproblst2exclde != NULL) exclude_prob(&etrait, eproblst2exclde);
+        if(mproblstName != NULL) extract_prob(&etrait, mproblstName);
+        if(mproblst2exclde != NULL) exclude_prob(&etrait, mproblst2exclde);
         if(bFlag) read_besdfile(&etrait, string(eqtlFileName)+".besd");
         else      read_esdfile(&etrait, string(eqtlFileName)+".esd");
         
@@ -6564,8 +6587,10 @@ namespace SMRDATA
         //the etrait is not updated, so from now on _esi_include should be used always.
         cout<<"Reading eQTL summary data..."<<endl;
         read_epifile(&esdata, string(eqtlFileName2)+".epi");
-        if(problstName != NULL) extract_prob(&esdata, problstName);
-        if(problst2exclde != NULL) exclude_prob(&esdata, problst2exclde); //no switch the place ahead of extract_prob()
+        if(mproblstName != NULL) extract_prob(&esdata, mproblstName);
+        if(mproblst2exclde != NULL) exclude_prob(&esdata, mproblst2exclde); //no switch the place ahead of extract_prob()
+        if(eproblstName != NULL) extract_prob(&esdata, eproblstName);
+        if(eproblst2exclde != NULL) exclude_prob(&esdata, eproblst2exclde);
         if(bFlag) read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         else      read_esdfile(&esdata, string(eqtlFileName2)+".esd");
         /********************/
@@ -6970,7 +6995,7 @@ namespace SMRDATA
                 string ldfile = string(outFileName)+".engs";
                 ofstream ldio(ldfile.c_str());
                 if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                ldio << "Chr" <<'\t' << "ProbeID"  << '\t' << "Prob_bp" << '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
+                ldio << "ProbeChr" <<'\t' << "ProbeID"  << '\t' << "Probe_bp" << '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
                 for (int i = 0;i <plot_snpidx.size(); i++) {
                     ldio<<esdata._epi_chr[plot_probeidx[i]]<<'\t'<<esdata._epi_prbID[plot_probeidx[i]]<<'\t'<<esdata._epi_bp[plot_probeidx[i]]<<'\t'<<esdata._esi_rs[plot_snpidx[i]]<<'\t'<<esdata._esi_bp[plot_snpidx[i]]<<'\t'<<esdata._esi_allele1[plot_snpidx[i]]<<'\t'<<esdata._esi_allele2[plot_snpidx[i]]<<'\t'<<gdata.byz[plot_snpidx[i]]<<'\t'<<gdata.seyz[plot_snpidx[i]]<<'\t'<<plot_bxz[i]<<'\t'<<plot_sexz[i]<<'\n';
                 }
