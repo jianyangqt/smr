@@ -6532,7 +6532,7 @@ namespace SMRDATA
         
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind)
     {
         setNbThreads(thread_num);
         
@@ -6546,15 +6546,17 @@ namespace SMRDATA
         if(!heidioffFlag && bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
         if(refSNP!=NULL) heidiFlag=true;
-        
+        if(problstName != NULL) cout<<"WARNING: --extract-probe here presumes the probe list should contain both probes of exposure dataset and probes of outcome dataset.\n If you want to only extract probes from one dataset please include these probles in the file and all the probes of the other dataset as well.\n"<<endl;
         read_esifile(&etrait, string(eqtlFileName)+".esi");
         if (snplstName != NULL) extract_eqtl_snp(&etrait, snplstName);
         if(snplst2exclde != NULL) exclude_eqtl_snp(&etrait, snplst2exclde);
         read_epifile(&etrait, string(eqtlFileName)+".epi");
-        if(eproblstName != NULL) extract_prob(&etrait, eproblstName);
-        if(eproblst2exclde != NULL) exclude_prob(&etrait, eproblst2exclde);
-        if(mproblstName != NULL) extract_prob(&etrait, mproblstName);
-        if(mproblst2exclde != NULL) exclude_prob(&etrait, mproblst2exclde);
+        if(problstName != NULL) extract_prob(&etrait, problstName);
+        if(problst2exclde != NULL) exclude_prob(&etrait, problst2exclde);
+        if(oproblstName != NULL ) extract_prob(&etrait, oproblstName);
+        if(oproblst2exclde != NULL) exclude_prob(&etrait, oproblst2exclde);
+        
+        
         if(bFlag) read_besdfile(&etrait, string(eqtlFileName)+".besd");
         else      read_esdfile(&etrait, string(eqtlFileName)+".esd");
         
@@ -6587,10 +6589,11 @@ namespace SMRDATA
         //the etrait is not updated, so from now on _esi_include should be used always.
         cout<<"Reading eQTL summary data..."<<endl;
         read_epifile(&esdata, string(eqtlFileName2)+".epi");
-        if(mproblstName != NULL) extract_prob(&esdata, mproblstName);
-        if(mproblst2exclde != NULL) exclude_prob(&esdata, mproblst2exclde); //no switch the place ahead of extract_prob()
-        if(eproblstName != NULL) extract_prob(&esdata, eproblstName);
-        if(eproblst2exclde != NULL) exclude_prob(&esdata, eproblst2exclde);
+        if(problstName != NULL) extract_prob(&esdata, problstName);
+        if(problst2exclde != NULL) exclude_prob(&esdata, problst2exclde);
+        if(eproblstName != NULL ) extract_prob(&esdata, eproblstName);
+        if(eproblst2exclde != NULL) exclude_prob(&esdata, eproblst2exclde);       
+        
         if(bFlag) read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         else      read_esdfile(&esdata, string(eqtlFileName2)+".esd");
         /********************/
@@ -6689,10 +6692,10 @@ namespace SMRDATA
             gdata.snpNum=gdata.snpName.size();
             cout<<gdata.snpNum<<" common SNPs are included from eTrait [ "+traitname+" ] summary."<<endl;
             
-            int dst=4000000;
+            int outcome_probe_wind=op_wind*1000;
             int traitbp=etrait._epi_bp[ii];
-            int lowerbounder=(traitbp-dst)>0?(traitbp-dst):0;
-            int upperbounder=traitbp+dst;
+            int lowerbounder=(traitbp-outcome_probe_wind)>0?(traitbp-outcome_probe_wind):0;
+            int upperbounder=traitbp+outcome_probe_wind;
             int traitchr=etrait._epi_chr[ii];
             vector<int> icld_tmp;
             for(int j=0;j<esdata._include.size();j++)

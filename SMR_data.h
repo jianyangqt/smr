@@ -225,7 +225,7 @@ namespace SMRDATA
     
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag);
     void esd2sbesd(char* outFileName, char* eqtlFileName );
-    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg);
+    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind);
     void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName);
     void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2);
 }
