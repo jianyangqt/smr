@@ -30,14 +30,17 @@ HDR += CommFunc.h \
            StatFunc.h \
            StrFunc.h \
             SMR_data.h \
-            eData.h 
+            eData.h \
+            SMR_data_p1.h
 SRC = SMR.cpp \
            CommFunc.cpp \
            SMR_data.cpp \
 	   dcdflib.cpp \
            StatFunc.cpp \
            StrFunc.cpp	\
-           eData.cpp 
+           eData.cpp \
+           SMR_data_p1.cpp
+
 OBJ = $(SRC:.cpp=.o)
 
 all : $(OUTPUT) 

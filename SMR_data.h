@@ -200,8 +200,17 @@ namespace SMRDATA
     void filter_snp_maf(bInfo* bdata,double maf);
     void extract_prob(eqtlInfo* eqtlinfo,string problstName);
 	void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName);
+    void exclude_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName);
+    void exclude_prob(eqtlInfo* eqtlinfo,string problstName);
+    
     template <typename T>
-    inline string atos (T const& a);
+    inline string atos (T const& a)
+    {
+        stringstream ss;
+        ss << a;
+        return(ss.str());
+    }
+
     
     string dtos(double value);
     string dtosf(double value);
@@ -217,7 +226,7 @@ namespace SMRDATA
     
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, float plookup,bool bFlag);
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag);
     
     void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
@@ -228,5 +237,18 @@ namespace SMRDATA
     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind);
     void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName);
     void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2);
+    
+    void read_smaslist(vector<string> &smasNames, string eqtlsmaslstName);
+    void remove_indi(bInfo* bdata, string indi_list_file);
+    void extract_snp(bInfo* bdata,string snplistfile);
+    void exclude_snp(bInfo* bdata,string snplistfile);
+    void allele_check(bInfo* bdata, eqtlInfo* etrait, eqtlInfo* esdata);
+    void update_geIndx(bInfo* bdata, eqtlInfo* etrait, eqtlInfo* esdata);
+    void progress_print(float progress);
+    void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p = false);
+    void ld_calc_o2m(VectorXd &ld_v,long targetid, MatrixXd &X);
+    void get_square_ldpruning_idxes(vector<int> &sn_ids, VectorXd &zsxz, double threshold, VectorXd &ld_v, long maxid, double ld_top);
+    void cor_calc(MatrixXd &LD, MatrixXd &X);
+    void extract_prob_by_gene(eqtlInfo* eqtlinfo, string genelistName);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

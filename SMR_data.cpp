@@ -1177,17 +1177,21 @@ namespace SMRDATA
                 else nullprobes.push_back(eqtlinfo->_epi_prbID[i]);
             }
         }
-        string fname="chr"+atos(eqtlinfo->_esi_chr[0])+".nullprobes.log";
-        FILE* nullprobefile=fopen(fname.c_str(), "w");
-        if (!(nullprobefile)) {
-            printf("Error: Failed to open null probe log file.\n");
-        }
-        for(int i=0;i<nullprobes.size();i++)
+        if(nullprobes.size()>0)
         {
-            string tmpstr=nullprobes[i]+'\n';
-            fputs(tmpstr.c_str(),nullprobefile);
+            string fname="chr"+atos(eqtlinfo->_esi_chr[0])+".nullprobes.log";
+            FILE* nullprobefile=fopen(fname.c_str(), "w");
+            if (!(nullprobefile)) {
+                printf("Error: Failed to open null probe log file.\n");
+            }
+            for(int i=0;i<nullprobes.size();i++)
+            {
+                string tmpstr=nullprobes[i]+'\n';
+                fputs(tmpstr.c_str(),nullprobefile);
+            }
+            fclose(nullprobefile);
         }
-        fclose(nullprobefile);
+        
         cout<<eqtlinfo->_include.size()<<" probes to be included."<<endl;
     }
 
@@ -1549,14 +1553,7 @@ namespace SMRDATA
         return(ss.str());
     }
 
-    template <typename T>
-    inline string atos (T const& a)
-    {
-        stringstream ss;
-        ss << a;
-        return(ss.str());
-    }
-
+    
     void free_gwas_data(gwasData* gdata)
     {
         gdata->snpName.clear();
@@ -2619,7 +2616,7 @@ namespace SMRDATA
         vector<int> edId;
         cmmnSNPs.clear();
         edId.clear();
-        string logstr="Performing allele check between GWAS summary dataset, eQTL summary dataset and Plink dataset. ";
+        string logstr="Performing allele check among GWAS summary dataset, eQTL summary dataset and Plink dataset. ";
         cout<<logstr<<endl;
         
         vector<string> bsnp;
@@ -2812,7 +2809,7 @@ namespace SMRDATA
         
     }
 
-    void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p = false) {
+    void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p) {
         // Eigen is column-major by default. here row of X is individual, column of X is SNP.
         uint64_t snpNum=snpids.size();
         X.resize(bdata->_keep.size(),snpNum);
@@ -5686,7 +5683,7 @@ namespace SMRDATA
         
     }
     
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, char* genelistName, float plookup, bool bFlag)
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, char* genelistName, double plookup, bool bFlag)
     {
         eqtlInfo eqtlinfo;
         cout<<endl<<"Reading eQTL summary data..."<<endl;
@@ -6728,12 +6725,7 @@ namespace SMRDATA
             vector<string> nsnp_test1(probNum);
             vector<string> top_match1(probNum);  // origin is int
             vector<string> ldrsq(probNum); // origin is double
-            
-            // for plot
-            vector<uint32_t> plot_snpidx;
-            vector<uint32_t> plot_probeidx;
-            vector<double> plot_bxz;
-            vector<double> plot_sexz;
+          
             
             cout<<endl<<"Performing SMR and heterogeneity analysis..... "<<endl;
             float progr0=0.0 , progr1;
@@ -6768,6 +6760,8 @@ namespace SMRDATA
             MatrixXd _LD_heidi;
             MatrixXd _X_heidi;
             
+            //for plot
+            vector<string> plot_paths;
             for(int ti=0;ti<icld_tmp.size();ti++)
             {
                 int i=icld_tmp[ti];
@@ -6778,6 +6772,14 @@ namespace SMRDATA
                     progress_print(progr1);
                     progr0=progr1;
                 }
+                
+                // for plot
+                vector<uint32_t> plot_snpidx;
+                vector<uint32_t> plot_probeidx;
+                vector<double> plot_bxz;
+                vector<double> plot_sexz;
+                int plotdir_id=ti>>10;
+                string plotdir="";
                 
                 //extract info from eqtl summary and gwas summary
                 bxz.clear();
@@ -6940,12 +6942,55 @@ namespace SMRDATA
                     }
                     
                     if(plotflg){
+                        for(long j=strlen(outFileName)-1;j>=0;j--)
+                            if(outFileName[j]=='/')
+                            {
+                                plotdir=string(outFileName).substr(0,j+1);
+                                break;
+                            }
+                        if(plotdir=="") plotdir="./";
+                        
+                        plotdir=string(plotdir)+"plot";
+                        struct stat st = {0};
+                        if (stat(plotdir.c_str(), &st) == -1) {
+                            mkdir(plotdir.c_str(), 0755);
+                        }
+                        
+                        plotdir=string(plotdir)+"/"+traitname;
+                        st = {0};
+                        if (stat(plotdir.c_str(), &st) == -1) {
+                            mkdir(plotdir.c_str(), 0755);
+                        }
+                        
+                        plotdir=string(plotdir)+"/"+atos(plotdir_id);
+                        st = {0};
+                        if (stat(plotdir.c_str(), &st) == -1) {
+                            mkdir(plotdir.c_str(), 0755);
+                        }
+                        
+                        plot_paths.push_back(string(plotdir)+"/"+esdata._epi_prbID[i]);
+                    }
+                    
+
+                    if(plotflg){
                         for(int j=0;j<sn_ids.size();j++) {
                             plot_probeidx.push_back(i);
                             plot_snpidx.push_back(curId[sn_ids[j]]);
                             plot_bxz.push_back(bxz[sn_ids[j]]);
                             plot_sexz.push_back(sexz[sn_ids[j]]);
                         }
+                        
+                        string ldfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".engs";
+                        ofstream ldio(ldfile.c_str());
+                        if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
+                        ldio << "Expo_Chr" <<'\t' << "Expo_ID"  << '\t' << "Expo_bp" << '\t'<< "SNP_Chr"<< '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_Outco"<<'\t'<<"se_Outco"<<'\t'<<"b_Expo"<<'\t'<<"se_Expo"<<'\n';
+                        for (int ii = 0;ii <plot_snpidx.size(); ii++) {
+                            ldio<<esdata._epi_chr[plot_probeidx[ii]]<<'\t'<<esdata._epi_prbID[plot_probeidx[ii]]<<'\t'<<esdata._epi_bp[plot_probeidx[ii]]<<'\t'<<esdata._esi_chr[plot_snpidx[ii]]<<'\t'<<esdata._esi_rs[plot_snpidx[ii]]<<'\t'<<esdata._esi_bp[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele1[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele2[plot_snpidx[ii]]<<'\t'<<gdata.byz[plot_snpidx[ii]]<<'\t'<<gdata.seyz[plot_snpidx[ii]]<<'\t'<<plot_bxz[ii]<<'\t'<<plot_sexz[ii]<<'\n';
+                        }
+                        cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
+                        ldio.close();
+                        
+
                     }
                     _byz.resize(sn_ids.size());
                     _seyz.resize(sn_ids.size());
@@ -6955,7 +7000,7 @@ namespace SMRDATA
                     // _LD_heidi.resize(sn_ids.size(),sn_ids.size());
                     _X_heidi.resize(_X.rows(), sn_ids.size());
                     
-#pragma omp parallel for
+                    #pragma omp parallel for
                     for(int j=0;j<sn_ids.size();j++)
                     {
                         _byz[j]=byz[sn_ids[j]];
@@ -6968,6 +7013,28 @@ namespace SMRDATA
                     }
                     _X.resize(0,0);
                     cor_calc(_LD_heidi, _X_heidi);
+                    
+                    if(plotflg)
+                    {
+                        string ldidfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.id";
+                        ofstream ldio(ldidfile.c_str());
+                        if (!ldio) throw ("Error: can not open the file " + ldidfile + " to save!");
+                        for (int ii = 0;ii <plot_snpidx.size(); ii++)
+                            ldio<<esdata._esi_rs[plot_snpidx[ii]]<<'\n';
+                        cout<<"rs id of "<<plot_snpidx.size()<<" unique SNPs for plot have been saved in the file [" + ldidfile + "]."<<endl;
+                        ldio.close();
+                        
+                        string ldinfofile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.gz";
+                        gzFile gz_outfile = gzopen(ldinfofile.c_str(), "wb");
+                        string ldstrs="";
+                        for(int ii=0;ii<_LD_heidi.cols();ii++)
+                            for(int jj=0;jj<ii;jj++) ldstrs+=atos(_LD_heidi(ii,jj))+"\n";
+                        
+                        if(gzputs(gz_outfile, ldstrs.c_str()) == -1) cout<<"error"<<endl;
+                        gzclose(gz_outfile);
+                        cout<< "Lower triangle of LD score matrix of "<<plot_snpidx.size()<<" SNPs have been saved by row-major in the file ["+ ldinfofile + "]."<<endl;
+                    }
+
                     
                     _X_heidi.resize(0,0);
                     
@@ -6995,37 +7062,16 @@ namespace SMRDATA
             //genesn in R is just probidx here. can refer to probinfo to get probeid, probenm, chr, gene, bp
             if(plotflg && !heidioffFlag)
             {
-                string ldfile = string(outFileName)+".engs";
+                string ldfile = string(outFileName)+"."+traitname+".plotpath.txt";
                 ofstream ldio(ldfile.c_str());
                 if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                ldio << "ProbeChr" <<'\t' << "ProbeID"  << '\t' << "Probe_bp" << '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
-                for (int i = 0;i <plot_snpidx.size(); i++) {
-                    ldio<<esdata._epi_chr[plot_probeidx[i]]<<'\t'<<esdata._epi_prbID[plot_probeidx[i]]<<'\t'<<esdata._epi_bp[plot_probeidx[i]]<<'\t'<<esdata._esi_rs[plot_snpidx[i]]<<'\t'<<esdata._esi_bp[plot_snpidx[i]]<<'\t'<<esdata._esi_allele1[plot_snpidx[i]]<<'\t'<<esdata._esi_allele2[plot_snpidx[i]]<<'\t'<<gdata.byz[plot_snpidx[i]]<<'\t'<<gdata.seyz[plot_snpidx[i]]<<'\t'<<plot_bxz[i]<<'\t'<<plot_sexz[i]<<'\n';
+                
+                for (int i = 0;i <plot_paths.size(); i++) {
+                    ldio<<plot_paths[i]<<'\n';
                 }
-                cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
+                cout<<"informantion of "<<plot_paths.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
                 ldio.close();
-                
-                getUnique(plot_snpidx);
-                make_XMat(&bdata,plot_snpidx, _X);
-                cor_calc(_LD, _X);
-                
-                string ldidfile = string(outFileName)+".ld.id";
-                ldio.open(ldidfile.c_str());
-                if (!ldio) throw ("Error: can not open the file " + ldidfile + " to save!");
-                for (int i = 0;i <plot_snpidx.size(); i++)
-                    ldio<<esdata._esi_rs[plot_snpidx[i]]<<'\n';
-                cout<<"rs id of "<<plot_snpidx.size()<<" unique SNPs for plot have been saved in the file [" + ldidfile + "]."<<endl;
-                ldio.close();
-                
-                string ldinfofile = string(outFileName)+".ld.gz";
-                gzFile gz_outfile = gzopen(ldinfofile.c_str(), "wb");
-                string ldstrs="";
-                for(int i=0;i<_LD.cols();i++)
-                    for(int j=0;j<i;j++) ldstrs+=atos(_LD(i,j))+"\n";
-                
-                if(gzputs(gz_outfile, ldstrs.c_str()) == -1) cout<<"error"<<endl;
-                gzclose(gz_outfile);
-                cout<< "Lower triangle of LD score matrix of "<<plot_snpidx.size()<<" SNPs have been saved by row-major in the file ["+ ldinfofile + "]."<<endl;
+
             }
             if(outCount>=0)
             {
@@ -7033,7 +7079,7 @@ namespace SMRDATA
                 ofstream smr(smrfile.c_str());
                 if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
                 
-                smr << "ExposureID" <<'\t'<< "Expo_Chr" <<'\t' << "Expo_Gene"  << '\t' << "Expo_bp" << '\t'<< "OutcomeID" <<'\t'<< "outco_Chr" <<'\t' << "outco_Gene"  << '\t' << "outco_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_outco"<<'\t'<<"se_outco"<<'\t'<< "p_outco" << '\t'<<"b_Expo"<<'\t'<<"se_Expo"<<'\t'<< "p_Expo" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
+                smr << "Expo_ID" <<'\t'<< "Expo_Chr" <<'\t' << "Expo_Gene"  << '\t' << "Expo_bp" << '\t'<< "Outco_ID" <<'\t'<< "Outco_Chr" <<'\t' << "Outco_Gene"  << '\t' << "Outco_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_Outco"<<'\t'<<"se_Outco"<<'\t'<< "p_Outco" << '\t'<<"b_Expo"<<'\t'<<"se_Expo"<<'\t'<< "p_Expo" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
                 
                 for (int i = 0;i <=outCount; i++) {
                     smr<<esdata._epi_prbID[out_probid[i]]<<'\t'<<esdata._epi_chr[out_probid[i]]<<'\t'<<esdata._epi_gene[out_probid[i]]<<'\t'<<esdata._epi_bp[out_probid[i]]<<'\t'<<traitname<<'\t'<<etrait._epi_chr[ii]<<'\t'<<etrait._epi_gene[ii]<<'\t'<<etrait._epi_bp[ii]<<'\t'<<rsid[i]<<'\t'<<rschr[i]<<'\t'<<rsbp[i]<<'\t'<<rsa1[i]<<'\t'<<rsa2[i]<<'\t'<<rsfreq[i]<<'\t'<<bgwas[i]<<'\t'<<segwas[i]<<'\t'<<pgwas[i]<<'\t'<<beqtl[i]<<'\t'<<seeqtl[i]<<'\t'<<peqtl[i]<<'\t'<<bxy[i]<<'\t'<<sexy[i]<<'\t'<<pxy[i]<<'\t'<<prb1[i]<<'\t'<<nsnp_test1[i]<<'\n';

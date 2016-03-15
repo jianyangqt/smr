@@ -8,7 +8,7 @@
 
 
 #include "StrFunc.h"
-#include "SMR_data.h"
+#include "SMR_data_p1.h"
 #include "eData.h"
 #include "SMR.h"
 
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.6" << endl;
+    cout << "* version 0.614" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -87,7 +87,7 @@ void option(int option_num, char* option_str[])
     float restThres=1.0e-5;
     
     // for lookup
-    float plookup=5e-8;
+    double plookup=5e-8;
     bool lookup_flag=false;
     char* genelistName=NULL;
     
@@ -118,9 +118,15 @@ void option(int option_num, char* option_str[])
     bool esdstd=false;
     
     bool metaflg=false;
-    
+    bool est_effe_spl_size_flg=false;
     // for SMR e2me
     int outcomePrbWind=2000; //kb
+    
+    // for internal test
+    char* smrRltFileName;
+    bool interanlflg=false;
+    
+    bool recodeflg=false;
     
     for(int i=0;i<option_num;i++)
     {
@@ -447,6 +453,24 @@ void option(int option_num, char* option_str[])
                 exit (EXIT_FAILURE);
             }
         }
+        else if(strcmp(option_str[i],"--est-n")==0){
+            est_effe_spl_size_flg=true;
+            cout<<"--est-n "<<endl;
+        }
+        else if(strcmp(option_str[i],"--internal-test")==0){
+            interanlflg=true;
+            cout<<"--internal-test "<<endl;
+        }
+        else if(strcmp(option_str[i],"--smr-file")==0){
+            smrRltFileName=option_str[++i];
+            FLAG_VALID_CK("--smr-file", smrRltFileName);
+            cout<<"--smr-file "<<smrRltFileName<<endl;
+            CommFunc::FileExist(smrRltFileName);
+        }
+        else if(strcmp(option_str[i],"--recode")==0){
+            recodeflg=true;
+            cout<<"--recode "<<endl;
+        }
 
     }
     
@@ -468,10 +492,12 @@ void option(int option_num, char* option_str[])
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
     else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde,  cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
-    else if(eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind);
+    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind);
     else if(eremlFlag) read_efile(&edata, eFileName);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag);
+    else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
+    else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
+    else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
     else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
     else if(smr_flag && smr_trans_flag) smr_trans_wholeInOne(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName, bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
-    
    }
