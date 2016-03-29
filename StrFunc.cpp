@@ -267,3 +267,17 @@ void StrFunc::set_intersect(const vector<string> &VecA, const vector<string> &Ve
     }
     
 }
+
+void StrFunc::set_intersect(const vector<int> &VecA, const vector<int> &VecB, vector<int> &VecC)
+{
+    int i = 0;
+    map<int, int> id_map;
+    map<int, int>::iterator iter;
+    VecC.clear();
+    for (i = 0; i<VecB.size(); i++) id_map.insert(pair<int, int>(VecB[i], i));
+    for (i = 0; i<VecA.size(); i++){
+        iter = id_map.find(VecA[i]);
+        if (iter != id_map.end()) VecC.push_back(iter->first);
+    }
+    
+}

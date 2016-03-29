@@ -326,6 +326,55 @@ namespace SMRDATA
         
     }
     
+    
+    void read_probevarfile(eqtlInfo* eqtlinfo, string vpFileName)
+    {
+        cout << "Reading variance information from [" + vpFileName + "]." << endl;
+        
+        ifstream flptr;
+        flptr.open(vpFileName.c_str());
+        if (!flptr) throw ("Error: can not open the file [" + vpFileName + "] to read.");
+        
+        
+        char tbuf[MAX_LINE_SIZE];
+        int lineNum(0);
+        vector<string> tmp_prbid;
+        vector<double> tmp_var;
+        
+        while(!flptr.eof())
+        {
+            string tmpStr;
+            flptr.getline(tbuf,MAX_LINE_SIZE);
+            if(tbuf[0]!='\0'){
+                istringstream iss(tbuf);
+                iss>>tmpStr;
+                tmp_prbid.push_back(tmpStr.c_str());
+                iss>>tmpStr;
+                tmp_var.push_back(atof(tmpStr.c_str()));
+                lineNum++;
+            }
+        }
+        flptr.close();
+        
+        
+        eqtlinfo->_epi_var.resize(eqtlinfo->_epi_prbID.size());
+        vector<int> idx;
+        match_only(eqtlinfo->_epi_prbID, tmp_prbid, idx);
+        if(idx.size()!=eqtlinfo->_epi_prbID.size())
+        {
+            cout<<"Some Probes in summary data are not in variance data!"<<endl;
+            exit(1);
+        }
+        for(int i=0;i<idx.size();i++)
+        {
+            eqtlinfo->_epi_var[i]=tmp_var[idx[i]];
+        }
+        
+        cout << idx.size() << " probes variance info to be included from [" + vpFileName + "]." << endl;
+
+    }
+    
+
     void iternal_test(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,int cis_itvl,char* smrFileName)
     {
         setNbThreads(thread_num);
@@ -823,4 +872,333 @@ namespace SMRDATA
         cout<<"Extracted results of "<<out_esi_id.size()<<" items have been saved in the plaint text file [" + smrfile + "]."<<endl;
         
     }
+    
+    void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName, char* vpFileName)
+    {
+        eqtlInfo esdata;
+        if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
+        if(freqName==NULL && vpFileName==NULL) throw("Error: please input feq data or variance data for standardisation by the flag --freq or --probe-var.");
+        read_esifile(&esdata, string(eqtlFileName)+".esi");
+        read_epifile(&esdata, string(eqtlFileName)+".epi");
+        if(bFlag) read_besdfile(&esdata, string(eqtlFileName)+".besd");
+        else      read_esdfile(&esdata, string(eqtlFileName)+".esd");
+        
+        if(vpFileName!=NULL)
+        {
+            
+            read_probevarfile(&esdata, string(vpFileName));
+            for(int i=0;i<esdata._probNum;i++)
+            {
+                double prbvar_sqrt=sqrt(esdata._epi_var[i]);
+                if(esdata._rowid.empty())
+                {
+                    for (int j = 0; j<esdata._esi_include.size(); j++)
+                    {
+                        if (abs(esdata._bxz[i][j] + 9) > 1e-6)
+                        {
+                            
+                            float bxz=esdata._bxz[i][j];
+                            float sexz=esdata._sexz[i][j];
+                            esdata._bxz[i][j]=bxz/prbvar_sqrt;
+                            esdata._sexz[i][j]=sexz/prbvar_sqrt;
+                        }
+                    }
+                    
+                }
+                else{
+                    uint64_t beta_start=esdata._cols[i<<1];
+                    uint64_t se_start=esdata._cols[1+(i<<1)];
+                    uint64_t numsnps=se_start-beta_start;
+                    for(uint64_t j=0;j<numsnps;j++)
+                    {
+                        float bxz=esdata._val[beta_start+j];
+                        float sexz=esdata._val[se_start+j];
+                        esdata._val[beta_start+j]=bxz/prbvar_sqrt;
+                        esdata._val[se_start+j]=sexz/prbvar_sqrt;
+                    }
+                }
+                
+            }
+
+        }
+        else if(freqName!=NULL)
+        {
+            
+            int n=read_frqfile(&esdata, string(freqName));
+            for(int i=0;i<esdata._probNum;i++)
+            {
+                if(esdata._rowid.empty())
+                {
+                    for (int j = 0; j<esdata._esi_include.size(); j++)
+                    {
+                        if (abs(esdata._bxz[i][j] + 9) > 1e-6)
+                        {
+                            
+                            float bxz=esdata._bxz[i][j];
+                            float sexz=esdata._sexz[i][j];
+                            float p=esdata._esi_maf[j];
+                            float z=bxz/sexz;
+                            float b=z/sqrt(2*p*(1-p)*(n+z*z));
+                            float se=1/sqrt(2*p*(1-p)*(n+z*z));
+                            esdata._bxz[i][j]=b;
+                            esdata._sexz[i][j]=se;
+                        }
+                    }
+                    
+                }
+                else{
+                    uint64_t beta_start=esdata._cols[i<<1];
+                    uint64_t se_start=esdata._cols[1+(i<<1)];
+                    uint64_t numsnps=se_start-beta_start;
+                    for(uint64_t j=0;j<numsnps;j++)
+                    {
+                        uint64_t ge_rowid=esdata._rowid[beta_start+j];
+                        float bxz=esdata._val[beta_start+j];
+                        float sexz=esdata._val[se_start+j];
+                        float p=esdata._esi_maf[ge_rowid];
+                        float z=bxz/sexz;
+                        float b=z/sqrt(2*p*(1-p)*(n+z*z));
+                        float se=1/sqrt(2*p*(1-p)*(n+z*z));
+                        esdata._val[beta_start+j]=b;
+                        esdata._val[se_start+j]=se;
+                    }
+                }
+                
+            }
+
+        }
+       write_besd(outFileName, &esdata);
+    }
+
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag)
+    {
+        string logstr;
+        int flag4chr=0;
+        if(chr!=0) flag4chr++;
+        if(prbchr!=0 || snpchr!=0) flag4chr++;
+        if(flag4chr==2)
+        {
+            logstr="WARNING: --chr is not surpposed to use together with --probe-chr or --snp-chr. --chr will be disabled.\n";
+            chr=0;
+            fputs(logstr.c_str(), stdout);
+        }
+        int flags4snp=0;
+        if(snplstName != NULL) flags4snp++;
+        if(snprs != NULL) flags4snp++;
+        if(fromsnprs!=NULL) flags4snp++;
+        if(fromsnpkb>=0) flags4snp++;
+        if(flags4snp>1)
+        {
+            logstr="WARNING: Flags for SNPs in this section are mutual exclusive. The priority order (from high to low) is: --extract-snp, --snp-wind, --snp, --from(to)--snp, --from(to)-snp-kb.\n";
+            fputs(logstr.c_str(), stdout);
+        }
+        int flags4prb=0;
+        if(problstName != NULL) flags4prb++;
+        if(prbname != NULL) flags4prb++;
+        if(fromprbname!=NULL) flags4prb++;
+        if(fromprbkb>=0) flags4prb++;
+        if(genename != NULL) flags4prb++;
+        if(flags4prb>1)
+        {
+            logstr="WARNING: Flags for probes in this section are mutual exclusive. The priority order (from high to low) is: --extract-probe, --gene-list, --probe-wind, --probe, --from(to)--probe, --from(to)-probe-kb, --gene.\n";
+            fputs(logstr.c_str(), stdout);
+        }
+        
+        eqtlInfo eqtlinfo;
+        cout<<endl<<"Reading eQTL summary data..."<<endl;
+        if(eqtlFileName != NULL)
+        {
+            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
+            if(snpchr!=0)
+            {
+                extract_eqtl_by_chr(&eqtlinfo, snpchr);
+            }
+            else if(chr!=0)
+            {
+                extract_eqtl_by_chr(&eqtlinfo, chr);
+            }
+            
+            if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
+            else if (snpwindFlag)
+            {
+                if(snprs==NULL)
+                {
+                    logstr="ERROR: Please identify the SNP name by --snp when using --snp-wind.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_eqtl_snp(&eqtlinfo, snprs, snpWind);
+            }
+            else if(snprs!=NULL)
+            {
+                extract_eqtl_single_snp(&eqtlinfo, snprs);
+            }
+            else if(fromsnprs!=NULL)
+            {
+                if(tosnprs==NULL)
+                {
+                    logstr="ERROR: Please identify the SNP name by --to-snp.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_eqtl_snp(&eqtlinfo, fromsnprs, tosnprs);
+            }
+            else if(fromsnpkb>=0)
+            {
+                
+                if(fromsnpkb>=0 && chr==0 && snpchr==0) {
+                    logstr="ERROR: Please identify the chromosome by --snp-chr or --chr.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+
+                if(tosnpkb<0)
+                {
+                    logstr="ERROR: snp BP can't be negative.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_eqtl_snp(&eqtlinfo, fromsnpkb, tosnpkb);
+            }
+            
+            read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
+            if(prbchr!=0)
+            {
+                extract_epi_by_chr(&eqtlinfo, prbchr);
+            }
+            else if(chr!=0)
+            {
+                extract_epi_by_chr(&eqtlinfo, chr);
+            }
+
+            if(problstName != NULL || genelistName != NULL)
+            {
+                if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
+                if(genelistName != NULL) extract_prob_by_gene(&eqtlinfo, genelistName);
+            }
+            else if(prbwindFlag)
+            {
+                if(prbname==NULL)
+                {
+                    logstr="ERROR: Please identify the probe name by --probe when using --probe-wind.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_prob(&eqtlinfo, prbname, prbWind);
+            }
+            else if(prbname!=NULL)
+            {
+                extract_eqtl_single_probe(&eqtlinfo, prbname);
+            }
+            else if(fromprbname!=NULL)
+            {
+                if(toprbname==NULL)
+                {
+                    logstr="ERROR: Please identify the probe name by --to-probe.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_eqtl_prob(&eqtlinfo, fromprbname, toprbname);
+            }
+            else if(fromprbkb>=0)
+            {
+                if(fromprbkb>=0 && chr==0 && prbchr==0) {
+                    logstr="ERROR: Please identify the chromosome by --probe-chr or --chr.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                if(toprbkb<0)
+                {
+                    logstr="ERROR: probe BP can't be negative.\n";
+                    fputs(logstr.c_str(), stdout);
+                    exit(1);
+                }
+                extract_eqtl_prob(&eqtlinfo, fromprbkb, toprbkb);
+            }
+            else if(genename!=NULL)
+            {
+               
+                extract_prob_by_single_gene(&eqtlinfo, genename);
+            }
+
+            
+            if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
+            else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
+            
+        }
+        else throw ("Error: please input the eQTL summary information for the eQTL data files by the option --beqtl-summary.\n");
+        
+        vector<int> out_esi_id;
+        vector<int> out_epi_id;
+        vector<float> out_beta;
+        vector<float> out_se;
+        vector<double> out_pval;
+        if(eqtlinfo._valNum==0)
+        {
+            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
+            {
+                for(uint32_t j=0;j<eqtlinfo._snpNum;j++)
+                {
+                    double beta=eqtlinfo._bxz[i][j];
+                    double se=eqtlinfo._sexz[i][j];
+                    if(ABS(se+9)<1e-6) continue;
+                    double zsxz=beta/se;
+                    double pxz=pchisq(zsxz*zsxz, 1);
+                    if(pxz<=plookup)
+                    {
+                        out_esi_id.push_back(j);
+                        out_epi_id.push_back(i);
+                        out_beta.push_back(beta);
+                        out_se.push_back(se);
+                        out_pval.push_back(pxz);
+                    }
+                }
+            }
+        }
+        else
+        {
+            if(eqtlinfo._val.size()==0)
+            {
+                throw ("Error: No data extracted from the input, please check.\n");
+            }
+            
+            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
+            {
+                uint64_t proid=eqtlinfo._include[i];
+                uint64_t pos=eqtlinfo._cols[proid<<1];
+                uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
+                uint64_t num=pos1-pos;
+                for(int j=0;j<num;j++)
+                {
+                    double beta=eqtlinfo._val[pos+j];
+                    double se=eqtlinfo._val[pos+j+num];
+                    double zsxz=beta/se;
+                    double pxz=pchisq(zsxz*zsxz, 1);
+                    if(pxz<=plookup)
+                    {
+                        out_esi_id.push_back(eqtlinfo._rowid[pos+j]);
+                        out_epi_id.push_back(i);
+                        out_beta.push_back(beta);
+                        out_se.push_back(se);
+                        out_pval.push_back(pxz);
+                    }
+                }
+            }
+        }
+        
+        string smrfile = string(outFileName)+".lkp";
+        ofstream smr(smrfile.c_str());
+        if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
+        
+        smr << "SNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' << "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
+        
+        for (int i = 0;i <out_esi_id.size(); i++) {
+            smr<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
+        }
+        
+        smr.close();
+        cout<<"Extracted results of "<<out_esi_id.size()<<" SNPs have been saved in the file [" + smrfile + "]."<<endl;
+        
+    }
+    
 }

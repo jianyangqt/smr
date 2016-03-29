@@ -1040,7 +1040,7 @@ namespace SMRDATA
         
         if(eqtlinfo->_rowid.empty() && eqtlinfo->_bxz.empty())
         {
-            fputs ("NO data included from eQTL summary data, please check.",stderr); exit (3);
+            fputs ("NO data included from eQTL summary data, please check.\n",stderr); exit (3);
         }
     }
     
@@ -2004,17 +2004,166 @@ namespace SMRDATA
         cout << prev_size - bdata->_include.size() << " SNPs are excluded from [" + snplistfile + "] and there are " << bdata->_include.size() << " SNPs remaining." << endl;
     }
    
+    void extract_eqtl_by_chr(eqtlInfo* eqtlinfo, int snpchr)
+    {
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_esi_include[i];
+            if(eqtlinfo->_esi_chr[tmpint]==snpchr ) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_esi_include=newIcld;
+        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from chromosome [" + atos(snpchr) + "]." << endl;
+    }
+    void extract_epi_by_chr(eqtlInfo* eqtlinfo, int prbchr)
+    {
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_include[i];
+            if(eqtlinfo->_epi_chr[tmpint]==prbchr ) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include=newIcld;
+        cout << eqtlinfo->_include.size() << " probes are extracted from chromosome [" + atos(prbchr) + "]." << endl;
+    }
+
 	void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName)
 	{
 		vector<string> snplist;
 		string msg = "SNPs";
 		read_msglist(snplstName, snplist, msg);
-		eqtlinfo->_esi_include.clear();
-		StrFunc::match_only(snplist, eqtlinfo->_esi_rs, eqtlinfo->_esi_include);
-		stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());        
+        if(eqtlinfo->_esi_include.size()==eqtlinfo->_snpNum)
+        {
+            eqtlinfo->_esi_include.clear();
+            StrFunc::match_only(snplist, eqtlinfo->_esi_rs, eqtlinfo->_esi_include);
+            stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());
+        }
+        else
+        {
+            vector<int> icld_step1;
+            StrFunc::match_only(snplist, eqtlinfo->_esi_rs, icld_step1);
+            
+            vector<int> common_probes;
+            set_intersect(icld_step1, eqtlinfo->_esi_include, common_probes);
+            eqtlinfo->_esi_include.clear();
+            eqtlinfo->_esi_include=common_probes;
+            stable_sort(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end());
+        }
+        
 		cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from [" + snplstName + "]." << endl;
 	}
-    
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snprs, int snpWind)
+    {
+        string logstr;
+        long idx=find(eqtlinfo->_esi_rs.begin(), eqtlinfo->_esi_rs.end(), snprs)-eqtlinfo->_esi_rs.begin();
+        if(idx==eqtlinfo->_esi_rs.size())
+        {
+            logstr="ERROR: Can't find SNP "+snprs+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int snpbp=eqtlinfo->_esi_bp[idx];
+        int snpchr=eqtlinfo->_esi_chr[idx];
+        int upbound=snpbp+snpWind*1000;
+        int tmpint=snpbp-snpWind*1000;
+        int lowbound=tmpint>0?tmpint:0;
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            tmpint=eqtlinfo->_esi_include[i];
+            if(eqtlinfo->_esi_chr[tmpint]==snpchr && eqtlinfo->_esi_bp[tmpint]>=lowbound && eqtlinfo->_esi_bp[tmpint]<=upbound) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_esi_include=newIcld;
+        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from the region: " +atos(snpWind)+" Kb around [" + snprs + "]." << endl;
+    }
+    void extract_eqtl_single_snp(eqtlInfo* eqtlinfo, string snprs)
+    {
+        string logstr;
+        int idx=find(eqtlinfo->_esi_rs.begin(), eqtlinfo->_esi_rs.end(), snprs)-eqtlinfo->_esi_rs.begin();
+        if(idx==eqtlinfo->_esi_rs.size())
+        {
+            logstr="ERROR: Can't find SNP "+snprs+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_esi_include.push_back(idx);
+        cout << snprs << " is extracted. " << endl;
+    }
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string fromsnprs, string tosnprs)
+    {
+        string logstr;
+        long fromidx=find(eqtlinfo->_esi_rs.begin(), eqtlinfo->_esi_rs.end(), fromsnprs)-eqtlinfo->_esi_rs.begin();
+        if(fromidx==eqtlinfo->_esi_rs.size())
+        {
+            logstr="ERROR: Can't find SNP "+fromsnprs+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int fromsnpbp=eqtlinfo->_esi_bp[fromidx];
+        int snpchr=eqtlinfo->_esi_chr[fromidx];
+        
+        long toidx=find(eqtlinfo->_esi_rs.begin(), eqtlinfo->_esi_rs.end(), tosnprs)-eqtlinfo->_esi_rs.begin();
+        if(toidx==eqtlinfo->_esi_rs.size())
+        {
+            logstr="ERROR: Can't find SNP "+tosnprs+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int tosnpbp=eqtlinfo->_esi_bp[toidx];
+        int tosnpchr=eqtlinfo->_esi_chr[toidx];
+        if(tosnpchr != snpchr)
+        {
+            logstr="ERROR: SNP "+fromsnprs+" and SNP "+tosnprs +" are not from the same chromosome. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        
+        if(fromsnpbp>tosnpbp)
+        {
+            int tmp=fromsnpbp;
+            fromsnpbp=tosnpbp;
+            tosnpbp=tmp;
+        }
+     
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_esi_include[i];
+            if(eqtlinfo->_esi_chr[tmpint]==snpchr && eqtlinfo->_esi_bp[tmpint]>=fromsnpbp && eqtlinfo->_esi_bp[tmpint]<=tosnpbp) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_esi_include=newIcld;
+        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from SNP " +fromsnprs+" to SNP " + tosnprs + "." << endl;
+    }
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int fromsnpkb, int tosnpkb)
+    {
+        int fromsnpbp=fromsnpkb*1000;
+        int tosnpbp=tosnpkb*1000;
+        
+        if(fromsnpbp>tosnpbp)
+        {
+            int tmp=fromsnpbp;
+            fromsnpbp=tosnpbp;
+            tosnpbp=tmp;
+        }
+        
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_esi_include[i];
+            if( eqtlinfo->_esi_bp[tmpint]>=fromsnpbp && eqtlinfo->_esi_bp[tmpint]<=tosnpbp) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_esi_include=newIcld;
+        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from SNP BP: " +atos(fromsnpkb)+"Kb to SNP BP" + atos(tosnpkb) + "Kb." << endl;
+    }
+
+
+
     void exclude_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName)
     {
         vector<string> snplist;
@@ -2128,6 +2277,131 @@ namespace SMRDATA
         stable_sort(eqtlinfo->_include.begin(), eqtlinfo->_include.end());
         cout<<eqtlinfo->_include.size()<<" probes are extracted from ["+genelistName+"]."<<endl;
     }
+    
+    void extract_prob(eqtlInfo* eqtlinfo, string prbname, int prbWind)
+    {
+        string logstr;
+        long idx=find(eqtlinfo->_epi_prbID.begin(), eqtlinfo->_epi_prbID.end(), prbname)-eqtlinfo->_epi_prbID.begin();
+        if(idx==eqtlinfo->_epi_prbID.size())
+        {
+            logstr="ERROR: Can't find probe "+prbname+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int prbbp=eqtlinfo->_epi_bp[idx];
+        int prbchr=eqtlinfo->_epi_chr[idx];
+        int upbound=prbbp+prbWind*1000;
+        int tmpint=prbbp-prbWind*1000;
+        int lowbound=tmpint>0?tmpint:0;
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            tmpint=eqtlinfo->_include[i];
+            if(eqtlinfo->_epi_chr[tmpint]==prbchr && eqtlinfo->_epi_bp[tmpint]>=lowbound && eqtlinfo->_epi_bp[tmpint]<=upbound) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include=newIcld;
+        cout << eqtlinfo->_include.size() << " probes are extracted from the region: " +atos(prbWind)+" Kb around [" + prbname + "]." << endl;
+    }
+    void extract_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname)
+    {
+        string logstr;
+        int idx=find(eqtlinfo->_epi_prbID.begin(), eqtlinfo->_epi_prbID.end(), prbname)-eqtlinfo->_epi_prbID.begin();
+        if(idx==eqtlinfo->_epi_prbID.size())
+        {
+            logstr="ERROR: Can't find probe "+prbname+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include.push_back(idx);
+        cout << prbname << " is extracted. " << endl;
+    }
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, string fromprbname, string toprbname)
+    {
+        string logstr;
+        long fromidx=find(eqtlinfo->_epi_prbID.begin(), eqtlinfo->_epi_prbID.end(), fromprbname)-eqtlinfo->_epi_prbID.begin();
+        if(fromidx==eqtlinfo->_epi_prbID.size())
+        {
+            logstr="ERROR: Can't find SNP "+fromprbname+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int fromprbbp=eqtlinfo->_epi_bp[fromidx];
+        int prbchr=eqtlinfo->_epi_chr[fromidx];
+        
+        long toidx=find(eqtlinfo->_epi_prbID.begin(), eqtlinfo->_epi_prbID.end(), toprbname)-eqtlinfo->_epi_prbID.begin();
+        if(toidx==eqtlinfo->_epi_prbID.size())
+        {
+            logstr="ERROR: Can't find SNP "+toprbname+" in the dataset. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        int toprbbp=eqtlinfo->_epi_bp[toidx];
+        int toprbchr=eqtlinfo->_epi_chr[toidx];
+        if(toprbchr != prbchr)
+        {
+            logstr="ERROR: probe "+fromprbname+" and probe "+toprbname +" are not from the same chromosome. Please check.\n";
+            fputs(logstr.c_str(),stdout);
+            exit(1);
+        }
+        
+        if(fromprbbp>toprbbp)
+        {
+            int tmp=fromprbbp;
+            fromprbbp=toprbbp;
+            toprbbp=tmp;
+        }
+        
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_include[i];
+            if(eqtlinfo->_epi_chr[tmpint]==prbchr && eqtlinfo->_epi_bp[tmpint]>=fromprbbp && eqtlinfo->_epi_bp[tmpint]<=toprbbp) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include=newIcld;
+        cout << eqtlinfo->_include.size() << " probes are extracted from probe : " +fromprbname+" to probe " + toprbname + "." << endl;
+    }
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int fromprbkb, int toprbkb)
+    {
+        int fromprbbp=fromprbkb*1000;
+        int toprbbp=toprbkb*1000;
+        
+        if(fromprbbp>toprbbp)
+        {
+            int tmp=fromprbbp;
+            fromprbbp=toprbbp;
+            toprbbp=tmp;
+        }
+        
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_include[i];
+            if( eqtlinfo->_epi_bp[tmpint]>=fromprbbp && eqtlinfo->_epi_bp[tmpint]<=toprbbp) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include=newIcld;
+        cout << eqtlinfo->_include.size() << " probes are extracted from probe BP: " +atos(fromprbkb)+"Kb to probe BP: " + atos(toprbkb) + "Kb." << endl;
+    }
+    void extract_prob_by_single_gene(eqtlInfo* eqtlinfo, string genename)
+    {
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            int tmpint=eqtlinfo->_include[i];
+            if( eqtlinfo->_epi_gene[tmpint]==genename) newIcld.push_back(tmpint);
+        }
+        eqtlinfo->_include.clear();
+        eqtlinfo->_include=newIcld;
+        cout << eqtlinfo->_include.size() << " probes are extracted that are mapping to gene: " +genename+ "." << endl;
+    }
+
+
+
+    
     void exclude_prob(eqtlInfo* eqtlinfo,string problstName)
     {
         vector<string> problist;
@@ -2148,6 +2422,30 @@ namespace SMRDATA
         StrFunc::set_complement(problist, mappro, tmp, eqtlinfo->_include);
         
         cout<<pre_num-eqtlinfo->_include.size()<<" probes are excluded from ["+problstName+"]and there are "<<eqtlinfo->_include.size()<<" probes remaining."<<endl;
+    }
+    
+    void exclude_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname)
+    {
+        string logstr;
+        vector<int> newIcld;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            int idx=eqtlinfo->_include[i];
+            if(eqtlinfo->_epi_prbID[idx] != prbname) newIcld.push_back(idx);
+        }
+       
+        if(newIcld.size()==eqtlinfo->_include.size())
+        {
+            logstr="WARNING: Can't find probe "+prbname+" in the dataset. Nothing to exclude.\n";
+            fputs(logstr.c_str(),stdout);
+            
+        }else
+        {
+            eqtlinfo->_include.clear();
+            eqtlinfo->_include=newIcld;
+            cout << prbname << " is excluded from the dataset. " << endl;
+        }
+        
     }
 
     void filter_snp_maf(bInfo* bdata,double maf)
@@ -3713,13 +4011,21 @@ namespace SMRDATA
                  plotdir=string(plotdir)+"plot";
                  struct stat st = {0};
                  if (stat(plotdir.c_str(), &st) == -1) {
+#if defined _WIN64 || defined _WIN32
+                     _mkdir(plotdir.c_str());
+#else
                      mkdir(plotdir.c_str(), 0755);
+#endif
                  }
                  
                  plotdir=string(plotdir)+"/"+atos(plotdir_id);
                  st = {0};
                  if (stat(plotdir.c_str(), &st) == -1) {
+#if defined _WIN64 || defined _WIN32
+                     _mkdir(plotdir.c_str());
+#else
                      mkdir(plotdir.c_str(), 0755);
+#endif
                  }
                  
                  plot_paths.push_back(string(plotdir)+"/"+esdata._epi_prbID[i]);
@@ -5683,95 +5989,7 @@ namespace SMRDATA
         
     }
     
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName, char* genelistName, double plookup, bool bFlag)
-    {
-        eqtlInfo eqtlinfo;
-        cout<<endl<<"Reading eQTL summary data..."<<endl;
-        if(eqtlFileName != NULL)
-        {
-            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
-            if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
-            read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
-            if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
-            if(genelistName != NULL) extract_prob_by_gene(&eqtlinfo, genelistName);
-            if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
-            else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
-            
-        }
-        else throw ("Error: please input the eQTL summary information for the eQTL data files by the option --beqtl-summary.");
-       
-        vector<int> out_esi_id;
-        vector<int> out_epi_id;
-        vector<float> out_beta;
-        vector<float> out_se;
-        vector<double> out_pval;
-        if(eqtlinfo._valNum==0)
-        {
-            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
-            {
-                for(uint32_t j=0;j<eqtlinfo._snpNum;j++)
-                {
-                    double beta=eqtlinfo._bxz[i][j];
-                    double se=eqtlinfo._sexz[i][j];
-                    if(ABS(se+9)<1e-6) continue;
-                    double zsxz=beta/se;
-                    double pxz=pchisq(zsxz*zsxz, 1);
-                    if(pxz<=plookup)
-                    {
-                        out_esi_id.push_back(j);
-                        out_epi_id.push_back(i);
-                        out_beta.push_back(beta);
-                        out_se.push_back(se);
-                        out_pval.push_back(pxz);
-                    }
-                }
-            }
-        }
-        else
-        {
-            if(eqtlinfo._val.size()==0)
-            {
-                throw ("Error: No data extracted from the input, please check.");
-            }
-            
-            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
-            {
-                uint64_t proid=eqtlinfo._include[i];
-                uint64_t pos=eqtlinfo._cols[proid<<1];
-                uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
-                uint64_t num=pos1-pos;
-                for(int j=0;j<num;j++)
-                {
-                    double beta=eqtlinfo._val[pos+j];
-                    double se=eqtlinfo._val[pos+j+num];
-                    double zsxz=beta/se;
-                    double pxz=pchisq(zsxz*zsxz, 1);
-                    if(pxz<=plookup)
-                    {
-                        out_esi_id.push_back(eqtlinfo._rowid[pos+j]);
-                        out_epi_id.push_back(i);
-                        out_beta.push_back(beta);
-                        out_se.push_back(se);
-                        out_pval.push_back(pxz);
-                    }
-                }
-            }
-        }
-        
-        string smrfile = string(outFileName)+".lkp";
-        ofstream smr(smrfile.c_str());
-        if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
-        
-        smr << "SNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' << "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
-        
-        for (int i = 0;i <out_esi_id.size(); i++) {
-            smr<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
-        }
-       
-        smr.close();
-        cout<<"Extracted results of "<<out_esi_id.size()<<" SNPs have been saved in the file [" + smrfile + "]."<<endl;
-        
-    }
+ 
     int get_besd_format(string besdfName)
     {
         string besdfile = besdfName + ".besd";
@@ -6197,7 +6415,7 @@ namespace SMRDATA
         for(int j=0;j<prb_num_cur_chr;j++)
         {
             string esdfilename=(locinfolst+rss+j)->esdpath;
-            gzFile gzfile ;
+            gzFile gzfile = NULL ;
             ifstream flptr;
             bool gzflag=has_suffix(esdfilename, "gz");
             if(gzflag)
@@ -6529,9 +6747,34 @@ namespace SMRDATA
         
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm)
     {
         setNbThreads(thread_num);
+        string logstr;
+        if(oproblstName!=NULL && oprobe!=NULL)
+        {
+            logstr="WARNING: --extract-single-outcome-probe is not surpposed to use together with --extract-outcome-probe. --extract-single-outcome-probe will be disabled.\n";
+            oprobe=NULL;
+            fputs(logstr.c_str(), stdout);
+        }
+        if(eproblstName!=NULL && eprobe!=NULL)
+        {
+            logstr="WARNING: --extract-single-exposure-probe is not surpposed to use together with --extract-exposure-probe. --extract-single-exposure-probe will be disabled.\n";
+            eprobe=NULL;
+            fputs(logstr.c_str(), stdout);
+        }
+        if(oproblst2exclde!=NULL && oprobe2rm!=NULL)
+        {
+            logstr="WARNING: --exclude-single-outcome-probe is not surpposed to use together with --exclude-outcome-probe. --exclude-single-outcome-probe will be disabled.\n";
+            oprobe2rm=NULL;
+            fputs(logstr.c_str(), stdout);
+        }
+        if(eproblst2exclde!=NULL && eprobe2rm!=NULL)
+        {
+            logstr="WARNING: --exclude-single-exposure-probe is not surpposed to use together with --exclude-exposure-probe. --exclude-single-exposure-probe will be disabled.\n";
+            eprobe2rm=NULL;
+            fputs(logstr.c_str(), stdout);
+        }
         
         eqtlInfo etrait;
         eqtlInfo esdata;
@@ -6551,8 +6794,9 @@ namespace SMRDATA
         if(problstName != NULL) extract_prob(&etrait, problstName);
         if(problst2exclde != NULL) exclude_prob(&etrait, problst2exclde);
         if(oproblstName != NULL ) extract_prob(&etrait, oproblstName);
+        else if(oprobe != NULL) extract_eqtl_single_probe(&etrait, oprobe);
         if(oproblst2exclde != NULL) exclude_prob(&etrait, oproblst2exclde);
-        
+        else if(oprobe2rm != NULL) exclude_eqtl_single_probe(&etrait, oprobe2rm);
         
         if(bFlag) read_besdfile(&etrait, string(eqtlFileName)+".besd");
         else      read_esdfile(&etrait, string(eqtlFileName)+".esd");
@@ -6589,7 +6833,9 @@ namespace SMRDATA
         if(problstName != NULL) extract_prob(&esdata, problstName);
         if(problst2exclde != NULL) exclude_prob(&esdata, problst2exclde);
         if(eproblstName != NULL ) extract_prob(&esdata, eproblstName);
+        else if(eprobe != NULL) extract_eqtl_single_probe(&esdata, eprobe);
         if(eproblst2exclde != NULL) exclude_prob(&esdata, eproblst2exclde);       
+        else if(eprobe2rm != NULL) exclude_eqtl_single_probe(&esdata, eprobe2rm);
         
         if(bFlag) read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         else      read_esdfile(&esdata, string(eqtlFileName2)+".esd");
@@ -6953,19 +7199,31 @@ namespace SMRDATA
                         plotdir=string(plotdir)+"plot";
                         struct stat st = {0};
                         if (stat(plotdir.c_str(), &st) == -1) {
+#if defined _WIN64 || defined _WIN32
+                            _mkdir(plotdir.c_str());
+#else
                             mkdir(plotdir.c_str(), 0755);
+#endif
                         }
                         
                         plotdir=string(plotdir)+"/"+traitname;
                         st = {0};
                         if (stat(plotdir.c_str(), &st) == -1) {
+#if defined _WIN64 || defined _WIN32
+                            _mkdir(plotdir.c_str());
+#else
                             mkdir(plotdir.c_str(), 0755);
+#endif
                         }
                         
                         plotdir=string(plotdir)+"/"+atos(plotdir_id);
                         st = {0};
                         if (stat(plotdir.c_str(), &st) == -1) {
+#if defined _WIN64 || defined _WIN32
+                            _mkdir(plotdir.c_str());
+#else
                             mkdir(plotdir.c_str(), 0755);
+#endif
                         }
                         
                         plot_paths.push_back(string(plotdir)+"/"+esdata._epi_prbID[i]);
@@ -7230,60 +7488,7 @@ namespace SMRDATA
 
     }
     
-    void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName)
-    {
-        eqtlInfo esdata;
-        if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
-        if(freqName==NULL) throw("Error: please input feq data for SMR analysis by the flag --freq.");
-        read_esifile(&esdata, string(eqtlFileName)+".esi");
-        read_epifile(&esdata, string(eqtlFileName)+".epi");
-        if(bFlag) read_besdfile(&esdata, string(eqtlFileName)+".besd");
-        else      read_esdfile(&esdata, string(eqtlFileName)+".esd");
-        
-        int n=read_frqfile(&esdata, string(freqName));
-        for(int i=0;i<esdata._probNum;i++)
-        {
-            if(esdata._rowid.empty())
-            {
-                for (int j = 0; j<esdata._esi_include.size(); j++)
-                {
-                    if (abs(esdata._bxz[i][j] + 9) > 1e-6)
-                    {
-                        
-                        float bxz=esdata._bxz[i][j];
-                        float sexz=esdata._sexz[i][j];
-                        float p=esdata._esi_maf[j];
-                        float z=bxz/sexz;
-                        float b=z/sqrt(2*p*(1-p)*(n+z*z));
-                        float se=1/sqrt(2*p*(1-p)*(n+z*z));
-                        esdata._bxz[i][j]=b;
-                        esdata._sexz[i][j]=se;
-                    }
-                }
-                
-            }
-            else{
-                uint64_t beta_start=esdata._cols[i<<1];
-                uint64_t se_start=esdata._cols[1+(i<<1)];
-                uint64_t numsnps=se_start-beta_start;
-                for(uint64_t j=0;j<numsnps;j++)
-                {
-                    uint64_t ge_rowid=esdata._rowid[beta_start+j];
-                    float bxz=esdata._val[beta_start+j];
-                    float sexz=esdata._val[se_start+j];
-                    float p=esdata._esi_maf[ge_rowid];
-                    float z=bxz/sexz;
-                    float b=z/sqrt(2*p*(1-p)*(n+z*z));
-                    float se=1/sqrt(2*p*(1-p)*(n+z*z));
-                    esdata._val[beta_start+j]=b;
-                    esdata._val[se_start+j]=se;
-                }
-            }
-            
-        }
-        write_besd(outFileName, &esdata);
-    }
-
+    
     void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2)
     {
         setNbThreads(thread_num);

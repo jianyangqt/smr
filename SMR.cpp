@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.614" << endl;
+    cout << "* version 0.619" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -90,6 +90,24 @@ void option(int option_num, char* option_str[])
     double plookup=5e-8;
     bool lookup_flag=false;
     char* genelistName=NULL;
+    int chr=0;
+    int prbchr=0;
+    int snpchr=0;
+    char* snprs=NULL;
+    char* prbname=NULL;
+    char* fromsnprs=NULL;
+    char* tosnprs=NULL;
+    char* fromprbname=NULL;
+    char* toprbname=NULL;
+    int snpWind=50;   //Kb
+    int prbWind=1000; //Kb
+    char* genename=NULL;
+    int fromsnpkb=-9;
+    int tosnpkb=-9;
+    int fromprbkb=-9;
+    int toprbkb=-9;
+    bool snpwindFlag=false;
+    bool prbwindFlag=false;
     
     
     char* refSNP=NULL;
@@ -116,14 +134,19 @@ void option(int option_num, char* option_str[])
     
     char* freqName=NULL;
     bool esdstd=false;
+    char* vpFileName=NULL;
     
     bool metaflg=false;
     bool est_effe_spl_size_flg=false;
     // for SMR e2me
     int outcomePrbWind=2000; //kb
+    char* eprobe=NULL;
+    char* oprobe=NULL;
+    char* eprobe2rm=NULL;
+    char* oprobe2rm=NULL;
     
     // for internal test
-    char* smrRltFileName;
+    char* smrRltFileName = NULL;
     bool interanlflg=false;
     
     bool recodeflg=false;
@@ -301,8 +324,12 @@ void option(int option_num, char* option_str[])
             smr_flag=true;
             printf("--smr \n");
         }
-        else if(strcmp(option_str[i],"--cis-wind")==0){
+        else if (0 == strcmp(option_str[i], "--make-sparse")){
             cis_flag=true;
+            make_besd_flag=true;
+            printf("--make-sparse \n");
+        }
+        else if(strcmp(option_str[i],"--cis-wind")==0){
             cis_itvl=atoi(option_str[++i]);
             printf("--cis-wind %d Kb\n", cis_itvl);
             if(cis_itvl<0 )
@@ -312,7 +339,6 @@ void option(int option_num, char* option_str[])
             }
         }
         else if(strcmp(option_str[i],"--trans-wind")==0){
-            cis_flag=true;
             trans_itvl=atoi(option_str[++i]);
             printf("--trans-wind %d Kb\n", trans_itvl);
             if(trans_itvl<0 )
@@ -380,6 +406,7 @@ void option(int option_num, char* option_str[])
             printf("--combine-besd \n");
         }
         else if (0 == strcmp(option_str[i], "--beqtl-summaries")){
+            combineFlg=true;
             eqtlsmaslstName = option_str[++i];
             FLAG_VALID_CK("--beqtl-summaries", eqtlsmaslstName);
             printf("--beqtl-summaries %s\n", eqtlsmaslstName);
@@ -440,6 +467,12 @@ void option(int option_num, char* option_str[])
             cout<<"--freq "<<freqName<<endl;
             CommFunc::FileExist(freqName);
         }
+        else if(strcmp(option_str[i],"--probe-var")==0){
+            vpFileName=option_str[++i];
+            FLAG_VALID_CK("--probe-var", vpFileName);
+            cout<<"--probe-var "<<vpFileName<<endl;
+            CommFunc::FileExist(vpFileName);
+        }
         else if(strcmp(option_str[i],"--meta")==0){
             metaflg=true;
             cout<<"--meta "<<endl;
@@ -455,6 +488,7 @@ void option(int option_num, char* option_str[])
         }
         else if(strcmp(option_str[i],"--est-n")==0){
             est_effe_spl_size_flg=true;
+            combineFlg=false;
             cout<<"--est-n "<<endl;
         }
         else if(strcmp(option_str[i],"--internal-test")==0){
@@ -471,14 +505,160 @@ void option(int option_num, char* option_str[])
             recodeflg=true;
             cout<<"--recode "<<endl;
         }
+        else if(strcmp(option_str[i],"--chr")==0){
+            char* tmpstr=option_str[++i];
+            if(strncmp(tmpstr,"X",1)==0) chr=23;
+            else if(strncmp(tmpstr,"Y",1)==0) chr=24;
+            else chr=atoi(tmpstr);
+            FLAG_VALID_CK("--chr", tmpstr);
+            cout<<"--chr "<<tmpstr<<endl;
+        }
+        else if(strcmp(option_str[i],"--probe-chr")==0){
+            char* tmpstr=option_str[++i];
+            if(strncmp(tmpstr,"X",1)==0) prbchr=23;
+            else if(strncmp(tmpstr,"Y",1)==0) prbchr=24;
+            else prbchr=atoi(tmpstr);
+            FLAG_VALID_CK("--probe-chr", tmpstr);
+            cout<<"--probe-chr "<<tmpstr<<endl;
+        }
+        else if(strcmp(option_str[i],"--snp-chr")==0){
+            char* tmpstr=option_str[++i];
+            if(strncmp(tmpstr,"X",1)==0) snpchr=23;
+            else if(strncmp(tmpstr,"Y",1)==0) snpchr=24;
+            else snpchr=atoi(tmpstr);
+            FLAG_VALID_CK("--snp-chr", tmpstr);
+            cout<<"--snp-chr "<<tmpstr<<endl;
+        }
+        else if (0 == strcmp(option_str[i], "--snp")){
+            snprs = option_str[++i];
+            FLAG_VALID_CK("--snp", snprs);
+            printf("--snp %s\n", snprs);
+        }
+        else if (0 == strcmp(option_str[i], "--from-snp")){
+            fromsnprs = option_str[++i];
+            FLAG_VALID_CK("--from-snp", fromsnprs);
+            printf("--from-snp %s\n", fromsnprs);
+        }
+        else if (0 == strcmp(option_str[i], "--to-snp")){
+            tosnprs = option_str[++i];
+            FLAG_VALID_CK("--to-snp", tosnprs);
+            printf("--to-snp %s\n", tosnprs);
+        }
+        else if (0 == strcmp(option_str[i], "--probe")){
+            prbname = option_str[++i];
+            FLAG_VALID_CK("--probe", prbname);
+            printf("--probe %s\n", prbname);
+        }
+        else if (0 == strcmp(option_str[i], "--from-probe")){
+            fromprbname = option_str[++i];
+            FLAG_VALID_CK("--from-probe", fromprbname);
+            printf("--from-probe %s\n", fromprbname);
+        }
+        else if (0 == strcmp(option_str[i], "--to-probe")){
+            toprbname = option_str[++i];
+            FLAG_VALID_CK("--to-probe", toprbname);
+            printf("--to-probe %s\n", toprbname);
+        }
+        else if(strcmp(option_str[i],"--snp-wind")==0){
+            snpwindFlag=true;
+            char* tmpstr=option_str[++i];
+            if(tmpstr==NULL || SMRDATA::has_prefix(tmpstr, "--")) i--;
+            else snpWind=atoi(tmpstr);
+            printf("--snp-wind %d Kb\n", snpWind);
+            if(snpWind<0 )
+            {
+                fprintf (stderr, "Error: --snp-wind should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--probe-wind")==0){
+            prbwindFlag=true;
+            char* tmpstr=option_str[++i];
+            if(tmpstr==NULL || SMRDATA::has_prefix(tmpstr, "--")) i--;
+            else prbWind=atoi(tmpstr);
+            printf("--probe-wind %d Kb\n", prbWind);
+            if(prbWind<0 )
+            {
+                fprintf (stderr, "Error: --probe-wind should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if (0 == strcmp(option_str[i], "--gene")){
+            genename = option_str[++i];
+            FLAG_VALID_CK("--gene", genename);
+            printf("--gene %s\n", genename);
+        }
+        else if(strcmp(option_str[i],"--from-snp-kb")==0){
+            fromsnpkb=atoi(option_str[++i]);
+            printf("--from-snp-kb %d Kb\n", fromsnpkb);
+            if(fromsnpkb<0 )
+            {
+                fprintf (stderr, "Error: --from-snp-kb should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--to-snp-kb")==0){
+            tosnpkb=atoi(option_str[++i]);
+            printf("--to-snp-kb %d Kb\n", tosnpkb);
+            if(tosnpkb<0 )
+            {
+                fprintf (stderr, "Error: --to-snp-kb should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--from-probe-kb")==0){
+            fromprbkb=atoi(option_str[++i]);
+            printf("--from-probe-kb %d Kb\n", fromprbkb);
+            if(fromprbkb<0 )
+            {
+                fprintf (stderr, "Error: --from-probe-kb should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--to-probe-kb")==0){
+            toprbkb=atoi(option_str[++i]);
+            printf("--to-probe-kb %d Kb\n", toprbkb);
+            if(toprbkb<0 )
+            {
+                fprintf (stderr, "Error: --to-probe-kb should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--extract-single-exposure-probe")==0){
+            eprobe=option_str[++i];
+            FLAG_VALID_CK("--extract-single-exposure-probe", eprobe);
+            cout<<"--extract-single-exposure-probe "<<eprobe<<endl;
+        }
+        else if(strcmp(option_str[i],"--extract-single-outcome-probe")==0){
+            oprobe=option_str[++i];
+            FLAG_VALID_CK("--extract-single-outcome-probe", oprobe);
+            cout<<"--extract-single-outcome-probe "<<oprobe<<endl;
+        }
+        else if(strcmp(option_str[i],"--exclude-single-exposure-probe")==0){
+            eprobe2rm=option_str[++i];
+            FLAG_VALID_CK("--exclude-single-exposure-probe", eprobe2rm);
+            cout<<"--exclude-single-exposure-probe "<<eprobe2rm<<endl;
+        }
+        else if(strcmp(option_str[i],"--exclude-single-outcome-probe")==0){
+            oprobe2rm=option_str[++i];
+            FLAG_VALID_CK("--exclude-single-outcome-probe", oprobe2rm);
+            cout<<"--exclude-single-outcome-probe "<<oprobe2rm<<endl;
+        }
+        
+
 
     }
     
 #ifndef __APPLE__
+#if defined _WIN64 || defined _WIN32
+    omp_set_num_threads(thread_num);
+#else
     stringstream ss;
     ss << thread_num;
     setenv("OMP_NUM_THREADS", ss.str().c_str(), 1);
     omp_set_num_threads(thread_num);
+    
+#endif
 #endif
     
     cout<<endl;
@@ -486,15 +666,15 @@ void option(int option_num, char* option_str[])
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
     if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag); // from text to besd
-    else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName);
+    else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
     else if (metaflg) meta(outFileName,eqtlFileName, eqtlFileName2);
     else if (combineFlg) combineCis(eqtlsmaslstName, outFileName, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
     else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde,  cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
-    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind);
+    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm);
     else if(eremlFlag) read_efile(&edata, eFileName);
-    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag);
+    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag);
     else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
     else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);

@@ -118,7 +118,7 @@ namespace SMRDATA
         vector<char> _esi_allele2;
 		vector<int> _esi_include; // initialized in the readesi
         map<string,int> _snp_name_map;
-       vector<float> _esi_maf;
+        vector<float> _esi_maf;
         
         vector<uint32_t> _epi_chr;
         vector<string> _epi_prbID;
@@ -128,6 +128,7 @@ namespace SMRDATA
         vector<char> _epi_orien;
         vector<int> _include; // initialized in the readepi
         map<string,int> _probe_name_map;
+        vector<double> _epi_var;
         
         //for sparse
         vector<uint64_t> _cols;
@@ -225,17 +226,15 @@ namespace SMRDATA
     void smr_trans_wholeInOne(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int trans_itvl,bool plotflg);
     
     void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
-    
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag);
-    
+   
     void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
     void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
     
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag);
     void esd2sbesd(char* outFileName, char* eqtlFileName );
-    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind);
-    void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName);
+    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm);
+    
     void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2);
     
     void read_smaslist(vector<string> &smasNames, string eqtlsmaslstName);
@@ -250,5 +249,19 @@ namespace SMRDATA
     void get_square_ldpruning_idxes(vector<int> &sn_ids, VectorXd &zsxz, double threshold, VectorXd &ld_v, long maxid, double ld_top);
     void cor_calc(MatrixXd &LD, MatrixXd &X);
     void extract_prob_by_gene(eqtlInfo* eqtlinfo, string genelistName);
+    int read_frqfile(eqtlInfo* eqtlinfo, string frqfile);
+    void write_besd(string outFileName, eqtlInfo* eqtlinfo);
+    
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snprs, int snpWind);
+    void extract_eqtl_single_snp(eqtlInfo* eqtlinfo, string snprs);
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string fromsnprs, string tosnprs);
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int fromsnpkb, int tosnpkb);
+    void extract_prob(eqtlInfo* eqtlinfo, string prbname, int prbWind);
+    void extract_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname);
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, string fromprbname, string toprbname);
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int fromprbkb, int toprbkb);
+    void extract_prob_by_single_gene(eqtlInfo* eqtlinfo, string genename);
+    void extract_epi_by_chr(eqtlInfo* eqtlinfo, int prbchr);
+    void extract_eqtl_by_chr(eqtlInfo* eqtlinfo, int snpchr);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */
