@@ -969,8 +969,9 @@ namespace SMRDATA
         }
        write_besd(outFileName, &esdata);
     }
+   
 
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag)
+    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag,bool cis_flag, int cis_itvl)
     {
         string logstr;
         int flag4chr=0;
@@ -981,146 +982,18 @@ namespace SMRDATA
             logstr="WARNING: --chr is not surpposed to use together with --probe-chr or --snp-chr. --chr will be disabled.\n";
             chr=0;
             fputs(logstr.c_str(), stdout);
-        }
-        int flags4snp=0;
-        if(snplstName != NULL) flags4snp++;
-        if(snprs != NULL) flags4snp++;
-        if(fromsnprs!=NULL) flags4snp++;
-        if(fromsnpkb>=0) flags4snp++;
-        if(flags4snp>1)
-        {
-            logstr="WARNING: Flags for SNPs in this section are mutual exclusive. The priority order (from high to low) is: --extract-snp, --snp-wind, --snp, --from(to)--snp, --from(to)-snp-kb.\n";
-            fputs(logstr.c_str(), stdout);
-        }
-        int flags4prb=0;
-        if(problstName != NULL) flags4prb++;
-        if(prbname != NULL) flags4prb++;
-        if(fromprbname!=NULL) flags4prb++;
-        if(fromprbkb>=0) flags4prb++;
-        if(genename != NULL) flags4prb++;
-        if(flags4prb>1)
-        {
-            logstr="WARNING: Flags for probes in this section are mutual exclusive. The priority order (from high to low) is: --extract-probe, --gene-list, --probe-wind, --probe, --from(to)--probe, --from(to)-probe-kb, --gene.\n";
-            fputs(logstr.c_str(), stdout);
-        }
+        }       
         
         eqtlInfo eqtlinfo;
         cout<<endl<<"Reading eQTL summary data..."<<endl;
         if(eqtlFileName != NULL)
         {
-            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
-            if(snpchr!=0)
-            {
-                extract_eqtl_by_chr(&eqtlinfo, snpchr);
-            }
-            else if(chr!=0)
-            {
-                extract_eqtl_by_chr(&eqtlinfo, chr);
-            }
-            
-            if (snplstName != NULL) extract_eqtl_snp(&eqtlinfo, snplstName);
-            else if (snpwindFlag)
-            {
-                if(snprs==NULL)
-                {
-                    logstr="ERROR: Please identify the SNP name by --snp when using --snp-wind.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_eqtl_snp(&eqtlinfo, snprs, snpWind);
-            }
-            else if(snprs!=NULL)
-            {
-                extract_eqtl_single_snp(&eqtlinfo, snprs);
-            }
-            else if(fromsnprs!=NULL)
-            {
-                if(tosnprs==NULL)
-                {
-                    logstr="ERROR: Please identify the SNP name by --to-snp.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_eqtl_snp(&eqtlinfo, fromsnprs, tosnprs);
-            }
-            else if(fromsnpkb>=0)
-            {
-                
-                if(fromsnpkb>=0 && chr==0 && snpchr==0) {
-                    logstr="ERROR: Please identify the chromosome by --snp-chr or --chr.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-
-                if(tosnpkb<0)
-                {
-                    logstr="ERROR: snp BP can't be negative.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_eqtl_snp(&eqtlinfo, fromsnpkb, tosnpkb);
-            }
-            
             read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
-            if(prbchr!=0)
-            {
-                extract_epi_by_chr(&eqtlinfo, prbchr);
-            }
-            else if(chr!=0)
-            {
-                extract_epi_by_chr(&eqtlinfo, chr);
-            }
-
-            if(problstName != NULL || genelistName != NULL)
-            {
-                if(problstName != NULL) extract_prob(&eqtlinfo, problstName);
-                if(genelistName != NULL) extract_prob_by_gene(&eqtlinfo, genelistName);
-            }
-            else if(prbwindFlag)
-            {
-                if(prbname==NULL)
-                {
-                    logstr="ERROR: Please identify the probe name by --probe when using --probe-wind.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_prob(&eqtlinfo, prbname, prbWind);
-            }
-            else if(prbname!=NULL)
-            {
-                extract_eqtl_single_probe(&eqtlinfo, prbname);
-            }
-            else if(fromprbname!=NULL)
-            {
-                if(toprbname==NULL)
-                {
-                    logstr="ERROR: Please identify the probe name by --to-probe.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_eqtl_prob(&eqtlinfo, fromprbname, toprbname);
-            }
-            else if(fromprbkb>=0)
-            {
-                if(fromprbkb>=0 && chr==0 && prbchr==0) {
-                    logstr="ERROR: Please identify the chromosome by --probe-chr or --chr.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                if(toprbkb<0)
-                {
-                    logstr="ERROR: probe BP can't be negative.\n";
-                    fputs(logstr.c_str(), stdout);
-                    exit(1);
-                }
-                extract_eqtl_prob(&eqtlinfo, fromprbkb, toprbkb);
-            }
-            else if(genename!=NULL)
-            {
-               
-                extract_prob_by_single_gene(&eqtlinfo, genename);
-            }
-
+            epi_man(&eqtlinfo, problstName, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename);
+            
+            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
+            esi_man(&eqtlinfo, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname);
+           
             
             if(bFlag) read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             else      read_esdfile(&eqtlinfo, string(eqtlFileName)+".esd");
@@ -1186,7 +1059,7 @@ namespace SMRDATA
             }
         }
         
-        string smrfile = string(outFileName)+".lkp";
+        string smrfile = string(outFileName)+".txt";
         ofstream smr(smrfile.c_str());
         if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
         

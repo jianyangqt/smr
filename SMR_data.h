@@ -221,13 +221,13 @@ namespace SMRDATA
   
     int file_read_check(ifstream* in_file, const char* filename);
     
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,bool plotflg);
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,bool plotflg, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag);
     void smr_trans(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int trans_itvl,bool plotflg);
     void smr_trans_wholeInOne(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int trans_itvl,bool plotflg);
     
-    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres);
+    void make_esd_file(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag,bool make_esd_flag, char* indilst2remove, char* snplst2exclde, char* problst2exclde, bool make_cis_flag, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag);
    
-    void combineCis(char* eqtlsmaslstName, char* outFileName,bool cisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
+    void combineCis(char* eqtlsmaslstName, char* outFileName,bool makecisflag, int cis_itvl, int trans_itvl, float transThres, float restThres);
     
     void smr_g2g(char* gwasFileName,char* gwasFileName2,char* snplstName,char* snplst2exclde);
     
@@ -252,7 +252,7 @@ namespace SMRDATA
     int read_frqfile(eqtlInfo* eqtlinfo, string frqfile);
     void write_besd(string outFileName, eqtlInfo* eqtlinfo);
     
-    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snprs, int snpWind);
+   
     void extract_eqtl_single_snp(eqtlInfo* eqtlinfo, string snprs);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, string fromsnprs, string tosnprs);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, int fromsnpkb, int tosnpkb);
@@ -263,5 +263,8 @@ namespace SMRDATA
     void extract_prob_by_single_gene(eqtlInfo* eqtlinfo, string genename);
     void extract_epi_by_chr(eqtlInfo* eqtlinfo, int prbchr);
     void extract_eqtl_by_chr(eqtlInfo* eqtlinfo, int snpchr);
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snporprb, int Wind, string msg);
+    void epi_man(eqtlInfo* eqtlinfo,char* problstName,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename);
+    void esi_man(eqtlInfo* eqtlinfo,char* snplstName,int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int cis_itvl,char* prbname);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

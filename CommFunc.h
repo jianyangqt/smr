@@ -12,12 +12,13 @@
 #define _COMMFUNC_H
 
 #define MAX_BUF_SIZE 0x40000000
-#ifdef _WIN64
-#define MAX_LINE_SIZE 655360
+#if defined _WIN64 || defined _WIN32
+#define MAX_LINE_SIZE 0xA0000
 #else
-#define MAX_LINE_SIZE 0x00740000
+#define MAX_LINE_SIZE 0x200000
 #endif
 
+#define MAX_PROBE_NUM 0xF0000
 #define MAX_SNP_NAME 64
 #define DENSE_FILE_TYPE_1 0  // float + floats
 #define SPARSE_FILE_TYPE_1 1 // float + float + floats + floats +floats

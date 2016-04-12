@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.619" << endl;
+    cout << "* version 0.620" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -112,8 +112,9 @@ void option(int option_num, char* option_str[])
     
     char* refSNP=NULL;
     bool heidioffFlag = false;
+    bool make_cis_flag=false;
     
-     thread_num = 1;
+    thread_num = 1;
     
     bool combineFlg = false;
     char* eqtlsmaslstName = NULL;
@@ -325,11 +326,12 @@ void option(int option_num, char* option_str[])
             printf("--smr \n");
         }
         else if (0 == strcmp(option_str[i], "--make-sparse")){
-            cis_flag=true;
+            make_cis_flag=true;
             make_besd_flag=true;
             printf("--make-sparse \n");
         }
         else if(strcmp(option_str[i],"--cis-wind")==0){
+            cis_flag=true;
             cis_itvl=atoi(option_str[++i]);
             printf("--cis-wind %d Kb\n", cis_itvl);
             if(cis_itvl<0 )
@@ -371,14 +373,14 @@ void option(int option_num, char* option_str[])
             FLAG_VALID_CK("--efile", eFileName);
             printf("--efile %s\n", eFileName);
         }
-        else if (0 == strcmp(option_str[i], "--lookup")){
+        else if (0 == strcmp(option_str[i], "--query")){
             lookup_flag=true;
             if(i+1==option_num || has_prefix(option_str[i+1],"--"))  plookup = 5.0e-8;
             else plookup = atof (option_str[++i]);
-            printf("--lookup %10.2e\n", plookup);
+            printf("--query %10.2e\n", plookup);
             if(plookup<0 || plookup>1)
             {
-                fprintf (stderr, "Error: --lookup should be within the range from 0 to 1.\n");
+                fprintf (stderr, "Error: --query should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
         }
@@ -405,11 +407,11 @@ void option(int option_num, char* option_str[])
             combineFlg = true;
             printf("--combine-besd \n");
         }
-        else if (0 == strcmp(option_str[i], "--beqtl-summaries")){
+        else if (0 == strcmp(option_str[i], "--beqtl-flist")){
             combineFlg=true;
             eqtlsmaslstName = option_str[++i];
-            FLAG_VALID_CK("--beqtl-summaries", eqtlsmaslstName);
-            printf("--beqtl-summaries %s\n", eqtlsmaslstName);
+            FLAG_VALID_CK("--beqtl-flist", eqtlsmaslstName);
+            printf("--beqtl-flist %s\n", eqtlsmaslstName);
         }
         else if (0 == strcmp(option_str[i], "--plot")){
             plotflg = true;
@@ -668,16 +670,16 @@ void option(int option_num, char* option_str[])
     if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag); // from text to besd
     else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
     else if (metaflg) meta(outFileName,eqtlFileName, eqtlFileName2);
-    else if (combineFlg) combineCis(eqtlsmaslstName, outFileName, cis_flag, cis_itvl,trans_itvl, transThres, restThres);
+    else if (combineFlg) combineCis(eqtlsmaslstName, outFileName, make_cis_flag, cis_itvl,trans_itvl, transThres, restThres);
     else if(tosbesdflag)  esd2sbesd(outFileName, eqtlFileName );
-    else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde,  cis_flag, cis_itvl,trans_itvl, transThres, restThres);
+    else if(make_besd_flag || make_esd_flag ) make_esd_file(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,make_besd_flag,make_esd_flag, indilst2remove, snplst2exclde, problst2exclde,  make_cis_flag, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
     else if(gwasFileName2 != NULL) smr_g2g(gwasFileName,gwasFileName2,snplstName,snplst2exclde); // gwas summary by gwas summary , not finished.
     else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm);
     else if(eremlFlag) read_efile(&edata, eFileName);
-    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag);
+    else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag,cis_flag, cis_itvl);
     else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
     else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
-    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg);
+    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
     else if(smr_flag && smr_trans_flag) smr_trans_wholeInOne(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName, bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
    }
