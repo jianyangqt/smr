@@ -281,3 +281,17 @@ void StrFunc::set_intersect(const vector<int> &VecA, const vector<int> &VecB, ve
     }
     
 }
+
+void StrFunc::set_complement(const vector<int> &toRm, const vector<int> &source, vector<int> &VecC)
+{
+    int i = 0;
+    map<int, int> id_map;
+    map<int, int>::iterator iter;
+    VecC.clear();
+    for (i = 0; i<toRm.size(); i++) id_map.insert(pair<int, int>(toRm[i], i));
+    for (i = 0; i<source.size(); i++){
+        iter = id_map.find(source[i]);
+        if (iter == id_map.end()) VecC.push_back(source[i]);
+    }
+   
+}

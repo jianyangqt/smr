@@ -99,6 +99,7 @@ namespace SMRDATA
     typedef struct{
         long snpNum;
         vector<string> snpName;
+        vector<int> snpBp;
         char* allele_1;
         char* allele_2;
         double* freq;
@@ -106,7 +107,7 @@ namespace SMRDATA
         double* seyz;
         double* pvalue;
         uint32_t* splSize;
-        vector<uint32_t> _include;
+        vector<int> _include;
     } gwasData;
     
     typedef struct{
@@ -175,6 +176,10 @@ namespace SMRDATA
     void get_square_idxes(vector<int> &sn_ids,VectorXd &zsxz,double threshold);
 	void est_cov_bxy(MatrixXd &covbxy, VectorXd &_zsxz, VectorXf &_bxy, VectorXd &_seyz, VectorXd &_bxz, MatrixXd &_LD_heidi);
 	float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
+    void allele_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);
+    void update_geIndx(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);
+    void allele_check(gwasData* gdata, eqtlInfo* esdata);
+    void update_gwas(gwasData* gdata);
     
     bool make_XMat(bInfo* bdata, MatrixXd &X);
     void make_XMat_SNPs(bInfo* bdata, vector< vector<float> > &X, bool miss_with_mu);
@@ -255,16 +260,16 @@ namespace SMRDATA
    
     void extract_eqtl_single_snp(eqtlInfo* eqtlinfo, string snprs);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, string fromsnprs, string tosnprs);
-    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int fromsnpkb, int tosnpkb);
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int chr, int fromsnpkb, int tosnpkb);
     void extract_prob(eqtlInfo* eqtlinfo, string prbname, int prbWind);
     void extract_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname);
     void extract_eqtl_prob(eqtlInfo* eqtlinfo, string fromprbname, string toprbname);
-    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int fromprbkb, int toprbkb);
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int chr, int fromprbkb, int toprbkb);
     void extract_prob_by_single_gene(eqtlInfo* eqtlinfo, string genename);
     void extract_epi_by_chr(eqtlInfo* eqtlinfo, int prbchr);
     void extract_eqtl_by_chr(eqtlInfo* eqtlinfo, int snpchr);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snporprb, int Wind, string msg);
     void epi_man(eqtlInfo* eqtlinfo,char* problstName,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename);
-    void esi_man(eqtlInfo* eqtlinfo,char* snplstName,int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int cis_itvl,char* prbname);
+    void esi_man(eqtlInfo* eqtlinfo,char* snplstName,int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int cis_itvl,const char* prbname);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

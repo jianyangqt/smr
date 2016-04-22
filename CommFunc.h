@@ -15,8 +15,10 @@
 #if defined _WIN64 || defined _WIN32
 #define MAX_LINE_SIZE 0xA0000
 #else
-#define MAX_LINE_SIZE 0x200000
+#define MAX_LINE_SIZE 0x300000
 #endif
+
+#define MAX_LINE_BUF 0x1000000
 
 #define MAX_PROBE_NUM 0xF0000
 #define MAX_SNP_NAME 64
@@ -72,8 +74,13 @@ namespace CommFunc
     int max_abs_id(vector<double> &zsxz);
     int fopen_checked(FILE** in_file, const char* filename, const char* flag);
     void getRank(vector<int> &a, vector<int> &b);
+    void getRank_norep(vector<int> &a, vector<int> &b);
      void getUnique(vector<uint32_t> &a);
     void match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB, vector<int> &VecC);
+    static inline int32_t fputs_checked(const char* ss, FILE* outfile) {
+        fputs(ss, outfile);
+        return ferror(outfile);
+    }
 }
 
 #endif

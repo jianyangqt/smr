@@ -55,6 +55,7 @@ namespace StrFunc
     bool has_suffix(const std::string &str, const std::string &suffix);
     void set_intersect(const vector<string> &VecA, const vector<string> &VecB, vector<string> &VecC);
     void set_intersect(const vector<int> &VecA, const vector<int> &VecB, vector<int> &VecC);
+    void set_complement(const vector<int> &toRm, const vector<int> &source, vector<int> &VecC);
 }
 
 #endif

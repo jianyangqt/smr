@@ -1005,8 +1005,14 @@ namespace SMRDATA
                     if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
                     size = _incld_id_map.size();
                 }
-                char row_char_ptr[MAX_LINE_SIZE];
-                char val_char_ptr[MAX_LINE_SIZE];
+         
+                char* row_char_ptr;
+                row_char_ptr = (char*) malloc (sizeof(char)*MAX_LINE_BUF);
+                if (row_char_ptr == NULL) {fputs ("Memory error",stderr); exit (1);}
+                char* val_char_ptr;
+                val_char_ptr = (char*) malloc (sizeof(char)*MAX_LINE_BUF);
+                if (val_char_ptr == NULL) {fputs ("Memory error",stderr); exit (1);}
+
                 uint64_t rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
                 uint64_t valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 for(int i=0;i<eqtlinfo->_include.size();i++)
@@ -1043,6 +1049,8 @@ namespace SMRDATA
                     eqtlinfo->_cols[i+1<<1]=real_num+eqtlinfo->_cols[i<<1];
                 }
                 eqtlinfo->_valNum = eqtlinfo->_val.size();
+                free(row_char_ptr);
+                free(val_char_ptr);
                 cout<<"eQTL summary-level statistics of "<<eqtlinfo->_include.size()<<" Probes and "<<eqtlinfo->_esi_include.size()<<" SNPs to be included from [" + besdfile + "]." <<endl;
                 if(eqtlinfo->_include.size()<eqtlinfo->_probNum ) update_epi(eqtlinfo);
                 if(eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum) update_esi(eqtlinfo);
@@ -2198,7 +2206,7 @@ namespace SMRDATA
         eqtlinfo->_esi_include=newIcld;
         cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from SNP " +fromsnprs+" to SNP " + tosnprs + "." << endl;
     }
-    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int fromsnpkb, int tosnpkb)
+    void extract_eqtl_snp(eqtlInfo* eqtlinfo, int chr, int fromsnpkb, int tosnpkb)
     {
         int fromsnpbp=fromsnpkb*1000;
         int tosnpbp=tosnpkb*1000;
@@ -2214,11 +2222,11 @@ namespace SMRDATA
         for(int i=0;i<eqtlinfo->_esi_include.size();i++)
         {
             int tmpint=eqtlinfo->_esi_include[i];
-            if( eqtlinfo->_esi_bp[tmpint]>=fromsnpbp && eqtlinfo->_esi_bp[tmpint]<=tosnpbp) newIcld.push_back(tmpint);
+            if( eqtlinfo->_esi_chr[tmpint]==chr &&eqtlinfo->_esi_bp[tmpint]>=fromsnpbp && eqtlinfo->_esi_bp[tmpint]<=tosnpbp) newIcld.push_back(tmpint);
         }
         eqtlinfo->_esi_include.clear();
         eqtlinfo->_esi_include=newIcld;
-        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from SNP BP: " +atos(fromsnpkb)+"Kb to SNP BP" + atos(tosnpkb) + "Kb." << endl;
+        cout << eqtlinfo->_esi_include.size() << " SNPs are extracted from SNP BP: " +atos(fromsnpkb)+" Kb to SNP BP: " + atos(tosnpkb) + " Kb." << endl;
     }
 
 
@@ -2423,7 +2431,7 @@ namespace SMRDATA
         eqtlinfo->_include=newIcld;
         cout << eqtlinfo->_include.size() << " probes are extracted from probe : " +fromprbname+" to probe " + toprbname + "." << endl;
     }
-    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int fromprbkb, int toprbkb)
+    void extract_eqtl_prob(eqtlInfo* eqtlinfo, int chr, int fromprbkb, int toprbkb)
     {
         int fromprbbp=fromprbkb*1000;
         int toprbbp=toprbkb*1000;
@@ -2439,7 +2447,7 @@ namespace SMRDATA
         for(int i=0;i<eqtlinfo->_include.size();i++)
         {
             int tmpint=eqtlinfo->_include[i];
-            if( eqtlinfo->_epi_bp[tmpint]>=fromprbbp && eqtlinfo->_epi_bp[tmpint]<=toprbbp) newIcld.push_back(tmpint);
+            if( eqtlinfo->_epi_chr[tmpint]==chr && eqtlinfo->_epi_bp[tmpint]>=fromprbbp && eqtlinfo->_epi_bp[tmpint]<=toprbbp) newIcld.push_back(tmpint);
         }
         eqtlinfo->_include.clear();
         eqtlinfo->_include=newIcld;
@@ -3114,7 +3122,10 @@ namespace SMRDATA
 
     void update_gwas(gwasData* gdata){
         
-        
+        bool hasBP=false;
+        if(gdata->snpBp.size()>0) hasBP=true;
+        vector<int> snpBp;
+        if(hasBP) snpBp.resize(gdata->_include.size());
         vector<string> snpName(gdata->_include.size());
         char* allele_1=(char*)malloc((gdata->_include.size()+1)*sizeof(char));
         char* allele_2=(char*)malloc((gdata->_include.size()+1)*sizeof(char));
@@ -3135,6 +3146,7 @@ namespace SMRDATA
             seyz[i]=gdata->seyz[gdata->_include[i]];
             pvalue[i]=gdata->pvalue[gdata->_include[i]];
             splSize[i]=gdata->splSize[gdata->_include[i]];
+            if(hasBP) snpBp[i]=gdata->snpBp[gdata->_include[i]];
         }
         
         free(gdata->allele_1);
@@ -3156,7 +3168,7 @@ namespace SMRDATA
              
         gdata->allele_1[gdata->_include.size()]='\0';
         gdata->allele_2[gdata->_include.size()]='\0';
-        
+        if(hasBP) gdata->snpBp=snpBp;
         for(int i=0;i<gdata->snpNum;i++) gdata->_include[i]=i;
         
     }
@@ -3207,7 +3219,7 @@ namespace SMRDATA
     }
     void update_geIndx(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata)
     {
-        vector<uint32_t> tmpIdx1;
+        vector<int> tmpIdx1;
         vector<int> tmpIdx2;
         for (int i = 0; i < bdata->_include.size(); i++)
         {
@@ -7712,7 +7724,7 @@ namespace SMRDATA
         
     }
     
-    void esi_man(eqtlInfo* eqtlinfo,char* snplstName,int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int cis_itvl,char* prbname)
+    void esi_man(eqtlInfo* eqtlinfo,char* snplstName,int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int cis_itvl,const char* prbname)
     {
         string logstr;
         int flags4snp=0;
@@ -7736,7 +7748,7 @@ namespace SMRDATA
         
         if(prbname!=NULL && cis_flag)
         {
-            extract_eqtl_snp(eqtlinfo, prbname, cis_itvl, "probe");
+            extract_eqtl_snp(eqtlinfo, prbname, cis_itvl, "probe"); // extract cis eQTLs
         }
         else if (snplstName != NULL) extract_eqtl_snp(eqtlinfo, snplstName);
         else if (snpwindFlag)
@@ -7778,7 +7790,7 @@ namespace SMRDATA
                 fputs(logstr.c_str(), stdout);
                 exit(1);
             }
-            extract_eqtl_snp(eqtlinfo, fromsnpkb, tosnpkb);
+            extract_eqtl_snp(eqtlinfo, snpchr, fromsnpkb, tosnpkb);
         }
         
     }
@@ -7848,7 +7860,7 @@ namespace SMRDATA
                 fputs(logstr.c_str(), stdout);
                 exit(1);
             }
-            extract_eqtl_prob(eqtlinfo, fromprbkb, toprbkb);
+            extract_eqtl_prob(eqtlinfo, prbchr, fromprbkb, toprbkb);
         }
         else if(genename!=NULL)
         {

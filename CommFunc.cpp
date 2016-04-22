@@ -172,6 +172,25 @@ void CommFunc::getRank(vector<int> &a, vector<int> &b)
         b[i] = count;
     }
 }
+void CommFunc::getRank_norep(vector<int> &a, vector<int> &b)
+{
+    b.resize(a.size());
+    map<int,int> rep_chck;
+    long mapsize=0;
+    for (int i = (int)a.size()-1; i >= 0; i--)
+    {
+        int count = 0;
+        for (int j = 0; j < a.size(); j++) if (a[j] < a[i]) count++;
+        rep_chck.insert(pair<int,int>(count,i));
+        while(rep_chck.size()==mapsize)
+        {
+            count++;
+            rep_chck.insert(pair<int,int>(count,i));
+        }
+        mapsize=rep_chck.size();
+        b[i] = count;       
+    }
+}
 void CommFunc::getUnique(vector<uint32_t> &a)
 {
     sort(a.begin(),a.end());
