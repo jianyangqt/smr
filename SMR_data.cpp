@@ -168,7 +168,7 @@ namespace SMRDATA
 	{
 		eqtlinfo->_probNum = eqtlinfo->_include.size();
 
-		vector<uint32_t> chr_buf, gd_buf,bp_buf;
+		vector<int> chr_buf, gd_buf,bp_buf;
 		vector<string> prbID_buf, gene_buf;
 		vector<char> orien_buf;
 		for (int i = 0; i < eqtlinfo->_probNum; i++)
@@ -216,7 +216,7 @@ namespace SMRDATA
 	{
 		eqtlinfo->_snpNum = eqtlinfo->_esi_include.size();	
 
-		vector<uint32_t> chr_buf, gd_buf, bp_buf;
+		vector<int> chr_buf, gd_buf, bp_buf;
 		vector<string> rs_buf;
 		vector<char> allele1_buf, allele2_buf;
 		for (int i = 0; i < eqtlinfo->_snpNum; i++)
@@ -1007,10 +1007,10 @@ namespace SMRDATA
                 }
          
                 char* row_char_ptr;
-                row_char_ptr = (char*) malloc (sizeof(char)*MAX_LINE_BUF);
+                row_char_ptr = (char*) malloc (sizeof(char)*MAXSNPNUMPERPROBEINSPARSE);
                 if (row_char_ptr == NULL) {fputs ("Memory error",stderr); exit (1);}
                 char* val_char_ptr;
-                val_char_ptr = (char*) malloc (sizeof(char)*MAX_LINE_BUF);
+                val_char_ptr = (char*) malloc (sizeof(char)*MAXSNPNUMPERPROBEINSPARSE);
                 if (val_char_ptr == NULL) {fputs ("Memory error",stderr); exit (1);}
 
                 uint64_t rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
@@ -1022,6 +1022,8 @@ namespace SMRDATA
                     uint64_t pos1=*(ptr+(pid<<1)+1); //SE START
                     uint64_t num=pos1-pos;
                     uint64_t real_num=0;
+                    memset(row_char_ptr,0,sizeof(char)*MAXSNPNUMPERPROBEINSPARSE);
+                    memset(val_char_ptr,0,sizeof(char)*MAXSNPNUMPERPROBEINSPARSE);
                     besd.seekg(rowSTART+pos*sizeof(uint32_t));
                     besd.read(row_char_ptr, 2*num*sizeof(uint32_t));
                     uint32_t* row_ptr=(uint32_t *)row_char_ptr;
@@ -2537,6 +2539,7 @@ namespace SMRDATA
             stable_sort(bdata->_include.begin(), bdata->_include.end());
             cout<<"After pruning SNPs with MAF > "<<maf<<", there are "<<bdata->_include.size()<<" SNPs ("<<prev_size-bdata->_include.size()<<" SNPs with MAF < "<<maf<<")."<<endl;
         }
+        
     }
     
     void allele_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata)

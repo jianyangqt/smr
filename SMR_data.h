@@ -111,20 +111,20 @@ namespace SMRDATA
     } gwasData;
     
     typedef struct{
-        vector<uint32_t> _esi_chr;
+        vector<int> _esi_chr;
         vector<string> _esi_rs;
-        vector<uint32_t> _esi_gd;
-        vector<uint32_t> _esi_bp;
+        vector<int> _esi_gd;
+        vector<int> _esi_bp;
         vector<char> _esi_allele1;
         vector<char> _esi_allele2;
 		vector<int> _esi_include; // initialized in the readesi
         map<string,int> _snp_name_map;
         vector<float> _esi_maf;
         
-        vector<uint32_t> _epi_chr;
+        vector<int> _epi_chr;
         vector<string> _epi_prbID;
-        vector<uint32_t> _epi_gd;
-        vector<uint32_t> _epi_bp;
+        vector<int> _epi_gd;
+        vector<int> _epi_bp;
         vector<string> _epi_gene;
         vector<char> _epi_orien;
         vector<int> _include; // initialized in the readepi

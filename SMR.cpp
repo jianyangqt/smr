@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.620" << endl;
+    cout << "* version 0.628" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -151,6 +151,11 @@ void option(int option_num, char* option_str[])
     bool interanlflg=false;
     
     bool recodeflg=false;
+    // for setBased SMR
+    char* geneAnnoName=NULL;
+    char* setlstName=NULL;
+    int setWind=0;
+    bool ssmrflg=false;
     
     for(int i=0;i<option_num;i++)
     {
@@ -325,6 +330,10 @@ void option(int option_num, char* option_str[])
             smr_flag=true;
             printf("--smr \n");
         }
+        else if (0 == strcmp(option_str[i], "--smr-set")){
+            ssmrflg=true;
+            printf("--smr-set \n");
+        }
         else if (0 == strcmp(option_str[i], "--make-sparse")){
             make_cis_flag=true;
             make_besd_flag=true;
@@ -384,11 +393,23 @@ void option(int option_num, char* option_str[])
                 exit (EXIT_FAILURE);
             }
         }
-        else if(strcmp(option_str[i],"--gene-list")==0){
+        else if(strcmp(option_str[i],"--genes")==0){
             genelistName=option_str[++i];
-            FLAG_VALID_CK("--gene-list", genelistName);
-            cout<<"--gene-list "<<genelistName<<endl;
+            FLAG_VALID_CK("--genes", genelistName);
+            cout<<"--genes "<<genelistName<<endl;
             CommFunc::FileExist(genelistName);
+        }
+        else if(strcmp(option_str[i],"--gene-list")==0){
+            geneAnnoName=option_str[++i];
+            FLAG_VALID_CK("--gene-list", geneAnnoName);
+            cout<<"--gene-list "<<geneAnnoName<<endl;
+            CommFunc::FileExist(geneAnnoName);
+        }
+        else if(strcmp(option_str[i],"--set-list")==0){
+            setlstName=option_str[++i];
+            FLAG_VALID_CK("--set-list", setlstName);
+            cout<<"--set-list "<<setlstName<<endl;
+            CommFunc::FileExist(setlstName);
         }
         else if (0 == strcmp(option_str[i], "--target-snp")){
             refSNP = option_str[++i];
@@ -485,6 +506,15 @@ void option(int option_num, char* option_str[])
             if(outcomePrbWind<0 )
             {
                 fprintf (stderr, "Error: --smr-wind should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--set-wind")==0){
+            setWind=atoi(option_str[++i]);
+            printf("--set-wind %d kb\n", setWind);
+            if(setWind<0 )
+            {
+                fprintf (stderr, "Error: --set-wind should be over 0.\n");
                 exit (EXIT_FAILURE);
             }
         }
@@ -680,8 +710,8 @@ void option(int option_num, char* option_str[])
     else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
     else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
-    else if(plotflg) plot(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
-
+    else if(plotflg) plot(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName);
+    else if(ssmrflg)  smr_multipleSNP( outFileName,  bFileName, gwasFileName,  eqtlFileName,  maf,indilstName,  snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero , indilst2remove, snplst2exclde,  problst2exclde, p_smr,  refSNP,  heidioffFlag,  cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr, snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, setlstName,  geneAnnoName,  setWind);
     else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
     else if(smr_flag && smr_trans_flag) smr_trans_wholeInOne(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName, bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
    }
