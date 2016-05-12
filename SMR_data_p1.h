@@ -40,7 +40,7 @@ namespace SMRDATA
     typedef struct{
         int cur_chr;
         int cur_prbid; 
-        vector<double> bxz, sexz, byz, seyz,pyz;
+        vector<double> bxz, sexz, byz, seyz,pyz,freq;
         vector<uint32_t> curId;
         vector<int>  bpsnp, snpchrom;
         vector<string> eName;

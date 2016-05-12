@@ -13,7 +13,7 @@
 
 #define MAX_BUF_SIZE 0x40000000
 #if defined _WIN64 || defined _WIN32
-#define MAX_LINE_SIZE 0xA0000
+#define MAX_LINE_SIZE 0x10000
 #else
 #define MAX_LINE_SIZE 0x300000
 #endif
@@ -78,7 +78,7 @@ namespace CommFunc
     void getRank_norep(vector<int> &a, vector<int> &b);
      void getUnique(vector<uint32_t> &a);
     void match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB, vector<int> &VecC);
-    static inline int32_t fputs_checked(const char* ss, FILE* outfile) {
+    static inline unsigned int fputs_checked(const char* ss, FILE* outfile) {
         fputs(ss, outfile);
         return ferror(outfile);
     }

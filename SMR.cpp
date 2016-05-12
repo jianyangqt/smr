@@ -16,6 +16,7 @@ using namespace SMRDATA;
 using namespace StatFunc;
 using namespace E_DATA;
 int thread_num;
+int xh=0;
 
 int main(int argc, char** argv) {
         
@@ -154,7 +155,7 @@ void option(int option_num, char* option_str[])
     // for setBased SMR
     char* geneAnnoName=NULL;
     char* setlstName=NULL;
-    int setWind=0;
+    int setWind=-9;
     bool ssmrflg=false;
     
     for(int i=0;i<option_num;i++)
@@ -330,9 +331,9 @@ void option(int option_num, char* option_str[])
             smr_flag=true;
             printf("--smr \n");
         }
-        else if (0 == strcmp(option_str[i], "--smr-set")){
+        else if (0 == strcmp(option_str[i], "--smr-multi")){
             ssmrflg=true;
-            printf("--smr-set \n");
+            printf("--smr-multi \n");
         }
         else if (0 == strcmp(option_str[i], "--make-sparse")){
             make_cis_flag=true;

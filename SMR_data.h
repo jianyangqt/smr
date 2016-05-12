@@ -46,7 +46,7 @@ using namespace StrFunc;
 using namespace CommFunc;
 
 extern int thread_num;
-
+extern int xh; //using when testing
 namespace SMRDATA
 {
     //implementation of SoA(Struct of Array)
