@@ -15,7 +15,7 @@
 #if defined _WIN64 || defined _WIN32
 #define MAX_LINE_SIZE 0x10000
 #else
-#define MAX_LINE_SIZE 0x300000
+#define MAX_LINE_SIZE 0x10000
 #endif
 
 #define MAX_LINE_BUF 0x1000000
@@ -81,7 +81,7 @@ namespace CommFunc
     static inline unsigned int fputs_checked(const char* ss, FILE* outfile) {
         fputs(ss, outfile);
         return ferror(outfile);
-    }
+    }   
 }
 
 #endif

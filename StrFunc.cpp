@@ -205,6 +205,7 @@ void StrFunc::match_only(const vector<string> &VecA, const vector<string> &VecB,
 	}
 
 }
+
 void StrFunc::set_complement(const vector<string> &VecA, const vector<string> &VecB,const vector<int> &tmp, vector<int> &VecC)
 {
     VecC.clear();
@@ -294,4 +295,11 @@ void StrFunc::set_complement(const vector<int> &toRm, const vector<int> &source,
         if (iter == id_map.end()) VecC.push_back(source[i]);
     }
    
+}
+
+bool StrFunc::stringNumCheck(string a, int num)
+{
+    vector<string> b;
+    int number = split_string(a, b, " \t\n");
+    return(number==num);
 }
