@@ -510,17 +510,15 @@ namespace SMRDATA
             gwasData gdata;
             gdata.allele_1.resize(etrait._esi_include.size());
             gdata.allele_2.resize(etrait._esi_include.size());
-            gdata.byz=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.seyz=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.freq=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.pvalue=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.splSize=(uint32_t*)malloc(etrait._esi_include.size()*sizeof(uint32_t));
+            gdata.byz.resize(etrait._esi_include.size());
+            gdata.seyz.resize(etrait._esi_include.size());
+            gdata.freq.resize(etrait._esi_include.size());
+            gdata.pvalue.resize(etrait._esi_include.size());
+            gdata.splSize.resize(etrait._esi_include.size());
             
             
           
            // cout<<"\nPerforming analysis of eTrait [ "+traitname+" ]..."<<endl;
-            memset(gdata.byz,0,etrait._esi_include.size()*sizeof(double));
-            memset(gdata.seyz,0,etrait._esi_include.size()*sizeof(double));
             gdata._include.clear();
             gdata.snpName.clear();
             int count=0;
@@ -893,7 +891,7 @@ namespace SMRDATA
         cout<<"Extracted results of "<<out_esi_id.size()<<" items have been saved in the plaint text file [" + smrfile + "]."<<endl;
         
     }
-    
+    /*
     void standardization(char* outFileName, char* eqtlFileName,bool bFlag,char* freqName, char* vpFileName)
     {
         eqtlInfo esdata;
@@ -949,7 +947,7 @@ namespace SMRDATA
         else if(freqName!=NULL)
         {
             
-            int n=read_frqfile(&esdata, string(freqName));
+            update_freq(&esdata, string(freqName));
             for(int i=0;i<esdata._probNum;i++)
             {
                 if(esdata._rowid.empty())
@@ -961,7 +959,7 @@ namespace SMRDATA
                             
                             float bxz=esdata._bxz[i][j];
                             float sexz=esdata._sexz[i][j];
-                            float p=esdata._esi_maf[j];
+                            float p=esdata._esi_freq[j];
                             float z=bxz/sexz;
                             float b=z/sqrt(2*p*(1-p)*(n+z*z));
                             float se=1/sqrt(2*p*(1-p)*(n+z*z));
@@ -980,7 +978,7 @@ namespace SMRDATA
                         uint64_t ge_rowid=esdata._rowid[beta_start+j];
                         float bxz=esdata._val[beta_start+j];
                         float sexz=esdata._val[se_start+j];
-                        float p=esdata._esi_maf[ge_rowid];
+                        float p=esdata._esi_freq[ge_rowid];
                         float z=bxz/sexz;
                         float b=z/sqrt(2*p*(1-p)*(n+z*z));
                         float se=1/sqrt(2*p*(1-p)*(n+z*z));
@@ -994,7 +992,7 @@ namespace SMRDATA
         }
        write_besd(outFileName, &esdata);
     }
-   
+   */
 
     void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag,bool cis_flag, int cis_itvl)
     {
@@ -1091,7 +1089,7 @@ namespace SMRDATA
         
         string smrfile = string(outFileName)+".txt";
         ofstream smr(smrfile.c_str());
-        if (!smr) throw ("Error: can not open the fam file " + smrfile + " to save!");
+        if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
         
         smr << "SNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' << "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"Orientation"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
         
@@ -1114,7 +1112,7 @@ namespace SMRDATA
         vector<int> gdId;
         vector<int> edId;
         edId.clear();
-        int pre_size=esdata->_esi_include.size();
+        long pre_size=esdata->_esi_include.size();
         vector<string> essnp;
         if(esdata->_esi_include.size()<esdata->_snpNum )
         {
@@ -1688,8 +1686,6 @@ namespace SMRDATA
                 gwas_se.push_back(gdata_.seyz[i]);
             }
             //eqtl info
-            
-            
             vector<int> out_esi_id;
             vector<int> out_epi_id;
             vector<string> out_epi_name;
@@ -1942,125 +1938,7 @@ namespace SMRDATA
         cout << snp_name.size() << " SNPs in " << snpset.size() << " sets have been matched and included." << endl;
     }
 
-    void init_smr_wk(SMRWK* smrwk)
-    {
-        smrwk->bxz.clear(),smrwk->sexz.clear(),smrwk->curId.clear(),smrwk->eName.clear(),smrwk->snpchrom.clear(),smrwk->byz.clear();
-        smrwk->seyz.clear(),smrwk->pyz.clear(),smrwk->bpsnp.clear();
-    }
-    long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, bool refFlg, const char* refSNP, int lowerbp,int upperbp)
-    {
-        int i=smrwk->cur_prbid;
-        long maxid=-9;
-        if(esdata->_rowid.empty())
-        {
-            for (int j = 0; j<bdata->_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
-            {
-                if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
-                {
-                    int snpbp=esdata->_esi_bp[j];
-                    int snpchr=esdata->_esi_chr[j];
-                    if(snpchr==esdata->_epi_chr[i] && snpchr==smrwk->cur_chr && snpbp>=lowerbp && snpbp<=upperbp)
-                    {
-                        smrwk->bxz.push_back(esdata->_bxz[i][j]);
-                        smrwk->sexz.push_back(esdata->_sexz[i][j]);
-                        smrwk->byz.push_back(gdata->byz[j]);
-                        smrwk->seyz.push_back(gdata->seyz[j]);
-                        smrwk->pyz.push_back(gdata->pvalue[j]);
-                        smrwk->curId.push_back(j);
-                        smrwk->eName.push_back(esdata->_esi_rs[j]);
-                        smrwk->snpchrom.push_back(esdata->_esi_chr[j]);
-                        if(refFlg && esdata->_esi_rs[j]==string(refSNP)) maxid=(smrwk->eName.size()-1);
-                        smrwk->bpsnp.push_back(esdata->_esi_bp[j]);
-                    }
-                }
-            }
-            
-        }
-        else{
-            uint64_t beta_start=esdata->_cols[i<<1];
-            uint64_t se_start=esdata->_cols[1+(i<<1)];
-            uint64_t numsnps=se_start-beta_start;
-            for(int j=0;j<numsnps;j++)
-            {
-                int ge_rowid=esdata->_rowid[beta_start+j];
-                int snpbp=esdata->_esi_bp[ge_rowid];
-                int snpchr=esdata->_esi_chr[ge_rowid];
-                
-                if(snpchr==esdata->_epi_chr[i] && snpchr==smrwk->cur_chr && snpbp>=lowerbp && snpbp<=upperbp)
-                {
-                    smrwk->bxz.push_back(esdata->_val[beta_start+j]);
-                    smrwk->sexz.push_back(esdata->_val[se_start+j]);
-                    smrwk->byz.push_back(gdata->byz[ge_rowid]);
-                    smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
-                    smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
-                    smrwk->curId.push_back(ge_rowid);
-                    smrwk->eName.push_back(esdata->_esi_rs[ge_rowid]);
-                    smrwk->snpchrom.push_back(esdata->_esi_chr[ge_rowid]);
-                    if(refFlg && esdata->_esi_rs[ge_rowid]==string(refSNP)) maxid=(smrwk->eName.size()-1);
-                    smrwk->bpsnp.push_back(esdata->_esi_bp[ge_rowid]);
-                    
-                }
-            }
-        }
-        return maxid;
-    }
-    long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, bool refFlg, const char* refSNP,int cis_itvl)
-    {
-        int i=smrwk->cur_prbid;
-        long maxid =-9;
-        if(esdata->_rowid.empty())
-        {
-            for (int j = 0; j<bdata->_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
-            {
-                if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
-                {
-                    int snpbp=esdata->_esi_bp[j];
-                    int snpchr=esdata->_esi_chr[j];
-                    if(snpchr==esdata->_epi_chr[i] && ABS(esdata->_epi_bp[i]-snpbp)<=cis_itvl)
-                    {
-                        smrwk->bxz.push_back(esdata->_bxz[i][j]);
-                        smrwk->sexz.push_back(esdata->_sexz[i][j]);
-                        smrwk->byz.push_back(gdata->byz[j]);
-                        smrwk->seyz.push_back(gdata->seyz[j]);
-                        smrwk->pyz.push_back(gdata->pvalue[j]);
-                        smrwk->curId.push_back(j);
-                        smrwk->eName.push_back(esdata->_esi_rs[j]);
-                        smrwk->snpchrom.push_back(esdata->_esi_chr[j]);
-                        if(refFlg && esdata->_esi_rs[j]==string(refSNP)) maxid=(smrwk->eName.size()-1);
-                        smrwk->bpsnp.push_back(esdata->_esi_bp[j]);
-                    }
-                }
-            }
-            
-        }
-        else{
-            uint64_t beta_start=esdata->_cols[i<<1];
-            uint64_t se_start=esdata->_cols[1+(i<<1)];
-            uint64_t numsnps=se_start-beta_start;
-            for(int j=0;j<numsnps;j++)
-            {
-                int ge_rowid=esdata->_rowid[beta_start+j];
-                int snpbp=esdata->_esi_bp[ge_rowid];
-                int snpchr=esdata->_esi_chr[ge_rowid];
-                if(snpchr==esdata->_epi_chr[i] && ABS(esdata->_epi_bp[i]-snpbp)<=cis_itvl)
-                {
-                    smrwk->bxz.push_back(esdata->_val[beta_start+j]);
-                    smrwk->sexz.push_back(esdata->_val[se_start+j]);
-                    smrwk->byz.push_back(gdata->byz[ge_rowid]);
-                    smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
-                    smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
-                    smrwk->curId.push_back(ge_rowid); //save snp id of the raw datastruct
-                    smrwk->eName.push_back(esdata->_esi_rs[ge_rowid]);
-                    smrwk->snpchrom.push_back(esdata->_esi_chr[ge_rowid]);
-                    if(refFlg && esdata->_esi_rs[ge_rowid]==string(refSNP)) maxid=(smrwk->eName.size()-1);
-                    smrwk->bpsnp.push_back(esdata->_esi_bp[ge_rowid]);
-					//smrwk->freq.push_back(bdata->_mu[bdata->_include[ge_rowid]] / 2);
-                }
-            }
-        }
- 
-        return maxid;
-    }
+   
     void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1) {
         //Modified version of rm_cor_indi from grm.cpp
         
@@ -2384,11 +2262,10 @@ namespace SMRDATA
         gwasData gdata;
         eqtlInfo esdata;
         double threshold= chi_val(1,p_hetero);
-        bool refFlg=false; // specify a SNP as the heidi SNP
         if(bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
         if(gwasFileName==NULL) throw("Error: please input GWAS summary data for SMR analysis by the flag --gwas-summary.");
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
-        if(refSNP!=NULL) refFlg=true;
+       
         read_gwas_data( &gdata, gwasFileName);
         read_esifile(&esdata, string(eqtlFileName)+".esi");
         esi_man(&esdata, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, false,  cis_itvl, prbname);
@@ -2483,13 +2360,13 @@ namespace SMRDATA
                 for(int ii=0;ii<set_name.size();ii++)
                 {
                     init_smr_wk(&smrwk);
-                    smrwk.cur_prbid=i;
+                    smrwk.cur_prbidx=i;
                     smrwk.cur_chr=gene_chr[ii];
                     
                     int lowerbp=gene_bp1[ii];
                     int upperbp=gene_bp2[ii];
-                    long maxid =fill_smr_wk(&bdata, &gdata, &esdata, &smrwk, refFlg, refSNP,lowerbp, upperbp);
-                    if(refFlg && maxid==-9) continue; //heidi SNP is not in selected SNPs
+                    long maxid =fill_smr_wk(&bdata, &gdata, &esdata, &smrwk, refSNP,lowerbp, upperbp);
+                    if(refSNP!=NULL && maxid==-9) continue; //heidi SNP is not in selected SNPs
                     if (smrwk.bxz.size() == 0) continue;
                     
                     vector<uint32_t> slctId;
@@ -2504,12 +2381,12 @@ namespace SMRDATA
                         slct_sexz.swap(smrwk.sexz);
                         slct_byz.swap(smrwk.byz);
                         slct_seyz.swap(smrwk.seyz);
-                        slct_snpName.swap(smrwk.eName);
+                        slct_snpName.swap(smrwk.rs);
                     }else {
                         // set list
                         vector<int> matchidx;
-                        match_only(snpset[ii], smrwk.eName, matchidx);
-                        if(refFlg && find(matchidx.begin(),matchidx.end(),maxid)==matchidx.end()) continue;
+                        match_only(snpset[ii], smrwk.rs, matchidx);
+                        if(refSNP!=NULL && find(matchidx.begin(),matchidx.end(),maxid)==matchidx.end()) continue;
                         
                         for(int j=0;j<matchidx.size();j++)
                         {
@@ -2518,7 +2395,7 @@ namespace SMRDATA
                             slct_sexz.push_back(smrwk.sexz[matchidx[j]]);
                             slct_byz.push_back(smrwk.byz[matchidx[j]]);
                             slct_seyz.push_back(smrwk.seyz[matchidx[j]]);
-                            slct_snpName.push_back(smrwk.eName[matchidx[j]]);
+                            slct_snpName.push_back(smrwk.rs[matchidx[j]]);
                         }
                     }
                     
@@ -2526,7 +2403,7 @@ namespace SMRDATA
                     Map<VectorXd> ei_sexz(&slct_sexz[0],slct_sexz.size());
                     VectorXd zsxz;
                     zsxz=ei_bxz.array()/ei_sexz.array();
-                    if(!refFlg) maxid=max_abs_id(zsxz);
+                    if(refSNP==NULL) maxid=max_abs_id(zsxz);
                     string topsnpname=slct_snpName[maxid];
                     slct_maxid=maxid;
                     for(int j=0;j<slct_bxz.size();j++) slct_zsxz.push_back(zsxz(j));
@@ -2599,10 +2476,10 @@ namespace SMRDATA
             }else{
                 // top-SNP (/ ref-SNP) based
                 init_smr_wk(&smrwk);
-                smrwk.cur_prbid=i;
+                smrwk.cur_prbidx=i;
                 /* step1: get cis-eQTLs */
-                long maxid =fill_smr_wk(&bdata, &gdata, &esdata, &smrwk, refFlg, refSNP, cis_itvl);
-                if(refFlg && maxid==-9) continue; //ref heidi SNP is not in selected SNPs
+                long maxid =fill_smr_wk(&bdata, &gdata, &esdata, &smrwk, refSNP, cis_itvl, heidioffFlag);
+                if(refSNP!=NULL && maxid==-9) continue; //ref heidi SNP is not in selected SNPs
                 if (smrwk.bxz.size() == 0) continue;
               ////  printf("%ld SNPs are included from the cis-region of probe %s.\n",smrwk.bxz.size(),probename.c_str());
                 //now if sepcify reference SNP, maxid point to this SNP, otherwise maxid is -9
@@ -2612,9 +2489,9 @@ namespace SMRDATA
                 Map<VectorXd> ei_sexz(&smrwk.sexz[0],smrwk.sexz.size());
                 VectorXd zsxz;
                 zsxz=ei_bxz.array()/ei_sexz.array();
-                if(!refFlg) maxid=max_abs_id(zsxz); // now maxid point to the sig eQTL SNP or ref SNP in the new datastruct(not the raw).
+                if(refSNP==NULL) maxid=max_abs_id(zsxz); // now maxid point to the sig eQTL SNP or ref SNP in the new datastruct(not the raw).
                 
-                string topsnpname=smrwk.eName[maxid];
+                string topsnpname=smrwk.rs[maxid];
                 //cout<<maxid<<":"<<topsnpname<<":"<<esdata._esi_rs[smrwk.curId[maxid]]<<":"<<bdata._snp_name[bdata._include[smrwk.curId[maxid]]]<<":"<<gdata.snpName[smrwk.curId[maxid]]<<endl;
                 /* step3: extract SNPs around the --set-wind around sig (or ref) SNP */
                 vector<uint32_t> slctId;
@@ -2639,7 +2516,7 @@ namespace SMRDATA
                             slct_byz.push_back(smrwk.byz[j]);
                             slct_seyz.push_back(smrwk.seyz[j]);
                             slct_zsxz.push_back(zsxz(j));
-                            slct_snpName.push_back(smrwk.eName[j]);
+                            slct_snpName.push_back(smrwk.rs[j]);
                             if(j==maxid) slct_maxid=slctId.size()-1;
                         }
                     }
@@ -2649,7 +2526,7 @@ namespace SMRDATA
                     slct_sexz.swap(smrwk.sexz);
                     slct_byz.swap(smrwk.byz);
                     slct_seyz.swap(smrwk.seyz);
-                    slct_snpName.swap(smrwk.eName);
+                    slct_snpName.swap(smrwk.rs);
                     slct_maxid=maxid;
                     for(int j=0;j<slct_bxz.size();j++) slct_zsxz.push_back(zsxz(j));
                 }

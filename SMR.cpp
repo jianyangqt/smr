@@ -11,12 +11,11 @@
 #include "SMR_data_p1.h"
 #include "SMR_data_p2.h"
 #include "SMR_data_p3.h"
-#include "eData.h"
+#include "SMR_plot.h"
 #include "SMR.h"
 
 using namespace SMRDATA;
 using namespace StatFunc;
-using namespace E_DATA;
 int thread_num;
 int xh=0;
 
@@ -24,7 +23,7 @@ int main(int argc, char** argv) {
     
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.632" << endl;
+    cout << "* version 0.636" << endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -52,7 +51,7 @@ int main(int argc, char** argv) {
 
 void option(int option_num, char* option_str[])
 {
-    char* bFileName=NULL;    
+    char* bFileName=NULL;
     char* gwasFileName=NULL;
     char* eqtlFileName=NULL;
     char* outFileName=NULL;
@@ -114,7 +113,6 @@ void option(int option_num, char* option_str[])
     
     char* refSNP=NULL;
     bool heidioffFlag = false;
-    bool make_cis_flag=false;
     
     thread_num = 1;
     
@@ -132,6 +130,10 @@ void option(int option_num, char* option_str[])
     bool plinkflag=false;
     bool gemmaflag=false;
     bool merlinflag=false;
+    bool boltflag=false;
+    
+    bool genouni=false;
+    
     
     char* freqName=NULL;
     bool esdstd=false;
@@ -163,6 +165,13 @@ void option(int option_num, char* option_str[])
     
     bool save_dense_flag=false;
     
+    double pthres_me2esmr=6.4e-6;
+    bool diffflag=false;
+    
+    double threshpsmrest=0.05;
+    bool qcflag=false;
+    int qcmtd=0;
+    int z_thresh=3;
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -336,14 +345,10 @@ void option(int option_num, char* option_str[])
             ssmrflg=true;
             printf("--smr-multi \n");
         }
-        else if (0 == strcmp(option_str[i], "--make-sparse")){
-            make_cis_flag=true;
+        else if (0 == strcmp(option_str[i], "--make-besd-dense")){
             make_besd_flag=true;
-            printf("--make-sparse \n");
-        }
-        else if (0 == strcmp(option_str[i], "--save-dense")){
             save_dense_flag=true;
-            printf("--save-dense \n");
+            printf("--make-besd-dense \n");
         }
         else if(strcmp(option_str[i],"--cis-wind")==0){
             cis_flag=true;
@@ -429,16 +434,12 @@ void option(int option_num, char* option_str[])
         else if(0 == strcmp(option_str[i],"--thread-num")){
             thread_num=atoi(option_str[++i]);
             printf("--thread-num %d\n", thread_num);
-        }
-        else if (0 == strcmp(option_str[i], "--combine-besd")){
-            combineFlg = true;
-            printf("--combine-besd \n");
-        }
-        else if (0 == strcmp(option_str[i], "--beqtl-flist")){
+        }       
+        else if (0 == strcmp(option_str[i], "--besd-flist")){
             combineFlg=true;
             eqtlsmaslstName = option_str[++i];
-            FLAG_VALID_CK("--beqtl-flist", eqtlsmaslstName);
-            printf("--beqtl-flist %s\n", eqtlsmaslstName);
+            FLAG_VALID_CK("--besd-flist", eqtlsmaslstName);
+            printf("--besd-flist %s\n", eqtlsmaslstName);
         }
         else if (0 == strcmp(option_str[i], "--plot")){
             plotflg = true;
@@ -470,6 +471,15 @@ void option(int option_num, char* option_str[])
             gemmaflag = true;
             gctaflag = false;
             printf("--gemma-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--bolt-assoc-format")){
+            boltflag = true;
+            gctaflag = false;
+            printf("--bolt-assoc-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--geno-uni")){
+            genouni = true;
+            printf("--geno-uni \n" );
         }
         else if (0 == strcmp(option_str[i], "--merlin-fastassoc-format")){
             merlinflag = true;
@@ -684,6 +694,39 @@ void option(int option_num, char* option_str[])
             FLAG_VALID_CK("--qfile", queryFileName);
             printf("--qfile %s\n",queryFileName);
         }
+        else if(strcmp(option_str[i],"--diff")==0){
+            diffflag=true;
+            cout<<"--diff "<<endl;
+        }
+        else if(strcmp(option_str[i],"--beqtl-qc")==0){
+            qcflag=true;
+            qcmtd = atoi(option_str[++i]);
+            if(qcmtd<0 || qcmtd>2)
+            {
+                fprintf (stderr, "Error: --beqtl-qc should be 0,1 or 2.\n"); // 1 for SD, 2 for MAD
+                exit (EXIT_FAILURE);
+            }
+            cout<<"--beqtl-qc "<<qcmtd<<endl;
+        }
+        else if(strcmp(option_str[i],"--z-thresh")==0){
+           
+            z_thresh = atoi(option_str[++i]);
+            if(z_thresh<0 )
+            {
+                fprintf (stderr, "Error: --z-thresh should be positive.\n");
+                exit (EXIT_FAILURE);
+            }
+            cout<<"--z-thresh "<<z_thresh<<endl;
+        }
+        else if (0 == strcmp(option_str[i], "--thresh-psmr-est")){
+            threshpsmrest = atof(option_str[++i]);
+            printf("--thresh-psmr-est %10.2e\n", p_smr);
+            if(threshpsmrest<0 || threshpsmrest>1)
+            {
+                fprintf (stderr, "Error: --thresh-psmr-est should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
     }
     
 #ifndef __APPLE__
@@ -699,24 +742,25 @@ void option(int option_num, char* option_str[])
 #endif
     
     cout<<endl;
-    eData edata;
     char tmpch[4]="smr";
     if(outFileName == NULL) outFileName=tmpch;
-    if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag,save_dense_flag, cis_itvl,  trans_itvl,  transThres, restThres); // from text to besd
+    if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || boltflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag,boltflag,save_dense_flag, cis_itvl,  trans_itvl,  transThres, restThres,genouni); // from text to besd
     else if (make_besd_flag && queryfileflg) make_besd_byQfile(queryFileName,outFileName, save_dense_flag, cis_itvl,  trans_itvl,  transThres,  restThres);
-    else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
-    else if (metaflg) meta(outFileName,eqtlFileName, eqtlFileName2);
-    else if (combineFlg) combineBesd(eqtlsmaslstName, outFileName, make_cis_flag, cis_itvl,trans_itvl, transThres, restThres);
-    else if(make_besd_flag && make_cis_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres);
-    else if(make_besd_flag) make_esd_file(outFileName, eqtlFileName, snplstName,problstName,bFlag,make_besd_flag, snplst2exclde, problst2exclde,  cis_itvl,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
-    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,plotflg,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm);
-    else if(eremlFlag) read_efile(&edata, eFileName);
+    else if (combineFlg) combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl,trans_itvl, transThres, restThres, genouni);
+    else if(save_dense_flag) make_esd_file(outFileName, eqtlFileName, snplstName,problstName,bFlag,make_besd_flag, snplst2exclde, problst2exclde,  cis_itvl,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
+    else if(make_besd_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, snplstName, problstName,  snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh);
+    else if(plotflg && eqtlFileName2 != NULL) plot_triple( outFileName,  bFileName, gwasFileName,  eqtlFileName,eqtlFileName2, maf, indilstName,  snplstName, p_hetero, ld_prune, m_hetero , indilst2remove,  snplst2exclde,  p_smr,  refSNP,  cis_itvl,  prbname,  prbWind, prbwindFlag,  snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  geneAnnoName,  pthres_me2esmr,threshpsmrest);
+    else if(plotflg) plot(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName);
+    else if(diffflag) diff(eqtlFileName, eqtlFileName2);
+    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm,threshpsmrest);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag,cis_flag, cis_itvl);
-    else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
+    else if (freqName) update_freq(eqtlFileName, freqName);
     else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
-    else if(plotflg) plot(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName);
     else if(ssmrflg)  smr_multipleSNP( outFileName,  bFileName, gwasFileName,  eqtlFileName,  maf,indilstName,  snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero , indilst2remove, snplst2exclde,  problst2exclde, p_smr,  refSNP,  heidioffFlag,  cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr, snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, setlstName,  geneAnnoName,  setWind);
-    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
+    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, plotflg,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,threshpsmrest);
+    else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
+    else if (metaflg) meta(outFileName,eqtlFileName, eqtlFileName2);
+   // else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
     else if(smr_flag && smr_trans_flag) smr_trans_wholeInOne(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName, bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,transThres,refSNP, heidioffFlag,trans_itvl, plotflg);
    }

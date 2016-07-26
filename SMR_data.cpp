@@ -200,16 +200,6 @@ namespace SMRDATA
             eqtlinfo->_include.push_back(i);
             eqtlinfo->_probe_name_map.insert(pair<string,int>(eqtlinfo->_epi_prbID[i],i));
         }
-        
-
-		/*		
-		eqtlinfo->_epi_chr.assign(chr_buf.begin(),chr_buf.end());
-		eqtlinfo->_epi_gd.assign(gd_buf.begin(), gd_buf.end());
-		eqtlinfo->_epi_bp.assign(bp_buf.begin(), bp_buf.end());
-		eqtlinfo->_epi_prbID.assign(prbID_buf.begin(), prbID_buf.end());
-		eqtlinfo->_epi_gene.assign(gene_buf.begin(), gene_buf.end());
-		eqtlinfo->_epi_orien.assign(orien_buf.begin(), orien_buf.end());
-		*/
 	}
 
 	void update_esi(eqtlInfo* eqtlinfo)
@@ -219,6 +209,7 @@ namespace SMRDATA
 		vector<int> chr_buf, gd_buf, bp_buf;
 		vector<string> rs_buf;
 		vector<string> allele1_buf, allele2_buf;
+        vector<float> freq_buf;
 		for (int i = 0; i < eqtlinfo->_snpNum; i++)
 		{
 			chr_buf.push_back(eqtlinfo->_esi_chr[eqtlinfo->_esi_include[i]]);
@@ -227,6 +218,7 @@ namespace SMRDATA
 			rs_buf.push_back(eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]]);
 			allele1_buf.push_back(eqtlinfo->_esi_allele1[eqtlinfo->_esi_include[i]]);
 			allele2_buf.push_back(eqtlinfo->_esi_allele2[eqtlinfo->_esi_include[i]]);
+            freq_buf.push_back(eqtlinfo->_esi_freq[eqtlinfo->_esi_include[i]]);
 		}
 		eqtlinfo->_esi_chr.clear();
 		eqtlinfo->_esi_gd.clear();
@@ -234,23 +226,21 @@ namespace SMRDATA
 		eqtlinfo->_esi_rs.clear();
 		eqtlinfo->_esi_allele1.clear();
 		eqtlinfo->_esi_allele2.clear();
+        eqtlinfo->_esi_freq.clear();
 		eqtlinfo->_esi_chr.swap(chr_buf);
 		eqtlinfo->_esi_gd.swap(gd_buf);
 		eqtlinfo->_esi_bp.swap(bp_buf);
 		eqtlinfo->_esi_rs.swap(rs_buf);
 		eqtlinfo->_esi_allele1.swap(allele1_buf);
 		eqtlinfo->_esi_allele2.swap(allele2_buf);
+        eqtlinfo->_esi_freq.swap(freq_buf);
         
         eqtlinfo->_esi_include.clear();
         eqtlinfo->_snp_name_map.clear();
-       // long size=0;
         for (int i = 0; i < eqtlinfo->_snpNum; i++)
         {
             eqtlinfo->_esi_include.push_back(i);
             eqtlinfo->_snp_name_map.insert(pair<string, int>(eqtlinfo->_esi_rs[i], i));
-           // if (size == eqtlinfo->_snp_name_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[i] + "\".");
-           // size = eqtlinfo->_snp_name_map.size();
-            
         }
 	}
 
@@ -392,11 +382,21 @@ namespace SMRDATA
             exit (EXIT_FAILURE);
         }
         cout << "Reading GWAS summary-level statistics from [" + string(gwasFileName) + "]." << endl;
+        gdata->_include.clear();
+        gdata->snpName.clear();
+        gdata->snpBp.clear();
+        gdata->allele_1.clear();
+        gdata->allele_2.clear();
+        gdata->freq.clear();
+        gdata->byz.clear();
+        gdata->seyz.clear();
+        gdata->pvalue.clear();
+        gdata->splSize.clear();
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
         gwasFile.getline(buf,MAX_LINE_SIZE);// the header
         vector<string> vs_buf;
-        int col_num = split_string(buf, vs_buf, " \t\n");
+        split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
         if(vs_buf[0]!="SNP") {
             printf("ERROR: %s should have headers that start with \"snp\".\n", gwasFileName);
@@ -405,62 +405,58 @@ namespace SMRDATA
         while(!gwasFile.eof())
         {
             gwasFile.getline(buf,MAX_LINE_SIZE);
-            lineNum++;
-        }
-        if(buf[0]=='\0') lineNum--;
-        
-        gdata->snpNum=lineNum;
-        gdata->snpName.resize(lineNum);
-        gdata->allele_1.resize(lineNum);
-        gdata->allele_2.resize(lineNum);
-        gdata->freq=(double*)malloc(lineNum*sizeof(double));
-        gdata->byz=(double*)malloc(lineNum*sizeof(double));
-        gdata->seyz=(double*)malloc(lineNum*sizeof(double));
-        gdata->pvalue=(double*)malloc(lineNum*sizeof(double));
-        gdata->splSize=(uint32_t*)malloc(lineNum*sizeof(uint32_t));
-        gdata->_include.resize(lineNum);
-        
-        gwasFile.clear(ios::goodbit);
-        gwasFile.seekg (0, ios::beg);
-        gwasFile.getline(buf,MAX_LINE_SIZE);
-        for(int i=0;i<lineNum;i++)
-        {
-            string tmpStr;
-            gwasFile.getline(buf,MAX_LINE_SIZE);
-            istringstream iss(buf);
-            iss>>tmpStr;
-            gdata->snpName[i]=tmpStr;
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na") printf("WARNING: \"NA\" allele1 found in row %d.\n", i+2);
-            to_upper(tmpStr);
-            gdata->allele_1[i]=tmpStr.c_str();
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na") printf("WARNING: \"NA\" allele2 found in row %d.\n", i+2);
-            to_upper(tmpStr);
-            gdata->allele_2[i]=tmpStr.c_str();
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na") printf("WARNING: \"NA\" frequency found in row %d.\n", i+2);
-            gdata->freq[i]=atof(tmpStr.c_str());
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na"){
-                printf("WARNING: \"NA\" beta found in row %d.\n", i+2);
-                gdata->byz[i]=0;
-            } else {
-                gdata->byz[i]=atof(tmpStr.c_str());
+            
+            if(buf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(buf, vs_buf, " \t\n");
+                if(col_num!=8) {
+                    printf("ERROR: column number is not right in row %d!\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
+                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                gdata->snpName.push_back(vs_buf[0]);
+                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                    printf("ERROR: \'NA\' of allele1 found in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                to_upper(vs_buf[1]);
+                gdata->allele_1.push_back(vs_buf[1]);
+                
+                if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
+                    printf("ERROR: \'NA\' of allele2 found in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                to_upper(vs_buf[2]);
+                gdata->allele_2.push_back(vs_buf[2]);
+                
+                if(vs_buf[3]=="NA" || vs_buf[3]=="na"){
+                    //printf("WARNING: \'NA\' of frequency found in row %d.\n", lineNum+2);
+                }
+                gdata->freq.push_back(atof(vs_buf[3].c_str()));
+                
+                if(vs_buf[4]=="NA" || vs_buf[4]=="na"){
+                    printf("WARNING: \'NA\' of beta found in row %d.\n", lineNum+2);
+                    gdata->byz.push_back(0);
+                } else {
+                    gdata->byz.push_back(atof(vs_buf[4].c_str()));
+                }
+                if(vs_buf[5]=="NA" || vs_buf[5]=="na"){
+                    printf("WARNING: \'NA\' of se found in row %d.\n", lineNum+2);
+                    gdata->seyz.push_back(-9);
+                } else {
+                    gdata->seyz.push_back(atof(vs_buf[5].c_str()));
+                }
+
+                gdata->pvalue.push_back(atof(vs_buf[6].c_str()));
+                gdata->splSize.push_back(atoi(vs_buf[7].c_str()));
+                gdata->_include.push_back(lineNum);
+                lineNum++;
             }
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na"){
-                printf("WARNING: \"NA\" standard error found in row %d.\n", i+2);
-                gdata->seyz[i]=-9;
-            } else {
-                gdata->seyz[i]=atof(tmpStr.c_str());
-            }
-            iss>>tmpStr;
-            gdata->pvalue[i]=atof(tmpStr.c_str());
-            iss>>tmpStr;
-            gdata->splSize[i]=atoi(tmpStr.c_str());
-            gdata->_include[i]=i;
         }
+        gdata->snpNum=gdata->_include.size();
        cout <<"GWAS summary statistics of "<<gdata->snpNum << " SNPs to be included from [" + string(gwasFileName) + "]." << endl;
         gwasFile.close();
     }
@@ -490,75 +486,74 @@ namespace SMRDATA
         eqtlinfo->_esi_allele1.clear();
         eqtlinfo->_esi_allele2.clear();
 		eqtlinfo->_esi_include.clear();
+        eqtlinfo->_snp_name_map.clear();
+        eqtlinfo->_esi_freq.clear();
 
         char buf[MAX_LINE_SIZE];
+        vector<string> vs_buf;
         int lineNum(0);
         while(!esi.eof())
         {
             esi.getline(buf,MAX_LINE_SIZE);
-            lineNum++;
+            if(buf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(buf, vs_buf, " \t\n");
+                if(col_num!=6 && col_num!=7) {
+                    printf("ERROR: column number is not right in row %d!\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[0]=="NA" || vs_buf[0]=="na" || vs_buf[0]=="0"){
+                    printf("ERROR: \"NA\" chromosome found in row %d.\n",lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                int tmpchr;
+                if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpchr=23;
+                else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpchr=24;
+                else tmpchr=atoi(vs_buf[0].c_str());
+                eqtlinfo->_esi_chr.push_back(tmpchr);
+                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(eqtlinfo->_snp_name_map.find(vs_buf[1]) != eqtlinfo->_snp_name_map.end()){
+                    cout << "Warning: Duplicated SNP ID \"" + vs_buf[1] + "\" ";
+                    stringstream ss;
+                    ss << vs_buf[1] << "_" << lineNum + 1;
+                    vs_buf[1] = ss.str();
+                    cout<<"has been changed to \"" + vs_buf[1] + "\".\n";
+                }
+                eqtlinfo->_snp_name_map.insert(pair<string, int>(vs_buf[1], lineNum));
+                eqtlinfo->_esi_rs.push_back(vs_buf[1]);
+                eqtlinfo->_esi_gd.push_back(atoi(vs_buf[2].c_str()));
+                if(vs_buf[3]=="NA" || vs_buf[3]=="na"){
+                    printf("ERROR: \'NA\' of SNP BP found in row %d.\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                eqtlinfo->_esi_bp.push_back(atoi(vs_buf[3].c_str()));
+                if(vs_buf[4]=="NA" || vs_buf[4]=="na") printf("WARNING: \"NA\" allele1 found in row %d.\n", lineNum+1);
+                to_upper(vs_buf[4]);
+                eqtlinfo->_esi_allele1.push_back(vs_buf[4]);
+                if(vs_buf[5]=="NA" || vs_buf[5]=="na") printf("WARNING: \"NA\" allele2 found in row %d.\n", lineNum+1);
+                to_upper(vs_buf[5]);
+                eqtlinfo->_esi_allele2.push_back(vs_buf[5]);
+                if(col_num==7)
+                {
+                    if(vs_buf[6]=="NA" || vs_buf[6]=="na"){
+                        printf("WARNING: \"NA\" frequency found in row %d.\n", lineNum+1);
+                        eqtlinfo->_esi_freq.push_back(-9);
+                    } else {
+                         eqtlinfo->_esi_freq.push_back(atof(vs_buf[6].c_str()));
+                    }
+                } else {
+                    eqtlinfo->_esi_freq.push_back(-9);
+                }
+                eqtlinfo->_esi_include.push_back(lineNum);
+                lineNum++;
+            }
         }
-        if(buf[0]=='\0') lineNum--;
-        eqtlinfo->_snpNum=lineNum;        
+        eqtlinfo->_snpNum=lineNum;
         if(prtscr) cout << eqtlinfo->_snpNum << " SNPs to be included from [" + esifile + "]." << endl;
-        
-        eqtlinfo->_esi_chr.resize(lineNum);
-        eqtlinfo->_esi_rs.resize(lineNum);
-        eqtlinfo->_esi_gd.resize(lineNum);
-        eqtlinfo->_esi_bp.resize(lineNum);
-        eqtlinfo->_esi_allele1.resize(lineNum);
-        eqtlinfo->_esi_allele2.resize(lineNum);
-		eqtlinfo->_esi_include.resize(lineNum);
-        esi.clear(ios::goodbit);
-        esi.seekg (0, ios::beg);
-        for(int i=0;i<lineNum;i++)
-        {
-            string tmpStr;
-            esi.getline(buf,MAX_LINE_SIZE);
-            istringstream iss(buf);
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="0") {
-                printf("ERROR: \"NA\" chromosome found in row %d.\n", i+1);
-                exit(EXIT_FAILURE);
-            }
-            int tmpchr;
-            if(tmpStr=="X" || tmpStr=="x") tmpchr=23;
-            else if(tmpStr=="Y" || tmpStr=="y") tmpchr=24;
-            else tmpchr=atoi(tmpStr.c_str());
-            eqtlinfo->_esi_chr[i]=tmpchr;
-            iss>>tmpStr;
-            eqtlinfo->_esi_include[i] = i;
-            if(eqtlinfo->_snp_name_map.find(tmpStr) != eqtlinfo->_snp_name_map.end()){
-                cout << "Warning: Duplicated SNP ID \"" + tmpStr + "\" ";
-                stringstream ss;
-                ss << tmpStr << "_" << i + 1;
-                tmpStr = ss.str();
-                cout<<"has been changed to \"" + tmpStr + "\".\n";
-            }
-            eqtlinfo->_snp_name_map.insert(pair<string, int>(tmpStr, i));
-            
-            eqtlinfo->_esi_rs[i]=tmpStr;
-            iss>>tmpStr;
-            eqtlinfo->_esi_gd[i]=atoi(tmpStr.c_str());
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="0") {
-                printf("ERROR: \"NA\" base position found in row %d.\n", i+1);
-                exit(EXIT_FAILURE);
-            }
-            eqtlinfo->_esi_bp[i]=atoi(tmpStr.c_str());
-            iss>>tmpStr;
-             if(tmpStr=="NA" || tmpStr=="na") printf("WARNING: \"NA\" allele1 found in row %d.\n", i+1);
-            StrFunc::to_upper(tmpStr);
-            eqtlinfo->_esi_allele1[i]=tmpStr.c_str();
-            iss>>tmpStr;
-             if(tmpStr=="NA" || tmpStr=="na") printf("WARNING: \"NA\" allele2 found in row %d.\n", i+1);
-            StrFunc::to_upper(tmpStr);
-            eqtlinfo->_esi_allele2[i]=tmpStr.c_str();
-			
-            
-        }       
         esi.close();
-       
     }
     void read_epifile(eqtlInfo* eqtlinfo, string epifile, bool prtscr)
     {
@@ -572,6 +567,7 @@ namespace SMRDATA
         eqtlinfo->_epi_gene.clear();
         eqtlinfo->_epi_orien.clear();
 		eqtlinfo->_include.clear();
+        eqtlinfo->_probe_name_map.clear();
 
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
@@ -599,7 +595,7 @@ namespace SMRDATA
             epi.getline(buf,MAX_LINE_SIZE);
             istringstream iss(buf);
             iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="0") {
+            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="-9") {
                 printf("ERROR: \"NA\" chromosome found in row %d.\n", i+1);
                 exit(EXIT_FAILURE);
             }
@@ -644,6 +640,13 @@ namespace SMRDATA
     {
         if (eqtlinfo->_include.size() == 0) throw ("Error: No probe is retained for analysis.");
         if (eqtlinfo->_esi_include.size() == 0) throw ("Error: No SNP is retained for analysis.");
+        
+        eqtlinfo->_cols.clear();
+        eqtlinfo->_rowid.clear();
+        eqtlinfo->_val.clear();
+        eqtlinfo->_valNum = 0;
+        eqtlinfo->_bxz.clear();
+        eqtlinfo->_sexz.clear();
         
         // the fastest way is using malloc and memcpy
         char SIGN[sizeof(uint64_t)+8];
@@ -1165,6 +1168,11 @@ namespace SMRDATA
                 else nullprobes.push_back(eqtlinfo->_epi_prbID[i]);
             }
         }
+        eqtlinfo->_probe_name_map.clear();
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+        {
+            eqtlinfo->_probe_name_map.insert(pair<string,int>(eqtlinfo->_epi_prbID[eqtlinfo->_include[i]],eqtlinfo->_include[i]));
+        }
         if(nullprobes.size()>0)
         {
             string fname="chr"+atos(eqtlinfo->_esi_chr[0])+".nullprobes.log";
@@ -1182,6 +1190,75 @@ namespace SMRDATA
         
         cout<<eqtlinfo->_include.size()<<" probes to be included."<<endl;
     }
+    void filter_snp_null(eqtlInfo* eqtlinfo)
+    {
+        vector<string> nullSNPs;
+        cout<<"\nfiltering out the SNPs with no value..."<<endl;
+        vector<int> esi_include;
+        if(eqtlinfo->_valNum==0)
+        {
+            for (int i = 0; i < eqtlinfo->_esi_include.size(); i++)
+            {
+                bool NA_flag = true;
+                for (int j = 0; j<eqtlinfo->_include.size(); j++)
+                {
+                    if (abs(eqtlinfo->_sexz[eqtlinfo->_include[j]][eqtlinfo->_esi_include[i]] + 9) > 1e-6)
+                    {
+                        NA_flag = false;
+                        break;
+                    }
+                }
+                if (!NA_flag)esi_include.push_back(i);
+                else nullSNPs.push_back(eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]]);
+            }
+        }
+        else{
+            vector<uint32_t> rowid;
+            rowid=eqtlinfo->_rowid;
+            getUnique(rowid);
+            vector<int> idx;
+           
+            map<uint32_t, int> id_map;
+            map<uint32_t, int>::iterator iter;
+            for(int i=0; i<rowid.size(); i++) id_map.insert(pair<uint32_t,int>(rowid[i], i));
+            for(int i=0; i< eqtlinfo->_esi_include.size(); i++){
+                iter=id_map.find(eqtlinfo->_esi_include[i]);
+                if(iter==id_map.end()) idx.push_back(-9);
+                else idx.push_back(iter->second);
+            }
+        
+            for (int i = 0; i < idx.size(); i++)
+            {
+                if (idx[i]!=-9) esi_include.push_back(eqtlinfo->_esi_include[i]);
+                else nullSNPs.push_back(eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]]);
+            }
+        }
+        eqtlinfo->_esi_include.swap(esi_include);
+        eqtlinfo->_snp_name_map.clear();
+        for(int i=0;i<eqtlinfo->_esi_include.size();i++)
+        {
+            eqtlinfo->_snp_name_map.insert(pair<string,int>(eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]],eqtlinfo->_esi_include[i]));
+        }
+        if(nullSNPs.size()>0)
+        {
+            string fname="chr"+atos(eqtlinfo->_esi_chr[0])+".nullSNPs.log";
+            FILE* nullsnpfile=fopen(fname.c_str(), "w");
+            if (!(nullsnpfile)) {
+                printf("Error: Failed to open null probe log file.\n");
+                exit(EXIT_FAILURE);
+            }
+            for(int i=0;i<nullSNPs.size();i++)
+            {
+                string tmpstr=nullSNPs[i]+'\n';
+                fputs(tmpstr.c_str(),nullsnpfile);
+            }
+            fclose(nullsnpfile);
+        }
+        
+        cout<<eqtlinfo->_esi_include.size()<<" SNPs to be included."<<endl;
+    }
+    
+
 
     bool has_suffix(const std::string &str, const std::string &suffix)
     {
@@ -1201,6 +1278,21 @@ namespace SMRDATA
         {
            if(zsxz[i]*zsxz[i]-threshold>1e-6) sn_ids.push_back(i);
         }
+    }
+    void get_square_idxes_sort(vector<int> &sn_ids,VectorXd &zsxz,double threshold)
+    {
+        vector<double> z;
+        vector<int> rk;
+        for(int i=0;i<zsxz.size();i++)
+        {
+            if(zsxz[i]*zsxz[i]-threshold>1e-6)
+            {
+                sn_ids.push_back(i);
+                z.push_back(zsxz(i));
+            }
+        }
+        getRank(z,rk);
+        
     }
 	void get_square_ldpruning_idxes(vector<int> &sn_ids, VectorXd &zsxz, double threshold, MatrixXd &LD, long maxid, double ld_top)
     {
@@ -1364,11 +1456,11 @@ namespace SMRDATA
         gdata->snpName.clear();
         gdata->allele_1.clear();
         gdata->allele_2.clear();
-        free(gdata->freq);
-        free(gdata->byz);
-        free(gdata->seyz);
-        free(gdata->pvalue);
-        free(gdata->splSize);
+        gdata->freq.clear();
+        gdata->byz.clear();
+        gdata->seyz.clear();
+        gdata->pvalue.clear();
+        gdata->splSize.clear();
     }
             
     void mu_func(bInfo* bdata, int j, vector<double> &fac) {
@@ -1628,7 +1720,19 @@ namespace SMRDATA
         update_id_map_rm(indi_list, bdata->_id_map, bdata->_keep);
         cout << prev_size - bdata->_keep.size() << " individuals are removed from [" + indi_list_file + "] and there are " << bdata->_keep.size() << " individuals remaining." << endl;
     }
-
+    void extract_region_bp(bInfo* bdata, int chr, int fromkb, int tokb)
+    {
+        int frombp=fromkb*1000;
+        int tobp=tokb*1000;
+        vector<string> snplist;
+        for(int i = 0; i < bdata->_include.size(); i++){
+            int j = bdata->_include[i];
+            if(bdata->_chr[j] == chr && bdata->_bp[j]<=tobp && bdata->_bp[j]>=frombp) snplist.push_back(bdata->_snp_name[j]);
+        }
+        if(snplist.empty()) throw ("Error: on SNP found in this region.");
+        update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
+        cout << bdata->_include.size() << " SNPs are extracted from SNP BP: "<<fromkb<<"Kb"<<"to SNP BP: "<<tokb<<"Kb."<< endl;
+    }
     void extract_snp(bInfo* bdata,string snplistfile)
     {
         vector<string> snplist;
@@ -2565,7 +2669,7 @@ namespace SMRDATA
                 gdata1->byz[gdId[i]]=-gdata1->byz[gdId[i]];
             }
         }
-        logstr=itos(gdata1->_include.size())+" SNPs are included after allele check. ";
+        logstr=atos(gdata1->_include.size())+" SNPs are included after allele check. ";
         cout<<logstr<<endl;
     }
     void allele_check(bInfo* bdata, eqtlInfo* etrait, eqtlInfo* esdata)
@@ -2582,37 +2686,57 @@ namespace SMRDATA
         string logstr="Performing allele check among GWAS summary dataset, eQTL summary dataset and Plink dataset. ";
         cout<<logstr<<endl;
         
-        vector<string> bsnp;
-        vector<string> etsnp;
-        vector<string> essnp;
+        vector<string> bsnp(bdata->_include.size());
+        vector<string> etsnp(etrait->_esi_include.size());
+        vector<string> essnp(esdata->_esi_include.size());
         if(bdata->_include.size()< bdata->_snp_num || esdata->_esi_include.size()<esdata->_snpNum || etrait->_esi_include.size()<etrait->_snpNum )
         {
-            for(int i=0;i<bdata->_include.size();i++) bsnp.push_back(bdata->_snp_name[bdata->_include[i]]);
-            for(int i=0;i<etrait->_esi_include.size();i++) etsnp.push_back(etrait->_esi_rs[etrait->_esi_include[i]]);
-            for(int i=0;i<esdata->_esi_include.size();i++) essnp.push_back(esdata->_esi_rs[esdata->_esi_include[i]]);
-            StrFunc::match_only(bsnp, etsnp, edId);
+            #pragma omp parallel for
+            for(int i=0;i<bdata->_include.size();i++)
+                bsnp[i]=bdata->_snp_name[bdata->_include[i]];
+            #pragma omp parallel for
+            for(int i=0;i<etrait->_esi_include.size();i++)
+                etsnp[i]=etrait->_esi_rs[etrait->_esi_include[i]];
+            #pragma omp parallel for
+            for(int i=0;i<esdata->_esi_include.size();i++)
+                essnp[i]=esdata->_esi_rs[esdata->_esi_include[i]];
+            match_only(bsnp, etsnp, edId);
             if(edId.empty()) throw("Error: no common SNPs between PLink data and eTrait data.");
-            for(int i=0;i<edId.size();i++) cmmnSNPs.push_back(etsnp[edId[i]]);
-            StrFunc::match_only(cmmnSNPs, essnp, edId);
+            cmmnSNPs.resize(edId.size());
+            #pragma omp parallel for
+            for(int i=0;i<edId.size();i++)
+                cmmnSNPs[i]=etsnp[edId[i]];
+            match_only(cmmnSNPs, essnp, edId);
             if(edId.empty()) throw("Error: no common SNPs found.");
-            for(int i=0;i<edId.size();i++) edId[i]=esdata->_esi_include[edId[i]];
-            for(int i=0;i<edId.size();i++) slctSNPs.push_back(esdata->_esi_rs[edId[i]]);
+            #pragma omp parallel for
+            for(int i=0;i<edId.size();i++)
+                edId[i]=esdata->_esi_include[edId[i]];
+            slctSNPs.resize(edId.size());
+            #pragma omp parallel for
+            for(int i=0;i<edId.size();i++)
+                slctSNPs[i]=esdata->_esi_rs[edId[i]];
         }else
         {
-            StrFunc::match_only(bdata->_snp_name, etrait->_esi_rs, edId);
+            match_only(bdata->_snp_name, etrait->_esi_rs, edId);
             if(edId.empty()) throw("Error: no common SNPs between PLink data and GWAS data.");
-            for(int i=0;i<edId.size();i++) cmmnSNPs.push_back(etrait->_esi_rs[edId[i]]);
+            cmmnSNPs.resize(edId.size());
+            #pragma omp parallel for
+            for(int i=0;i<edId.size();i++)
+                cmmnSNPs[i]=etrait->_esi_rs[edId[i]];
             edId.clear();
-            StrFunc::match_only(cmmnSNPs, esdata->_esi_rs, edId);
+            match_only(cmmnSNPs, esdata->_esi_rs, edId);
             if(edId.empty()) throw("Error: no common SNPs found.");
-            for(int i=0;i<edId.size();i++) slctSNPs.push_back(esdata->_esi_rs[edId[i]]);
+            slctSNPs.resize(edId.size());
+            #pragma omp parallel for
+            for(int i=0;i<edId.size();i++)
+                slctSNPs[i]=esdata->_esi_rs[edId[i]];
         }
         
         //slctSNPs is in the order as bdata. so bdId is in increase order. edId and gdId may not.
         
         //alleles check
-        StrFunc::match(slctSNPs, bdata->_snp_name, bdId);
-        StrFunc::match(slctSNPs, etrait->_esi_rs, gdId);
+        match(slctSNPs, bdata->_snp_name, bdId);
+        match(slctSNPs, etrait->_esi_rs, gdId);
         cmmnSNPs.clear();
         bdata->_include.clear();
         etrait->_esi_include.clear();
@@ -2620,6 +2744,8 @@ namespace SMRDATA
         
         for (int i = 0; i<edId.size(); i++)
         {
+            printf("Checking...  %3.0f%%\r", 100.0*i/edId.size());
+            fflush(stdout);
             string a1, a2, ta1, ta2, ea1, ea2;
             a1 = bdata->_allele1[bdId[i]];
             a2 = bdata->_allele2[bdId[i]];
@@ -2646,6 +2772,7 @@ namespace SMRDATA
                     
                     if(etrait->_val.size()>0)
                     {
+                        /*
                         int count=0;
                         for(int j=0;j<etrait->_rowid.size();j++)
                         {
@@ -2653,13 +2780,33 @@ namespace SMRDATA
                             {
                                 count++;
                                 if(count & 1)
-                                    etrait->_val[j]=-etrait->_val[j];
+                                    etrait->_val[j]=-1*etrait->_val[j];
+                            }
+                        }
+                         */
+                        #pragma omp parallel for private(i)
+                        for(int j=0;j<etrait->_probNum;j++)
+                        {
+                            uint64_t beta_start=etrait->_cols[j<<1];
+                            uint64_t se_start=etrait->_cols[1+(j<<1)];
+                            uint64_t numsnps=se_start-beta_start;
+                            for(int k=0;k<numsnps;k++)
+                            {
+                                uint32_t ge_rowid=etrait->_rowid[beta_start+k];
+                                if(ge_rowid==gdId[i])
+                                {
+                                    etrait->_val[beta_start+k]=-1*etrait->_val[beta_start+k];
+                                    break; //the rowid in a probe is unique.
+                                }
                             }
                         }
                     }
                     else
                     {
-                        for(int j=0;j<etrait->_include.size();j++) if( etrait->_bxz[j][gdId[i]]+9 > 1e-6 ) etrait->_bxz[j][gdId[i]]=-etrait->_bxz[j][gdId[i]];
+                        #pragma omp parallel for private(i)
+                        for(int j=0;j<etrait->_include.size();j++)
+                            if( etrait->_bxz[j][gdId[i]]+9 > 1e-6 )
+                                etrait->_bxz[j][gdId[i]]=-1*etrait->_bxz[j][gdId[i]];
                     }
                 }
             }
@@ -2684,6 +2831,7 @@ namespace SMRDATA
                     esdata->_esi_include.push_back(edId[i]);
                     if(etrait->_val.size()>0)
                     {
+                        /*
                         int count=0;
                         for(int j=0;j<etrait->_rowid.size();j++)
                         {
@@ -2693,10 +2841,31 @@ namespace SMRDATA
                                 if(count & 1) etrait->_val[j]=-etrait->_val[j];
                             }
                         }
+                         */
+                        #pragma omp parallel for private(i)
+                        for(int j=0;j<etrait->_probNum;j++)
+                        {
+                            uint64_t beta_start=etrait->_cols[j<<1];
+                            uint64_t se_start=etrait->_cols[1+(j<<1)];
+                            uint64_t numsnps=se_start-beta_start;
+                            for(int k=0;k<numsnps;k++)
+                            {
+                                uint32_t ge_rowid=etrait->_rowid[beta_start+k];
+                                if(ge_rowid==gdId[i])
+                                {
+                                    etrait->_val[beta_start+k]=-1*etrait->_val[beta_start+k];
+                                    break; //the rowid in a probe is unique.
+                                }
+                            }
+                        }
+
                     }
                     else
                     {
-                        for(int j=0;j<etrait->_include.size();j++) if( etrait->_bxz[j][gdId[i]]+9 > 1e-6 ) etrait->_bxz[j][gdId[i]]=-etrait->_bxz[j][gdId[i]];
+                        #pragma omp parallel for private(i)
+                        for(int j=0;j<etrait->_include.size();j++)
+                            if( etrait->_bxz[j][gdId[i]]+9 > 1e-6 )
+                                etrait->_bxz[j][gdId[i]]=-1*etrait->_bxz[j][gdId[i]];
                     }
                     string tmpch=bdata->_ref_A[bdId[i]];
                     bdata->_ref_A[bdId[i]]=bdata->_other_A[bdId[i]];
@@ -2708,7 +2877,7 @@ namespace SMRDATA
             
         }
         
-        logstr=itos(bdata->_include.size())+" SNPs are included after allele check. ";
+        logstr=atos(bdata->_include.size())+" SNPs are included after allele check. ";
         cout<<logstr<<endl;
         
         // only update _snp_name_map which would be used in read bed file.
@@ -2727,11 +2896,11 @@ namespace SMRDATA
         vector<string> snpName(gdata->_include.size());
         vector<string> allele_1(gdata->_include.size());
         vector<string> allele_2(gdata->_include.size());
-        double* freq=(double*)malloc(gdata->_include.size()*sizeof(double));
-        double* byz=(double*)malloc(gdata->_include.size()*sizeof(double));
-        double* seyz=(double*)malloc(gdata->_include.size()*sizeof(double));
-        double* pvalue=(double*)malloc(gdata->_include.size()*sizeof(double));
-        uint32_t* splSize=(uint32_t*)malloc(gdata->_include.size()*sizeof(uint32_t));
+        vector<double> freq(gdata->_include.size());
+        vector<double> byz(gdata->_include.size());
+        vector<double> seyz(gdata->_include.size());
+        vector<double> pvalue(gdata->_include.size());
+        vector<uint32_t> splSize(gdata->_include.size());
         
         gdata->snpNum=gdata->_include.size();
         for(int i=0;i<gdata->_include.size();i++ )
@@ -2749,20 +2918,20 @@ namespace SMRDATA
         
         gdata->allele_1.clear();
         gdata->allele_2.clear();
-        free(gdata->freq);
-        free(gdata->byz);
-        free(gdata->seyz);
-        free(gdata->pvalue);
-        free(gdata->splSize);
+        gdata->freq.clear();
+        gdata->byz.clear();
+        gdata->seyz.clear();
+        gdata->pvalue.clear();
+        gdata->splSize.clear();
         
-        gdata->snpName=snpName;
-        gdata->allele_1=allele_1;
-        gdata->allele_2=allele_2;
-        gdata->freq=freq;
-        gdata->byz=byz;
-        gdata->seyz=seyz;
-        gdata->pvalue = pvalue;
-        gdata->splSize=splSize;
+        gdata->snpName.swap(snpName);
+        gdata->allele_1.swap(allele_1);
+        gdata->allele_2.swap(allele_2);
+        gdata->freq.swap(freq);
+        gdata->byz.swap(byz);
+        gdata->seyz.swap(seyz);
+        gdata->pvalue.swap(pvalue);
+        gdata->splSize.swap(splSize);
         
         if(hasBP) gdata->snpBp=snpBp;
         for(int i=0;i<gdata->snpNum;i++) gdata->_include[i]=i;
@@ -2883,7 +3052,398 @@ namespace SMRDATA
         float tmpY2=X.col(targetid).dot(X.col(targetid));
         ld_v=(tmpXY*n-tmpX*tmpY).array()/sqrt((tmpX2.array()*n-tmpX.array()*tmpX.array())*(tmpY2*n-tmpY*tmpY));
     }
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,bool plotflg, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag)
+    void init_smr_wk(SMRWK* smrwk)
+    {
+        smrwk->bxz.clear(),smrwk->sexz.clear(),smrwk->curId.clear(),smrwk->rs.clear(),smrwk->snpchrom.clear(),smrwk->byz.clear();
+        smrwk->seyz.clear(),smrwk->pyz.clear(),smrwk->bpsnp.clear(),smrwk->allele1.clear(),smrwk->alllele2.clear(),smrwk->freq.clear();
+    }
+    long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, const char* refSNP, int lowerbp,int upperbp)
+    {
+        int i=smrwk->cur_prbidx;
+        long maxid=-9;
+        if(esdata->_rowid.empty())
+        {
+            for (int j = 0; j<bdata->_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
+            {
+                if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
+                {
+                    int snpbp=esdata->_esi_bp[j];
+                    int snpchr=esdata->_esi_chr[j];
+                    if(snpchr==esdata->_epi_chr[i] && snpchr==smrwk->cur_chr && snpbp>=lowerbp && snpbp<=upperbp)
+                    {
+                        smrwk->bxz.push_back(esdata->_bxz[i][j]);
+                        smrwk->sexz.push_back(esdata->_sexz[i][j]);
+                        smrwk->byz.push_back(gdata->byz[j]);
+                        smrwk->seyz.push_back(gdata->seyz[j]);
+                        smrwk->pyz.push_back(gdata->pvalue[j]);
+                        smrwk->curId.push_back(j);
+                        smrwk->rs.push_back(esdata->_esi_rs[j]);
+                        smrwk->snpchrom.push_back(esdata->_esi_chr[j]);
+                        if(refSNP!=NULL && esdata->_esi_rs[j]==string(refSNP)) maxid=(smrwk->rs.size()-1);
+                        smrwk->bpsnp.push_back(esdata->_esi_bp[j]);
+                    }
+                }
+            }
+            
+        }
+        else{
+            uint64_t beta_start=esdata->_cols[i<<1];
+            uint64_t se_start=esdata->_cols[1+(i<<1)];
+            uint64_t numsnps=se_start-beta_start;
+            for(int j=0;j<numsnps;j++)
+            {
+                int ge_rowid=esdata->_rowid[beta_start+j];
+                int snpbp=esdata->_esi_bp[ge_rowid];
+                int snpchr=esdata->_esi_chr[ge_rowid];
+                
+                if(snpchr==esdata->_epi_chr[i] && snpchr==smrwk->cur_chr && snpbp>=lowerbp && snpbp<=upperbp)
+                {
+                    smrwk->bxz.push_back(esdata->_val[beta_start+j]);
+                    smrwk->sexz.push_back(esdata->_val[se_start+j]);
+                    smrwk->byz.push_back(gdata->byz[ge_rowid]);
+                    smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
+                    smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
+                    smrwk->curId.push_back(ge_rowid);
+                    smrwk->rs.push_back(esdata->_esi_rs[ge_rowid]);
+                    smrwk->snpchrom.push_back(esdata->_esi_chr[ge_rowid]);
+                    if(refSNP!=NULL && esdata->_esi_rs[ge_rowid]==string(refSNP)) maxid=(smrwk->rs.size()-1);
+                    smrwk->bpsnp.push_back(esdata->_esi_bp[ge_rowid]);
+                    
+                }
+            }
+        }
+        return maxid;
+    }
+    long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, const char* refSNP,int cis_itvl,bool heidioffFlag)
+    {
+        int i=smrwk->cur_prbidx;
+        long maxid =-9;
+        if(esdata->_rowid.empty())
+        {
+            for (int j = 0; j<bdata->_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
+            {
+                if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
+                {
+                    int snpbp=esdata->_esi_bp[j];
+                    int snpchr=esdata->_esi_chr[j];
+                    if(snpchr==esdata->_epi_chr[i] && ABS(esdata->_epi_bp[i]-snpbp)<=cis_itvl)
+                    {
+                        smrwk->bxz.push_back(esdata->_bxz[i][j]);
+                        smrwk->sexz.push_back(esdata->_sexz[i][j]);
+                        smrwk->byz.push_back(gdata->byz[j]);
+                        smrwk->seyz.push_back(gdata->seyz[j]);
+                        smrwk->pyz.push_back(gdata->pvalue[j]);
+                        smrwk->curId.push_back(j);
+                        smrwk->rs.push_back(esdata->_esi_rs[j]);
+                        smrwk->snpchrom.push_back(esdata->_esi_chr[j]);
+                        smrwk->allele1.push_back(esdata->_esi_allele1[j]);
+                        smrwk->alllele2.push_back(esdata->_esi_allele2[j]);
+                        if(refSNP!=NULL && esdata->_esi_rs[j]==string(refSNP)) maxid=(smrwk->rs.size()-1);
+                        smrwk->bpsnp.push_back(esdata->_esi_bp[j]);
+                        if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[j]] / 2);
+                        else smrwk->freq.push_back(esdata->_esi_freq[j]);
+                    }
+                }
+            }
+            
+        }
+        else{
+            uint64_t beta_start=esdata->_cols[i<<1];
+            uint64_t se_start=esdata->_cols[1+(i<<1)];
+            uint64_t numsnps=se_start-beta_start;
+            for(int j=0;j<numsnps;j++)
+            {
+                int ge_rowid=esdata->_rowid[beta_start+j];
+                int snpbp=esdata->_esi_bp[ge_rowid];
+                int snpchr=esdata->_esi_chr[ge_rowid];
+                if(snpchr==esdata->_epi_chr[i] && ABS(esdata->_epi_bp[i]-snpbp)<=cis_itvl)
+                {
+                    smrwk->bxz.push_back(esdata->_val[beta_start+j]);
+                    smrwk->sexz.push_back(esdata->_val[se_start+j]);
+                    smrwk->byz.push_back(gdata->byz[ge_rowid]);
+                    smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
+                    smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
+                    smrwk->curId.push_back(ge_rowid); //save snp id of the raw datastruct
+                    smrwk->rs.push_back(esdata->_esi_rs[ge_rowid]);
+                    smrwk->snpchrom.push_back(esdata->_esi_chr[ge_rowid]);
+                    smrwk->allele1.push_back(esdata->_esi_allele1[ge_rowid]);
+                    smrwk->alllele2.push_back(esdata->_esi_allele2[ge_rowid]);
+                    if(refSNP!=NULL && esdata->_esi_rs[ge_rowid]==string(refSNP)) maxid=(smrwk->rs.size()-1);
+                    smrwk->bpsnp.push_back(esdata->_esi_bp[ge_rowid]);
+                    if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[ge_rowid]] / 2);
+                    else smrwk->freq.push_back(esdata->_esi_freq[ge_rowid]);
+                }
+            }
+        }
+        
+        return maxid;
+    }
+    double heidi_test(bInfo* bdata,SMRWK* smrwk, long maxid,double ld_top, double threshold, int m_hetero,long &nsnp )
+    {
+        VectorXd ld_v;
+        MatrixXd _X;
+        vector<int> sn_ids;
+        Map<VectorXd> ei_bxz(&smrwk->bxz[0],smrwk->bxz.size());
+        Map<VectorXd> ei_sexz(&smrwk->sexz[0],smrwk->sexz.size());
+        
+        VectorXd zsxz=ei_bxz.array()/ei_sexz.array();
+        
+        
+        make_XMat(bdata,smrwk->curId, _X);
+        ld_calc_o2m(ld_v,maxid,_X);
+        if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
+        else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
+        if(sn_ids.size() < m_hetero) {
+            
+            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            return -9;
+        }
+        
+        VectorXd _byz,_seyz, _bxz,_sexz,_zsxz;
+        MatrixXd _X_heidi, _LD_heidi;
+        _byz.resize(sn_ids.size());
+        _seyz.resize(sn_ids.size());
+        _bxz.resize(sn_ids.size());
+        _sexz.resize(sn_ids.size());
+        _zsxz.resize(sn_ids.size());
+        _X_heidi.resize(_X.rows(), sn_ids.size());
+        
+#pragma omp parallel for
+        for(int j=0;j<sn_ids.size();j++)
+        {
+            _byz[j]=smrwk->byz[sn_ids[j]];
+            _seyz[j]=smrwk->seyz[sn_ids[j]];
+            _bxz[j]=smrwk->bxz[sn_ids[j]];
+            _sexz[j]=smrwk->sexz[sn_ids[j]];
+            _zsxz[j]=zsxz(sn_ids[j]);
+            _X_heidi.col(j)=_X.col(sn_ids[j]);
+        }
+        _X.resize(0,0);
+        cor_calc(_LD_heidi, _X_heidi);
+        
+        _X_heidi.resize(0,0);
+        
+        nsnp = sn_ids.size();
+        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, _LD_heidi, &nsnp);
+        
+        return pdev;
+    }
+    double heidi_test_new(bInfo* bdata,SMRWK* smrwk, long maxid,double ld_top, double threshold, int m_hetero,long &nsnp )
+    {
+        VectorXd ld_v;
+        MatrixXd _X;
+        vector<int> sn_ids;
+        Map<VectorXd> ei_bxz(&smrwk->bxz[0],smrwk->bxz.size());
+        Map<VectorXd> ei_sexz(&smrwk->sexz[0],smrwk->sexz.size());
+        
+        VectorXd zsxz=ei_bxz.array()/ei_sexz.array();
+        
+        
+        make_XMat(bdata,smrwk->curId, _X);
+        ld_calc_o2m(ld_v,maxid,_X);
+        if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
+        else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
+        if(sn_ids.size() < m_hetero) {
+            
+            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            return -9;
+        }
+        
+        VectorXd _byz,_seyz, _bxz,_sexz,_zsxz;
+        MatrixXd _X_heidi, _LD_heidi;
+        _byz.resize(sn_ids.size());
+        _seyz.resize(sn_ids.size());
+        _bxz.resize(sn_ids.size());
+        _sexz.resize(sn_ids.size());
+        _zsxz.resize(sn_ids.size());
+        _X_heidi.resize(_X.rows(), sn_ids.size());
+        
+#pragma omp parallel for
+        for(int j=0;j<sn_ids.size();j++)
+        {
+            _byz[j]=smrwk->byz[sn_ids[j]];
+            _seyz[j]=smrwk->seyz[sn_ids[j]];
+            _bxz[j]=smrwk->bxz[sn_ids[j]];
+            _sexz[j]=smrwk->sexz[sn_ids[j]];
+            _zsxz[j]=zsxz(sn_ids[j]);
+            _X_heidi.col(j)=_X.col(sn_ids[j]);
+        }
+        _X.resize(0,0);
+        cor_calc(_LD_heidi, _X_heidi);
+        
+        _X_heidi.resize(0,0);
+        
+        nsnp = sn_ids.size();
+        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, _LD_heidi, &nsnp);
+        
+        return pdev;
+    }
+    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest)
+    {
+        
+        uint64_t probNum = esdata->_probNum;
+        double thresh_heidi= chi_val(1,p_hetero);
+        VectorXd _byz,_seyz,_bxz,_sexz,_zsxz,ld_v,zsxz;
+        MatrixXd _X,_LD,_LD_heidi,_X_heidi;
+        
+        
+        
+        FILE* smr=NULL;
+        long write_count=0;
+        string outstr="";
+        string smrfile="";
+        if(outFileName!=NULL){
+            smrfile = string(outFileName)+".smr";
+            smr = fopen(smrfile.c_str(), "w");
+            if (!(smr)) {
+                printf("Open error %s\n", smrfile.c_str());
+                exit(1);
+            }
+            outstr="probeID\tProbeChr\tGene\tProbe_bp\ttopSNP\ttopSNP_chr\ttopSNP_bp\tA1\tA2\tFreq\tb_GWAS\tse_GWAS\tp_GWAS\tb_eQTL\tse_eQTL\tp_eQTL\tb_SMR\tse_SMR\tp_SMR\tp_HET\tnsnp_HET\n";
+            if(fputs_checked(outstr.c_str(),smr))
+            {
+                printf("ERROR: in writing file %s .\n", smrfile.c_str());
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            smrrlts.clear();
+        }
+        
+        
+        SMRWK smrwk;
+        cout<<endl<<"Performing SMR and heterogeneity analysis..... "<<endl;
+        float progr0=0.0 , progr1;
+        progress_print(progr0);
+        
+        cis_itvl=cis_itvl*1000;
+        for(int i=0;i<probNum;i++)
+        {
+            
+            progr1=1.0*i/probNum;
+            if(progr1-progr0-0.05>1e-6 || i+1==probNum)
+            {
+                if(i+1==probNum) progr1=1.0;
+                progress_print(progr1);
+                progr0=progr1;
+            }
+            
+            int probebp=esdata->_epi_bp[i];
+            int probechr=esdata->_epi_chr[i];
+            string probename=esdata->_epi_prbID[i];
+            string probegene=esdata->_epi_gene[i];
+            char probeorien=esdata->_epi_orien[i];
+            
+            init_smr_wk(&smrwk);
+            smrwk.cur_prbidx=i;
+            long maxid =fill_smr_wk(bdata, gdata, esdata, &smrwk, refSNP, cis_itvl,heidioffFlag);
+            if(refSNP!=NULL && maxid==-9)
+            {
+                printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
+                continue;
+            }
+            if (smrwk.bxz.size() == 0) {
+                
+                printf("WARNING: no SNP fetched in probe %s.\n", probename.c_str());
+                continue;
+            }
+            
+            Map<VectorXd> ei_bxz(&smrwk.bxz[0],smrwk.bxz.size());
+            Map<VectorXd> ei_sexz(&smrwk.sexz[0],smrwk.sexz.size());
+            
+            zsxz=ei_bxz.array()/ei_sexz.array();
+            if(refSNP==NULL) maxid=max_abs_id(zsxz);
+            double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
+            
+            if(refSNP==NULL && pxz_val>p_smr){
+                printf("WARNING: no SNP passed a p-value threshold %e for SMR analysis in probe %s.\n", p_smr, probename.c_str());
+                continue;
+            }
+            double bxy_val = smrwk.byz[maxid] / smrwk.bxz[maxid];
+            double sexy_val = sqrt((smrwk.seyz[maxid] * smrwk.seyz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] + smrwk.sexz[maxid] * smrwk.sexz[maxid] * smrwk.byz[maxid] * smrwk.byz[maxid]) / (smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid]));
+            double chisqxy = bxy_val*bxy_val / (sexy_val*sexy_val);
+            double pxy_val = pchisq(chisqxy, 1);  //   double pxy=chi_prob(1,chisqxy); //works
+            
+            SMRRLT currlt;
+            if(smr)
+            {
+                outstr = probename + '\t' + atos(probechr) + '\t' + probegene + '\t' + atos(probebp) + '\t' + smrwk.rs[maxid] + '\t' + atos(smrwk.snpchrom[maxid]) + '\t' + atos(smrwk.bpsnp[maxid]) + '\t' + smrwk.allele1[maxid] + '\t' + smrwk.alllele2[maxid] + '\t' + atos(smrwk.freq[maxid]) + '\t';
+                outstr += atos(smrwk.byz[maxid]) + '\t' + atos(smrwk.seyz[maxid]) + '\t' + dtos(smrwk.pyz[maxid]) + '\t';
+                outstr += atos(smrwk.bxz[maxid]) + '\t' + atos(smrwk.sexz[maxid]) + '\t' + dtos(pxz_val) + '\t';
+                outstr += atos(bxy_val) + '\t' + atos(sexy_val) + '\t' + dtos(pxy_val) + '\t';
+                
+            } else {
+                currlt.ProbeID=probename;
+                currlt.ProbeChr=probechr;
+                currlt.Gene=probegene;
+                currlt.Probe_bp=probebp;
+                currlt.Orien=probeorien;
+                currlt.SNP=smrwk.rs[maxid];
+                currlt.SNP_Chr=smrwk.snpchrom[maxid];
+                currlt.SNP_bp=smrwk.bpsnp[maxid];
+                currlt.A1=smrwk.allele1[maxid];
+                currlt.A2=smrwk.alllele2[maxid];
+                currlt.Freq=smrwk.freq[maxid];
+                currlt.b_GWAS=smrwk.byz[maxid];
+                currlt.se_GWAS=smrwk.seyz[maxid];
+                currlt.p_GWAS=smrwk.pyz[maxid];
+                currlt.b_eQTL=smrwk.bxz[maxid];
+                currlt.se_eQTL=smrwk.sexz[maxid];
+                currlt.p_eQTL=pxz_val;
+                currlt.b_SMR=bxy_val;
+                currlt.se_SMR=sexy_val;
+                currlt.p_SMR=pxy_val;
+            }
+            
+            if(heidioffFlag || pxy_val>threshpsmrest)
+            {
+                printf("INFO: HEIDI test for probe %s is skipped becasuse HEIDI test turns off or p_SMR does not pass a threshold %e.\n", probename.c_str(),threshpsmrest);
+                if(smr)
+                {
+                    outstr+= string("NA") + '\t' + string("NA") + '\n';
+                    if(fputs_checked(outstr.c_str(),smr))
+                    {
+                        printf("ERROR: in writing file %s .\n", smrfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    write_count++;
+                } else {
+                    currlt.p_HET=-9;
+                    currlt.nsnp=-9;
+                    smrrlts.push_back(currlt);
+                }
+                
+            }
+            else
+            {
+                long nsnp=-9;
+                double pdev=-9;
+                if(!heidioffFlag)  pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
+                if(smr)
+                {
+                    outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp) : "NA") + '\n';
+                    if(fputs_checked(outstr.c_str(),smr))
+                    {
+                        printf("ERROR: in writing file %s .\n", smrfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    write_count++;
+                } else {
+                    currlt.p_HET=pdev;
+                    currlt.nsnp=(int)nsnp;
+                    smrrlts.push_back(currlt);
+                }
+            }
+        }
+        
+        if(smr){
+            printf("Results of %ld probes have been saved in file %s.\n",write_count,smrfile.c_str());
+            fclose(smr);
+        } else {
+            printf("Results of %ld probes have been returned.\n",smrrlts.size());
+        }
+        
+    }
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,bool plotflg, char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest)
     {
         
         setNbThreads(thread_num);
@@ -2891,7 +3451,6 @@ namespace SMRDATA
         bInfo bdata;
         gwasData gdata;
         eqtlInfo esdata;
-        double threshold= chi_val(1,p_hetero);
         bool heidiFlag=false;
         
         if(!heidioffFlag && bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
@@ -2922,8 +3481,7 @@ namespace SMRDATA
         }else
         {
              allele_check(&gdata, &esdata);
-        }        
-       
+        }
         update_gwas(&gdata);
         cout<<"Reading eQTL summary data..."<<endl;
         read_epifile(&esdata, string(eqtlFileName)+".epi");
@@ -2935,393 +3493,8 @@ namespace SMRDATA
            printf("No data included under current condition.\n");
            exit(EXIT_FAILURE);
        }
-        //test the SNP alignement
-        //for(int i=0;i<bdata._include.size();i++)
-        //    if(gdata.snpName[i]!=esdata._esi_rs[i] || bdata._snp_name[bdata._include[i]] != gdata.snpName[i] || bdata._snp_name[bdata._include[i]] !=esdata._esi_rs[i] ) cout<<i<<endl;
-        
-        // till now. SNPs in the three dataset are aligned in bfile order. Alleles are checked by eQTL data as the reference
-        // in sparse besd, rowid may be out-of-order
-        // bdata._include is the SNPs id to test in case of MAF pruning and HWE pruning being conducted.
-        // use bdata._include to extract genotype data for LD
-        int outCount = -1;
-        unsigned int probNum = esdata._probNum;
-        // vectors for output
-        vector<long> out_probid(probNum);
-        vector<string> bxy(probNum); // origin is double
-        vector<string> sexy(probNum);// origin is double
-        vector<string> pxy(probNum); // origin is double
-        vector<string> bgwas(probNum); // origin is double
-        vector<string> beqtl(probNum); // origin is double
-        vector<string> segwas(probNum); // origin is double
-        vector<string> seeqtl(probNum); // origin is double
-        vector<string> pgwas(probNum); // origin is double
-        vector<string> peqtl(probNum); // origin is double
-        vector<string> rsid(probNum);
-        vector<string> rschr(probNum);
-        vector<string> rsa1(probNum);
-        vector<string> rsa2(probNum);
-        vector<string> rsbp(probNum); //origin is unsigned int
-        vector<string> rsfreq(probNum); //origin is unsigned double
-        vector<string> prb1(probNum); // origin is double
-        vector<string> nsnp_test1(probNum);
-        vector<string> top_match1(probNum);  // origin is int
-        vector<string> ldrsq(probNum); // origin is double
-        
-        
-        
-        cout<<endl<<"Performing SMR and heterogeneity analysis..... "<<endl;
-        float progr0=0.0 , progr1;
-        progress_print(progr0);
-        
-        
-        vector<double> bxz;
-		vector<double> sexz;
-        vector<uint32_t> curId;
-        vector<string> eName;
-        vector<int> snpchrom;
-        
-        vector<string> allele1;
-        vector<string> allele2;
-        vector<uint32_t> bpsnp;
-        vector<double> freq;
-        
-		vector<double> byz;
-		vector<double> seyz;
-        vector<double> pyz;
-        VectorXd zsxz;
-        
-        vector<int> sn_ids;
-        
-        VectorXd _byz;
-        VectorXd _seyz;
-        VectorXd _bxz;
-        VectorXd _sexz;
-        VectorXd _zsxz;
-        MatrixXd _X;
-        MatrixXd _LD;
-        VectorXd ld_v;
-        MatrixXd _LD_heidi;
-        MatrixXd _X_heidi;
-        cis_itvl=cis_itvl*1000;
-        
-        //for plot
-        vector<string> plot_paths;
-        for(int i=0;i<probNum;i++)
-        {
-         
-            progr1=1.0*i/probNum;
-            if(progr1-progr0-0.05>1e-6 || i+1==probNum)
-            {
-                if(i+1==probNum) progr1=1.0;
-                progress_print(progr1);
-                progr0=progr1;
-            }
-            // for plot
-            vector<uint32_t> plot_snpidx;
-            vector<uint32_t> plot_probeidx;
-            vector<double> plot_bxz;
-            vector<double> plot_sexz;
-            int plotdir_id=i>>10;
-            string plotdir="";
-             if(plotflg && !heidioffFlag){
-                 for(long j=strlen(outFileName)-1;j>=0;j--)
-                     if(outFileName[j]=='/')
-                     {
-                         plotdir=string(outFileName).substr(0,j+1);
-                         break;
-                     }
-                 if(plotdir=="") plotdir="./";
-                 
-                 plotdir=string(plotdir)+"plot";
-                 struct stat st = {0};
-                 if (stat(plotdir.c_str(), &st) == -1) {
-#if defined _WIN64 || defined _WIN32
-                     _mkdir(plotdir.c_str());
-#else
-                     mkdir(plotdir.c_str(), 0755);
-#endif
-                 }
-                 
-                 plotdir=string(plotdir)+"/"+atos(plotdir_id);
-                 st = {0};
-                 if (stat(plotdir.c_str(), &st) == -1) {
-#if defined _WIN64 || defined _WIN32
-                     _mkdir(plotdir.c_str());
-#else
-                     mkdir(plotdir.c_str(), 0755);
-#endif
-                 }
-                 
-                 plot_paths.push_back(string(plotdir)+"/"+esdata._epi_prbID[i]);
-             }
-            //extract info from eqtl summary and gwas summary
-            bxz.clear();
-            sexz.clear();
-            curId.clear(); // is the idxes of bfile._include not the values of
-            eName.clear();
-            snpchrom.clear();
-            byz.clear();
-            seyz.clear();
-            pyz.clear();
-            allele1.clear();
-            allele2.clear();
-            bpsnp.clear();
-            freq.clear();
-            long maxid =-9;
-            int probebp=esdata._epi_bp[i];
-            int probechr=esdata._epi_chr[i];            
-            if(esdata._rowid.empty())
-            {
-                for (int j = 0; j<esdata._esi_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
-                {
-                    if (abs(esdata._bxz[i][j] + 9) > 1e-6)
-                    {
-                        int snpbp=esdata._esi_bp[j];
-                        int snpchr=esdata._esi_chr[j];
-                        if(snpchr==probechr && ABS(probebp-snpbp)<=cis_itvl)
-                        {
-                            bxz.push_back(esdata._bxz[i][j]);
-                            sexz.push_back(esdata._sexz[i][j]);
-                            byz.push_back(gdata.byz[j]);
-                            seyz.push_back(gdata.seyz[j]);
-                            pyz.push_back(gdata.pvalue[j]);
-                            curId.push_back(j);
-                            eName.push_back(esdata._esi_rs[j]);
-                            snpchrom.push_back(esdata._esi_chr[j]);
-                            if(heidiFlag && esdata._esi_rs[j]==string(refSNP)) maxid=(eName.size()-1);
-                            if(!heidioffFlag) //if heidi off , bfile is not necessary to read.
-                            {
-                                freq.push_back(bdata._mu[bdata._include[j]]/2);
-                            }
-                            allele1.push_back(esdata._esi_allele1[j]);
-                            allele2.push_back(esdata._esi_allele2[j]);
-                            bpsnp.push_back(esdata._esi_bp[j]);
-                        }
-                    }
-                }
-                
-            }
-            else{
-                uint64_t beta_start=esdata._cols[i<<1];
-                uint64_t se_start=esdata._cols[1+(i<<1)];
-                uint64_t numsnps=se_start-beta_start;
-                for(int j=0;j<numsnps;j++)
-                {
-                    int ge_rowid=esdata._rowid[beta_start+j];
-                    int snpbp=esdata._esi_bp[ge_rowid];
-                    int snpchr=esdata._esi_chr[ge_rowid];
-                    
-                    if(snpchr==probechr && ABS(probebp-snpbp)<=cis_itvl)
-                    {
-                        bxz.push_back(esdata._val[beta_start+j]);
-                        sexz.push_back(esdata._val[se_start+j]);
-                        byz.push_back(gdata.byz[ge_rowid]);
-                        seyz.push_back(gdata.seyz[ge_rowid]);
-                        pyz.push_back(gdata.pvalue[ge_rowid]);
-                        curId.push_back(ge_rowid);
-                        eName.push_back(esdata._esi_rs[ge_rowid]);
-                        snpchrom.push_back(esdata._esi_chr[ge_rowid]);
-                        if(heidiFlag && esdata._esi_rs[ge_rowid]==string(refSNP)) maxid=(eName.size()-1);
-                        allele1.push_back(esdata._esi_allele1[ge_rowid]);
-                        allele2.push_back(esdata._esi_allele2[ge_rowid]);
-                        bpsnp.push_back(esdata._esi_bp[ge_rowid]);
-                        if(!heidioffFlag){
-                            freq.push_back(bdata._mu[bdata._include[ge_rowid]]/2);
-                        }
-                    }
-                }
-            }
-            if(heidiFlag && maxid==-9) continue; //heidi SNP is not in selected SNPs
-            if (bxz.size() == 0) continue;
-           
-            Map<VectorXd> ei_bxz(&bxz[0],bxz.size());
-            Map<VectorXd> ei_sexz(&sexz[0],sexz.size());
-            
-            zsxz=ei_bxz.array()/ei_sexz.array();
-            if(!heidiFlag) maxid=max_abs_id(zsxz);
-            double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
-            
-            
-            if(!heidiFlag && pxz_val>p_smr) continue;
-            else outCount++;
-            
-			double bxy_val = byz[maxid] / bxz[maxid];
-			double sexy_val = sqrt((seyz[maxid] * seyz[maxid] * bxz[maxid] * bxz[maxid] + sexz[maxid] * sexz[maxid] * byz[maxid] * byz[maxid]) / (bxz[maxid] * bxz[maxid] * bxz[maxid] * bxz[maxid]));
-			double chisqxy = bxy_val*bxy_val / (sexy_val*sexy_val);
-            
-            
-			double pxy_val = pchisq(chisqxy, 1);  //   double pxy=chi_prob(1,chisqxy); //works
-            
-			//double chisqyz = byz[maxid] / seyz[maxid];
-			//double pyz_val = pchisq(chisqyz*chisqyz, 1);
-            double pyz_val = pyz[maxid];
-
-            out_probid[outCount]= i;
-            bxy[outCount]=dtosf(bxy_val);
-            sexy[outCount]=dtosf(sexy_val);
-            pxy[outCount]=dtos(pxy_val);
-            bgwas[outCount]=dtosf(byz[maxid]);
-            segwas[outCount]=dtosf(seyz[maxid]);
-            beqtl[outCount]=dtosf(bxz[maxid]);
-            seeqtl[outCount]=dtosf(sexz[maxid]);
-            pgwas[outCount]=dtos(pyz_val);
-            peqtl[outCount]=dtos(pxz_val);
-            rsid[outCount]=eName[maxid];
-            rschr[outCount]=atos(snpchrom[maxid]);
-            rsbp[outCount]=itos(bpsnp[maxid]);
-            if(heidioffFlag)   rsfreq[outCount]=string("NA");
-            else rsfreq[outCount]=dtosf(freq[maxid]);
-            
-            rsa1[outCount]=allele1[maxid];
-            rsa2[outCount]=allele2[maxid];
-            
-            if(heidioffFlag)
-            {
-                prb1[outCount]= string("NA");
-                nsnp_test1[outCount]= string("NA");
-            }
-            else
-            {
-                //extract info from reference
-                make_XMat(&bdata,curId, _X); //_X: one row one individual, one column one SNP
-                //last vesion ref_snpData was used. row of ref_snpData is SNP, column of ref_snpData is individual
-                //cor_calc(_LD, _X);
-               
-                ld_calc_o2m(ld_v,maxid,_X);
-                
-               //test here
-               // for( int kk=0;kk<curId.size();kk++) if(abs(ld_v[kk]-_LD.col(maxid)[kk])>1e-6) cout<<"wrong"<<endl;
-               // test end
-                
-                sn_ids.clear(); //increase order
-                if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
-                //else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,_LD, maxid,ld_top);
-                else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);               
-               
-                if(sn_ids.size() < m_hetero)
-                {
-                    prb1[outCount]= string("NA");
-                    nsnp_test1[outCount]= string("NA");
-                    top_match1[outCount]= string("NA");
-                    ldrsq[outCount]= string("NA");
-                    continue;
-                }
-                
-                if(plotflg){
-                    for(int j=0;j<sn_ids.size();j++) {
-                        plot_probeidx.push_back(i);
-                        plot_snpidx.push_back(curId[sn_ids[j]]);
-                        plot_bxz.push_back(bxz[sn_ids[j]]);
-                        plot_sexz.push_back(sexz[sn_ids[j]]);
-                    }
-                    
-                    string ldfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".engs";
-                    ofstream ldio(ldfile.c_str());
-                    if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                    ldio << "ProbeChr" <<'\t' << "ProbeID"  << '\t' << "Probe_bp" << '\t'<< "SNP_Chr"<< '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\n';
-                    for (int ii = 0;ii <plot_snpidx.size(); ii++) {
-                        ldio<<esdata._epi_chr[plot_probeidx[ii]]<<'\t'<<esdata._epi_prbID[plot_probeidx[ii]]<<'\t'<<esdata._epi_bp[plot_probeidx[ii]]<<'\t'<<esdata._esi_chr[plot_snpidx[ii]]<<'\t'<<esdata._esi_rs[plot_snpidx[ii]]<<'\t'<<esdata._esi_bp[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele1[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele2[plot_snpidx[ii]]<<'\t'<<gdata.byz[plot_snpidx[ii]]<<'\t'<<gdata.seyz[plot_snpidx[ii]]<<'\t'<<plot_bxz[ii]<<'\t'<<plot_sexz[ii]<<'\n';
-                    }
-                    cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
-                    ldio.close();
-
-                }
-                _byz.resize(sn_ids.size());
-                _seyz.resize(sn_ids.size());
-                _bxz.resize(sn_ids.size());
-                _sexz.resize(sn_ids.size());
-                _zsxz.resize(sn_ids.size());
-               // _LD_heidi.resize(sn_ids.size(),sn_ids.size());
-                _X_heidi.resize(_X.rows(), sn_ids.size());
-                
-                #pragma omp parallel for
-                for(int j=0;j<sn_ids.size();j++)
-                {
-                    _byz[j]=byz[sn_ids[j]];
-                    _seyz[j]=seyz[sn_ids[j]];
-                    _bxz[j]=bxz[sn_ids[j]];
-                    _sexz[j]=sexz[sn_ids[j]];
-                    _zsxz[j]=zsxz[sn_ids[j]];
-               //   for(int k=0;k<=j;k++)_LD_heidi(j,k)=_LD_heidi(k,j)=_LD(sn_ids[j],sn_ids[k]);
-                    _X_heidi.col(j)=_X.col(sn_ids[j]);
-                }
-                _X.resize(0,0);
-                cor_calc(_LD_heidi, _X_heidi);
-                
-                if(plotflg)
-                {
-                    string ldidfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.id";
-                    ofstream ldio(ldidfile.c_str());
-                    if (!ldio) throw ("Error: can not open the file " + ldidfile + " to save!");
-                    for (int ii = 0;ii <plot_snpidx.size(); ii++)
-                        ldio<<esdata._esi_rs[plot_snpidx[ii]]<<'\n';
-                    cout<<"rs id of "<<plot_snpidx.size()<<" unique SNPs for plot have been saved in the file [" + ldidfile + "]."<<endl;
-                    ldio.close();
-                    
-                    string ldinfofile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.gz";
-                    gzFile gz_outfile = gzopen(ldinfofile.c_str(), "wb");
-                    string ldstrs="";
-                    for(int ii=0;ii<_LD_heidi.cols();ii++)
-                        for(int jj=0;jj<ii;jj++) ldstrs+=atos(_LD_heidi(ii,jj))+"\n";
-                    
-                    if(gzputs(gz_outfile, ldstrs.c_str()) == -1) cout<<"error"<<endl;
-                    gzclose(gz_outfile);
-                    cout<< "Lower triangle of LD score matrix of "<<plot_snpidx.size()<<" SNPs have been saved by row-major in the file ["+ ldinfofile + "]."<<endl;
-                }
-                if(!plotflg)
-                {
-                    _X_heidi.resize(0,0);
-                    
-                    long nsnp = sn_ids.size();
-                    double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, _LD_heidi, &nsnp);
-                    
-                    prb1[outCount] = dtos(pdev);
-                    if(nsnp>0) nsnp_test1[outCount] = itos(nsnp);
-                    else nsnp_test1[outCount] = string("NA");
-                    
-                    
-                    // top GWAS SNP ?= top eQTL
-                    int indx1 = max_abs_id(_zsxz);
-                    _byz = _byz.array() / _seyz.array();
-                    int indx2 = max_abs_id(_byz);
-                    
-                    if(indx1 == indx2) top_match1[outCount] =itos(1);
-                    else top_match1[outCount] = itos(0);
-                    double ldrsqVal = _LD_heidi(indx1, indx2) * _LD_heidi(indx1, indx2);
-                    ldrsq[outCount]=dtosf(ldrsqVal);
-                }
-                
-            }
-            
-        }
-        if(plotflg && !heidioffFlag)
-        {
-            string ldfile = string(outFileName)+".plotpath.txt";
-            ofstream ldio(ldfile.c_str());
-            if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-           
-            for (int i = 0;i <plot_paths.size(); i++) {
-                ldio<<plot_paths[i]<<'\n';
-            }
-            cout<<"informantion of "<<plot_paths.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
-            ldio.close();
-
-        }else{
-            string smrfile = string(outFileName)+".smr";
-            ofstream smr(smrfile.c_str());
-            if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
-            
-            smr << "ProbeID" <<'\t'<< "ProbeChr" <<'\t' << "Gene"  << '\t' << "Probe_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_GWAS"<<'\t'<<"se_GWAS"<<'\t'<< "p_GWAS" << '\t'<<"b_eQTL"<<'\t'<<"se_eQTL"<<'\t'<< "p_eQTL" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
-            
-            for (int i = 0;i <=outCount; i++) {
-                smr<<esdata._epi_prbID[out_probid[i]]<<'\t'<<esdata._epi_chr[out_probid[i]]<<'\t'<<esdata._epi_gene[out_probid[i]]<<'\t'<<esdata._epi_bp[out_probid[i]]<<'\t'<<rsid[i]<<'\t'<<rschr[i]<<'\t'<<rsbp[i]<<'\t'<<rsa1[i]<<'\t'<<rsa2[i]<<'\t'<<rsfreq[i]<<'\t'<<bgwas[i]<<'\t'<<segwas[i]<<'\t'<<pgwas[i]<<'\t'<<beqtl[i]<<'\t'<<seeqtl[i]<<'\t'<<peqtl[i]<<'\t'<<bxy[i]<<'\t'<<sexy[i]<<'\t'<<pxy[i]<<'\t'<<prb1[i]<<'\t'<<nsnp_test1[i]<<'\n';
-            }
-            cout<<"SMR and heterogeneity analysis finished.\nSMR and heterogeneity analysis results of "<<outCount+1<<" probes have been saved in the file [" + smrfile + "]."<<endl;
-            smr.close();
-        }
-       
-        free_gwas_data( &gdata);
-        
+       vector<SMRRLT> smrrlts;
+       smr_heidi_func(smrrlts,  outFileName, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest);
     }
     
     // test all the meQTL or eQTL <=threshold.  toooo many tests and toooo slow
@@ -4172,12 +4345,13 @@ namespace SMRDATA
         
       
                 filter_probe_null(&eqtlinfo); // at the same time, reset the vector _include
+                filter_snp_null(&eqtlinfo);
                 cout<<"\nsaving eQTL data..."<<endl;
                 string esdfile = string(outFileName)+".esi";
                 ofstream smr(esdfile.c_str());
                 if (!smr) throw ("Error: can not open the esi file " + esdfile + " to save!");
                 for (int i = 0;i <eqtlinfo._snpNum; i++) {
-                    smr<<eqtlinfo._esi_chr[i]<<'\t'<<eqtlinfo._esi_rs[i]<<'\t'<<eqtlinfo._esi_gd[i]<<'\t'<<eqtlinfo._esi_bp[i]<<'\t'<<eqtlinfo._esi_allele1[i]<<'\t'<<eqtlinfo._esi_allele2[i]<<'\n';
+                    smr<<eqtlinfo._esi_chr[i]<<'\t'<<eqtlinfo._esi_rs[i]<<'\t'<<eqtlinfo._esi_gd[i]<<'\t'<<eqtlinfo._esi_bp[i]<<'\t'<<eqtlinfo._esi_allele1[i]<<'\t'<<eqtlinfo._esi_allele2[i]<<'\t'<<eqtlinfo._esi_freq[i]<<'\n';
                 }
                 smr.close();
                 cout<<eqtlinfo._snpNum<<" SNPs have been saved in the file [" + esdfile + "]."<<endl;
@@ -4275,8 +4449,9 @@ namespace SMRDATA
     int comp2(const void *a,const void *b){ return (((*(probeinfolst2 *)a).probechr>(*(probeinfolst2 *)b).probechr) || ( ((*(probeinfolst2 *)a).probechr ==(*(probeinfolst2 *)b).probechr) && ((*(probeinfolst2 *)a).bp > (*(probeinfolst2 *)b).bp) ))?1:-1; }
 
    int comp_esi(const void *a,const void *b){ return (((*(snpinfolst *)a).snpchr >(*(snpinfolst *)b).snpchr) || ( ((*(snpinfolst *)a).snpchr ==(*(snpinfolst *)b).snpchr) && ((*(snpinfolst *)a).bp > (*(snpinfolst *)b).bp) ))?1:-1; }
+   int comp_estn(const void *a,const void *b){ return ((*(snpinfolst *)a).estn >(*(snpinfolst *)b).estn)?1:-1; }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,bool plotflg,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double prepsmrthres)
     {
         setNbThreads(thread_num);
         string logstr;
@@ -4309,6 +4484,7 @@ namespace SMRDATA
         eqtlInfo esdata;
         bInfo bdata;
         double threshold= chi_val(1,p_hetero);
+        double pre_psmr_thresh = chi_val(1,prepsmrthres);
         bool heidiFlag=false;
         cis_itvl=cis_itvl*1000;
         
@@ -4336,16 +4512,16 @@ namespace SMRDATA
 
         
         read_esifile(&esdata, string(eqtlFileName2)+".esi");
-        if (snplstName != NULL) extract_eqtl_snp(&esdata, snplstName);
-        if(snplst2exclde != NULL) exclude_eqtl_snp(&esdata, snplst2exclde);
+        //if (snplstName != NULL) extract_eqtl_snp(&esdata, snplstName); //no need here, already extracted in etrait
+        //if(snplst2exclde != NULL) exclude_eqtl_snp(&esdata, snplst2exclde);
         if(!heidioffFlag)
         {
             read_famfile(&bdata, string(bFileName)+".fam");
             if(indilstName != NULL) keep_indi(&bdata,indilstName);
             if(indilst2remove != NULL) remove_indi(&bdata, indilst2remove);
             read_bimfile(&bdata, string(bFileName)+".bim");
-            if(snplstName != NULL) extract_snp(&bdata, snplstName);
-            if(snplst2exclde != NULL) exclude_snp(&bdata, snplst2exclde);
+            //if(snplstName != NULL) extract_snp(&bdata, snplstName);
+            //if(snplst2exclde != NULL) exclude_snp(&bdata, snplst2exclde);
             allele_check(&bdata, &etrait, &esdata);
             // if no snp left after check
             read_bedfile(&bdata, string(bFileName)+".bed");
@@ -4415,18 +4591,15 @@ namespace SMRDATA
             gwasData gdata;
             gdata.allele_1.resize(etrait._esi_include.size());
             gdata.allele_2.resize(etrait._esi_include.size());
-            gdata.byz=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.seyz=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.freq=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.pvalue=(double*)malloc(etrait._esi_include.size()*sizeof(double));
-            gdata.splSize=(uint32_t*)malloc(etrait._esi_include.size()*sizeof(uint32_t));
+            gdata.byz.resize(etrait._esi_include.size());
+            gdata.seyz.resize(etrait._esi_include.size());
+            gdata.freq.resize(etrait._esi_include.size());
+            gdata.pvalue.resize(etrait._esi_include.size());
+            gdata.splSize.resize(etrait._esi_include.size());
             
             
             string traitname=etrait._epi_prbID[ii];
             cout<<"\nPerforming analysis of eTrait [ "+traitname+" ]..."<<endl;
-            memset(gdata.byz,0,etrait._esi_include.size()*sizeof(double));
-            memset(gdata.seyz,0,etrait._esi_include.size()*sizeof(double));
-           
             gdata._include.clear();
             gdata.snpName.clear();
             int count=0;
@@ -4524,30 +4697,13 @@ namespace SMRDATA
             vector<string> eName;
             vector<int> snpchrom;
             
-            vector<string> allele1;
-            vector<string> allele2;
+            vector<string> allele1, allele2;
             vector<uint32_t> bpsnp;
-            vector<double> freq;
-            
-            vector<double> byz;
-            vector<double> seyz;
-            VectorXd zsxz;
-            
+            vector<double> freq, byz, seyz;
             vector<int> sn_ids;
-            
-            VectorXd _byz;
-            VectorXd _seyz;
-            VectorXd _bxz;
-            VectorXd _sexz;
-            VectorXd _zsxz;
-            MatrixXd _X;
-            MatrixXd _LD;
-            VectorXd ld_v;
-            MatrixXd _LD_heidi;
-            MatrixXd _X_heidi;
-            
-            //for plot
-            vector<string> plot_paths;
+            VectorXd zsxz,_byz,_seyz,_bxz,_sexz,_zsxz,ld_v;
+            MatrixXd _X, _LD,_LD_heidi,_X_heidi;
+  
             for(int ti=0;ti<icld_tmp.size();ti++)
             {
                 int i=icld_tmp[ti];
@@ -4558,14 +4714,6 @@ namespace SMRDATA
                     progress_print(progr1);
                     progr0=progr1;
                 }
-                
-                // for plot
-                vector<uint32_t> plot_snpidx;
-                vector<uint32_t> plot_probeidx;
-                vector<double> plot_bxz;
-                vector<double> plot_sexz;
-                int plotdir_id=ti>>10;
-                string plotdir="";
                 
                 //extract info from eqtl summary and gwas summary
                 bxz.clear();
@@ -4695,23 +4843,15 @@ namespace SMRDATA
                 rsa1[outCount]=allele1[maxid];
                 rsa2[outCount]=allele2[maxid];
                 
-                if(heidioffFlag)
+                if(heidioffFlag || chisqxy<pre_psmr_thresh)
                 {
                     prb1[outCount]= string("NA");
                     nsnp_test1[outCount]= string("NA");
                 }
                 else
                 {
-                    //extract info from reference
-                    make_XMat(&bdata,curId, _X); //_X: one row one individual, one column one SNP
-                    //last vesion ref_snpData was used. row of ref_snpData is SNP, column of ref_snpData is individual
-                    //cor_calc(_LD, _X);
-                    
+                    make_XMat(&bdata,curId, _X);
                     ld_calc_o2m(ld_v,maxid,_X);
-                    
-                    //test here
-                    // for( int kk=0;kk<curId.size();kk++) if(abs(ld_v[kk]-_LD.col(maxid)[kk])>1e-6) cout<<"wrong"<<endl;
-                    // test end
                     
                     sn_ids.clear(); //increase order
                     if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
@@ -4726,70 +4866,7 @@ namespace SMRDATA
                         ldrsq[outCount]= string("NA");
                         continue;
                     }
-                    
-                    if(plotflg){
-                        for(long j=strlen(outFileName)-1;j>=0;j--)
-                            if(outFileName[j]=='/')
-                            {
-                                plotdir=string(outFileName).substr(0,j+1);
-                                break;
-                            }
-                        if(plotdir=="") plotdir="./";
-                        
-                        plotdir=string(plotdir)+"plot";
-                        struct stat st = {0};
-                        if (stat(plotdir.c_str(), &st) == -1) {
-#if defined _WIN64 || defined _WIN32
-                            _mkdir(plotdir.c_str());
-#else
-                            mkdir(plotdir.c_str(), 0755);
-#endif
-                        }
-                        
-                        plotdir=string(plotdir)+"/"+traitname;
-                        st = {0};
-                        if (stat(plotdir.c_str(), &st) == -1) {
-#if defined _WIN64 || defined _WIN32
-                            _mkdir(plotdir.c_str());
-#else
-                            mkdir(plotdir.c_str(), 0755);
-#endif
-                        }
-                        
-                        plotdir=string(plotdir)+"/"+atos(plotdir_id);
-                        st = {0};
-                        if (stat(plotdir.c_str(), &st) == -1) {
-#if defined _WIN64 || defined _WIN32
-                            _mkdir(plotdir.c_str());
-#else
-                            mkdir(plotdir.c_str(), 0755);
-#endif
-                        }
-                        
-                        plot_paths.push_back(string(plotdir)+"/"+esdata._epi_prbID[i]);
-                    }
-                    
-
-                    if(plotflg){
-                        for(int j=0;j<sn_ids.size();j++) {
-                            plot_probeidx.push_back(i);
-                            plot_snpidx.push_back(curId[sn_ids[j]]);
-                            plot_bxz.push_back(bxz[sn_ids[j]]);
-                            plot_sexz.push_back(sexz[sn_ids[j]]);
-                        }
-                        
-                        string ldfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".engs";
-                        ofstream ldio(ldfile.c_str());
-                        if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                        ldio << "Expo_Chr" <<'\t' << "Expo_ID"  << '\t' << "Expo_bp" << '\t'<< "SNP_Chr"<< '\t'<< "SNP"<< '\t'  << "SNP_bp"<< '\t'<< "A1"<< '\t'<< "A2"<< '\t'<<"b_Outco"<<'\t'<<"se_Outco"<<'\t'<<"b_Expo"<<'\t'<<"se_Expo"<<'\n';
-                        for (int ii = 0;ii <plot_snpidx.size(); ii++) {
-                            ldio<<esdata._epi_chr[plot_probeidx[ii]]<<'\t'<<esdata._epi_prbID[plot_probeidx[ii]]<<'\t'<<esdata._epi_bp[plot_probeidx[ii]]<<'\t'<<esdata._esi_chr[plot_snpidx[ii]]<<'\t'<<esdata._esi_rs[plot_snpidx[ii]]<<'\t'<<esdata._esi_bp[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele1[plot_snpidx[ii]]<<'\t'<<esdata._esi_allele2[plot_snpidx[ii]]<<'\t'<<gdata.byz[plot_snpidx[ii]]<<'\t'<<gdata.seyz[plot_snpidx[ii]]<<'\t'<<plot_bxz[ii]<<'\t'<<plot_sexz[ii]<<'\n';
-                        }
-                        cout<<"informantion of "<<plot_snpidx.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
-                        ldio.close();
-                        
-
-                    }
+         
                     _byz.resize(sn_ids.size());
                     _seyz.resize(sn_ids.size());
                     _bxz.resize(sn_ids.size());
@@ -4811,30 +4888,8 @@ namespace SMRDATA
                     }
                     _X.resize(0,0);
                     cor_calc(_LD_heidi, _X_heidi);
-                    
-                    if(plotflg)
-                    {
-                        string ldidfile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.id";
-                        ofstream ldio(ldidfile.c_str());
-                        if (!ldio) throw ("Error: can not open the file " + ldidfile + " to save!");
-                        for (int ii = 0;ii <plot_snpidx.size(); ii++)
-                            ldio<<esdata._esi_rs[plot_snpidx[ii]]<<'\n';
-                        cout<<"rs id of "<<plot_snpidx.size()<<" unique SNPs for plot have been saved in the file [" + ldidfile + "]."<<endl;
-                        ldio.close();
-                        
-                        string ldinfofile = string(plotdir)+"/"+esdata._epi_prbID[i]+".ld.gz";
-                        gzFile gz_outfile = gzopen(ldinfofile.c_str(), "wb");
-                        string ldstrs="";
-                        for(int ii=0;ii<_LD_heidi.cols();ii++)
-                            for(int jj=0;jj<ii;jj++) ldstrs+=atos(_LD_heidi(ii,jj))+"\n";
-                        
-                        if(gzputs(gz_outfile, ldstrs.c_str()) == -1) cout<<"error"<<endl;
-                        gzclose(gz_outfile);
-                        cout<< "Lower triangle of LD score matrix of "<<plot_snpidx.size()<<" SNPs have been saved by row-major in the file ["+ ldinfofile + "]."<<endl;
-                    }
+           
 
-                    if(!plotflg)
-                    {
                         _X_heidi.resize(0,0);
                         
                         long nsnp = sn_ids.size();
@@ -4854,27 +4909,14 @@ namespace SMRDATA
                         else top_match1[outCount] = itos(0);
                         double ldrsqVal = _LD_heidi(indx1, indx2) * _LD_heidi(indx1, indx2);
                         ldrsq[outCount]=dtosf(ldrsqVal);
-                    }
+                   
                     
                 }
                 
             }
             
             //genesn in R is just probidx here. can refer to probinfo to get probeid, probenm, chr, gene, bp
-            if(plotflg && !heidioffFlag)
-            {
-                string ldfile = string(outFileName)+"."+traitname+".plotpath.txt";
-                ofstream ldio(ldfile.c_str());
-                if (!ldio) throw ("Error: can not open the file " + ldfile + " to save!");
-                
-                for (int i = 0;i <plot_paths.size(); i++) {
-                    ldio<<plot_paths[i]<<'\n';
-                }
-                cout<<"informantion of "<<plot_paths.size()<<" probes for plot have been saved in the file [" + ldfile + "]."<<endl;
-                ldio.close();
-
-            }
-            else{
+         
                 if(outCount>=0)
                 {
                     string smrfile = string(outFileName)+"."+traitname+".smr";
@@ -4883,84 +4925,118 @@ namespace SMRDATA
                     
                     smr << "Expo_ID" <<'\t'<< "Expo_Chr" <<'\t' << "Expo_Gene"  << '\t' << "Expo_bp" << '\t'<< "Outco_ID" <<'\t'<< "Outco_Chr" <<'\t' << "Outco_Gene"  << '\t' << "Outco_bp" << '\t'<< "SNP"<< '\t' << "SNP_Chr"<< '\t' << "SNP_bp"<< '\t' << "A1"<< '\t'<< "A2"<< '\t'<<"Freq"<<'\t'<<"b_Outco"<<'\t'<<"se_Outco"<<'\t'<< "p_Outco" << '\t'<<"b_Expo"<<'\t'<<"se_Expo"<<'\t'<< "p_Expo" << '\t'<< "b_SMR" << '\t'<< "se_SMR"<< '\t' << "p_SMR" << "\t"<< "p_HET"<< "\t" << "nsnp" << '\n';
                     
-                    for (int i = 0;i <=outCount; i++) {
+                    for (int i = 0;i <=outCount; i++) {                        
                         smr<<esdata._epi_prbID[out_probid[i]]<<'\t'<<esdata._epi_chr[out_probid[i]]<<'\t'<<esdata._epi_gene[out_probid[i]]<<'\t'<<esdata._epi_bp[out_probid[i]]<<'\t'<<traitname<<'\t'<<etrait._epi_chr[ii]<<'\t'<<etrait._epi_gene[ii]<<'\t'<<etrait._epi_bp[ii]<<'\t'<<rsid[i]<<'\t'<<rschr[i]<<'\t'<<rsbp[i]<<'\t'<<rsa1[i]<<'\t'<<rsa2[i]<<'\t'<<rsfreq[i]<<'\t'<<bgwas[i]<<'\t'<<segwas[i]<<'\t'<<pgwas[i]<<'\t'<<beqtl[i]<<'\t'<<seeqtl[i]<<'\t'<<peqtl[i]<<'\t'<<bxy[i]<<'\t'<<sexy[i]<<'\t'<<pxy[i]<<'\t'<<prb1[i]<<'\t'<<nsnp_test1[i]<<'\n';
                     }
                     cout<<"SMR and heterogeneity analysis finished.\nSMR and heterogeneity analysis results of "<<outCount+1<<" probes have been saved in the file [" + smrfile + "]."<<endl;
                     smr.close();
                     
                 }else cout<<"SMR and heterogeneity analysis finished.\nSMR and heterogeneity analysis results of "<<outCount+1<<" probes have been saved."<<endl;
-            }
+            
             
             free_gwas_data( &gdata);
             
         }
     }
     
-    int read_frqfile(eqtlInfo* eqtlinfo, string frqfile)
+    void update_freq(char* eqtlFileName, char* frqfile)
     {
-        int sample_size=0;
-        ifstream frq(frqfile.c_str());
-        if (!frq) throw ("Error: can not open the file [" + frqfile + "] to read.");
-        cout << "Reading eQTL probe information from [" + frqfile + "]." << endl;
-        eqtlinfo->_esi_maf.clear();
+        eqtlInfo eqtlinfo;
+         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
         
+        read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
+        ifstream frq(frqfile);
+        if (!frq) throw ("Error: can not open the file [" + string(frqfile) + "] to read.");
+        cout << "Reading eQTL probe information from [" + string(frqfile) + "]." << endl;
+        FILE* fsnpfptr=fopen((string(frqfile)+".unmatched.snp.list").c_str(), "w");
+        if (!(fsnpfptr)) {
+            printf("Error: Failed to open unmatched SNP log file.\n");
+        }
+
+        vector<string> vs_buf;
+        map<string, int>::iterator iter;
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
+        int fsnpNum(0);
+        int falleleNum(0);
+        int hitNum(0);
         while(!frq.eof())
         {
             frq.getline(buf,MAX_LINE_SIZE);
-            lineNum++;
+            if(buf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(buf, vs_buf, " \t\n");
+                if(col_num!=4) {
+                    printf("ERROR: column number is not right in row %d!\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[0]=="NA" || vs_buf[0]=="na" || vs_buf[0]=="0"){
+                    printf("ERROR: \"NA\" SNP found in row %d.\n",lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[3]=="NA" || vs_buf[3]=="na" ){
+                    printf("ERROR: \"NA\" SNP freq found in row %d.\n",lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(atof(vs_buf[3].c_str())>=1 || atof(vs_buf[3].c_str())<=0)
+                {
+                    printf("ERROR: freqency should be between (0 , 1) in row %d.\n",lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                iter=eqtlinfo._snp_name_map.find(vs_buf[0]);
+                if(iter!=eqtlinfo._snp_name_map.end())
+                {
+                    int snpidx=iter->second;
+                    if(eqtlinfo._esi_allele1[snpidx]==vs_buf[1] && eqtlinfo._esi_allele2[snpidx]==vs_buf[2]) {
+                        eqtlinfo._esi_freq[snpidx]=atof(vs_buf[3].c_str());
+                        hitNum++;
+                    }
+                    else if(eqtlinfo._esi_allele1[snpidx]==vs_buf[2] && eqtlinfo._esi_allele2[snpidx]==vs_buf[1])
+                    {
+                        eqtlinfo._esi_freq[snpidx]=1-atof(vs_buf[3].c_str());
+                        hitNum++;
+                    }
+                    else {
+                        falleleNum++;
+                        string logstr=vs_buf[0]+'\t'+"failedAlleleCheck"+'\n';
+                        fputs(logstr.c_str(),fsnpfptr);
+                    }
+                    
+                } else {
+                    fsnpNum++;
+                    string logstr=vs_buf[0]+'\t'+"failedSNPMatch"+'\n';
+                    fputs(logstr.c_str(),fsnpfptr);
+                }
+                lineNum++;
+            }
         }
-        if(buf[0]=='\0') lineNum--;
-        
-        cout << lineNum << " SNPs to be included from [" + frqfile + "]." << endl;
-        
-        eqtlinfo->_esi_maf.resize(eqtlinfo->_esi_rs.size());
-        vector<string> tmp_rs;
-        vector<float> tmp_maf;
-        frq.clear(ios::goodbit);
-        frq.seekg (0, ios::beg);
-        for(int i=0;i<lineNum;i++)
-        {
-            string tmpStr;
-            frq.getline(buf,MAX_LINE_SIZE);
-            istringstream iss(buf);
-            iss>>tmpStr;
-            iss>>tmpStr;
-            tmp_rs.push_back(tmpStr.c_str());
-            iss>>tmpStr;
-            iss>>tmpStr;
-            iss>>tmpStr;
-            tmp_maf.push_back(atof(tmpStr.c_str()));
-            iss>>tmpStr;
-            sample_size=atoi(tmpStr.c_str());
-        }
+        fclose(fsnpfptr);
         frq.close();
+        cout << lineNum << " SNPs to be included from [" + string(frqfile) + "]." << endl;
+        printf("%d SNPs hitted, %d SNPs failed in SNP match and %d SNPs failed in allele check.\n",hitNum,fsnpNum,falleleNum);
         
-        vector<int> idx;
-        match_only(eqtlinfo->_esi_rs, tmp_rs, idx);
-        if(idx.size()!=eqtlinfo->_esi_rs.size())
-        {
-            cout<<"Some SNPs in summary data are not in genotype data!"<<endl;
-            exit(1);
+        string esifile = string(eqtlFileName)+".esi";
+        ofstream smr(esifile.c_str());
+        if (!smr) throw ("Error: can not open the esi file " + esifile + " to save!");
+        for (int i = 0;i <eqtlinfo._snpNum; i++) {
+            smr<<eqtlinfo._esi_chr[i]<<'\t'<<eqtlinfo._esi_rs[i]<<'\t'<<eqtlinfo._esi_gd[i]<<'\t'<<eqtlinfo._esi_bp[i]<<'\t'<<eqtlinfo._esi_allele1[i]<<'\t'<<eqtlinfo._esi_allele2[i]<<'\t'<<eqtlinfo._esi_freq[i]<<'\n';
         }
-        for(int i=0;i<idx.size();i++)
-        {
-            eqtlinfo->_esi_maf[i]=tmp_maf[idx[i]];
-        }
+        smr.close();
+        cout<<eqtlinfo._snpNum<<" SNPs have been saved in the file [" + esifile + "]."<<endl;
         
-        return sample_size>>1;
+       
     }
+    
     void write_besd(string outFileName, eqtlInfo* eqtlinfo)
     {
         filter_probe_null(eqtlinfo); // at the same time, reset the vector _include
+        filter_snp_null(eqtlinfo);
         cout<<"\nsaving eQTL data..."<<endl;
         string esdfile = string(outFileName)+".esi";
         ofstream smr(esdfile.c_str());
         if (!smr) throw ("Error: can not open the esi file " + esdfile + " to save!");
         for (int i = 0;i <eqtlinfo->_snpNum; i++) {
-            smr<<eqtlinfo->_esi_chr[i]<<'\t'<<eqtlinfo->_esi_rs[i]<<'\t'<<eqtlinfo->_esi_gd[i]<<'\t'<<eqtlinfo->_esi_bp[i]<<'\t'<<eqtlinfo->_esi_allele1[i]<<'\t'<<eqtlinfo->_esi_allele2[i]<<'\n';
+            smr<<eqtlinfo->_esi_chr[i]<<'\t'<<eqtlinfo->_esi_rs[i]<<'\t'<<eqtlinfo->_esi_gd[i]<<'\t'<<eqtlinfo->_esi_bp[i]<<'\t'<<eqtlinfo->_esi_allele1[i]<<'\t'<<eqtlinfo->_esi_allele2[i]<<'\t'<<eqtlinfo->_esi_freq[i]<<'\n';
         }
         smr.close();
         cout<<eqtlinfo->_snpNum<<" SNPs have been saved in the file [" + esdfile + "]."<<endl;
@@ -5290,7 +5366,7 @@ namespace SMRDATA
         }
         
     }
-    void epi_man(eqtlInfo* eqtlinfo,char* problstName,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename)
+    void epi_man(eqtlInfo* eqtlinfo,char* problstName,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename)
     {
         string logstr;
         int flags4prb=0;

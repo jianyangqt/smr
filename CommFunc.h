@@ -15,7 +15,7 @@
 #if defined _WIN64 || defined _WIN32
 #define MAX_LINE_SIZE 0x10000
 #else
-#define MAX_LINE_SIZE 0x10000
+#define MAX_LINE_SIZE 0x80000
 #endif
 
 #define MAX_LINE_BUF 0x1000000
@@ -74,6 +74,7 @@ namespace CommFunc
     int max_abs_id(VectorXd &zsxz);
     int max_abs_id(vector<double> &zsxz);
     int fopen_checked(FILE** in_file, const char* filename, const char* flag);
+    void getRank(vector<double> &a, vector<int> &b);
     void getRank(vector<int> &a, vector<int> &b);
     void getRank_norep(vector<int> &a, vector<int> &b);
      void getUnique(vector<uint32_t> &a);
