@@ -67,7 +67,7 @@ void option(int option_num, char* option_str[])
     double p_hetero=1.5654e-3;
     double p_smr=5.0e-8;
     double ld_prune=0.9;
-    unsigned int m_hetero=10;
+    unsigned int m_hetero=3;
     bool smr_flag=true;
     bool smr_trans_flag=false;
     

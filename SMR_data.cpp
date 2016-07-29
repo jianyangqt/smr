@@ -1320,11 +1320,7 @@ namespace SMRDATA
             else{
                 if((zsxz[i]*zsxz[i]-threshold)>1e-6) sn_ids.push_back(i);
             }
-            
         }
-        
-        
-        
     }
    void est_cov_bxy(MatrixXd &covbxy, VectorXd &_zsxz,VectorXd &_bxy,VectorXd &_seyz,VectorXd &_bxz, MatrixXd &_LD_heidi)
     {
@@ -1365,7 +1361,7 @@ namespace SMRDATA
             for(int j=maxid+1;j<nsnp;j++) dev[j-1]=_bxy[maxid]-_bxy[j];			
 
             est_cov_bxy(covbxy, _zsxz,_bxy,_seyz,_bxz,_LD_heidi);            
-			
+                       
             double tmp1=covbxy(maxid,maxid);           
             tmp3.resize(nsnp-1);
             for(int i=0; i<maxid; i++) tmp3[i]=covbxy(maxid,i);
@@ -3055,7 +3051,7 @@ namespace SMRDATA
     void init_smr_wk(SMRWK* smrwk)
     {
         smrwk->bxz.clear(),smrwk->sexz.clear(),smrwk->curId.clear(),smrwk->rs.clear(),smrwk->snpchrom.clear(),smrwk->byz.clear();
-        smrwk->seyz.clear(),smrwk->pyz.clear(),smrwk->bpsnp.clear(),smrwk->allele1.clear(),smrwk->alllele2.clear(),smrwk->freq.clear();
+        smrwk->seyz.clear(),smrwk->pyz.clear(),smrwk->bpsnp.clear(),smrwk->allele1.clear(),smrwk->allele2.clear(),smrwk->freq.clear(),smrwk->zxz.clear();
     }
     long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, const char* refSNP, int lowerbp,int upperbp)
     {
@@ -3073,6 +3069,7 @@ namespace SMRDATA
                     {
                         smrwk->bxz.push_back(esdata->_bxz[i][j]);
                         smrwk->sexz.push_back(esdata->_sexz[i][j]);
+                        smrwk->zxz.push_back(esdata->_bxz[i][j]/esdata->_sexz[i][j]);
                         smrwk->byz.push_back(gdata->byz[j]);
                         smrwk->seyz.push_back(gdata->seyz[j]);
                         smrwk->pyz.push_back(gdata->pvalue[j]);
@@ -3100,6 +3097,7 @@ namespace SMRDATA
                 {
                     smrwk->bxz.push_back(esdata->_val[beta_start+j]);
                     smrwk->sexz.push_back(esdata->_val[se_start+j]);
+                    smrwk->zxz.push_back(esdata->_val[beta_start+j]/esdata->_val[se_start+j]);
                     smrwk->byz.push_back(gdata->byz[ge_rowid]);
                     smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
                     smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
@@ -3130,6 +3128,7 @@ namespace SMRDATA
                     {
                         smrwk->bxz.push_back(esdata->_bxz[i][j]);
                         smrwk->sexz.push_back(esdata->_sexz[i][j]);
+                        smrwk->zxz.push_back(esdata->_bxz[i][j]/esdata->_sexz[i][j]);
                         smrwk->byz.push_back(gdata->byz[j]);
                         smrwk->seyz.push_back(gdata->seyz[j]);
                         smrwk->pyz.push_back(gdata->pvalue[j]);
@@ -3137,7 +3136,7 @@ namespace SMRDATA
                         smrwk->rs.push_back(esdata->_esi_rs[j]);
                         smrwk->snpchrom.push_back(esdata->_esi_chr[j]);
                         smrwk->allele1.push_back(esdata->_esi_allele1[j]);
-                        smrwk->alllele2.push_back(esdata->_esi_allele2[j]);
+                        smrwk->allele2.push_back(esdata->_esi_allele2[j]);
                         if(refSNP!=NULL && esdata->_esi_rs[j]==string(refSNP)) maxid=(smrwk->rs.size()-1);
                         smrwk->bpsnp.push_back(esdata->_esi_bp[j]);
                         if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[j]] / 2);
@@ -3160,6 +3159,7 @@ namespace SMRDATA
                 {
                     smrwk->bxz.push_back(esdata->_val[beta_start+j]);
                     smrwk->sexz.push_back(esdata->_val[se_start+j]);
+                    smrwk->zxz.push_back(esdata->_val[beta_start+j]/esdata->_val[se_start+j]);
                     smrwk->byz.push_back(gdata->byz[ge_rowid]);
                     smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
                     smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
@@ -3167,7 +3167,7 @@ namespace SMRDATA
                     smrwk->rs.push_back(esdata->_esi_rs[ge_rowid]);
                     smrwk->snpchrom.push_back(esdata->_esi_chr[ge_rowid]);
                     smrwk->allele1.push_back(esdata->_esi_allele1[ge_rowid]);
-                    smrwk->alllele2.push_back(esdata->_esi_allele2[ge_rowid]);
+                    smrwk->allele2.push_back(esdata->_esi_allele2[ge_rowid]);
                     if(refSNP!=NULL && esdata->_esi_rs[ge_rowid]==string(refSNP)) maxid=(smrwk->rs.size()-1);
                     smrwk->bpsnp.push_back(esdata->_esi_bp[ge_rowid]);
                     if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[ge_rowid]] / 2);
@@ -3228,53 +3228,242 @@ namespace SMRDATA
         
         return pdev;
     }
-    double heidi_test_new(bInfo* bdata,SMRWK* smrwk, long maxid,double ld_top, double threshold, int m_hetero,long &nsnp )
+    void update_snidx(SMRWK* smrwk,vector<int> &sn_ids,int max_snp_slct, string forwhat)
+    {
+        if(sn_ids.size()>max_snp_slct)
+        {
+            printf("Top %d SNPs are selected for %s...\n",max_snp_slct,forwhat.c_str());
+            priority_queue< pair<double, int> > q;
+            vector<int> sn_slct_ids;
+            for(int i=0;i<sn_ids.size();i++) q.push((pair<double, int>(abs(smrwk->zxz[sn_ids[i]]), sn_ids[i])));
+            for(int i=0;i<max_snp_slct;i++){
+                sn_slct_ids.push_back(q.top().second);
+                q.pop();
+            }
+            sn_ids.swap(sn_slct_ids);
+        }
+        
+    }
+    void extract_smrwk(SMRWK* smrwk,vector<int> &sn_ids,SMRWK* smrwk2)
+    {
+        smrwk2->cur_chr=smrwk->cur_chr;
+        smrwk2->cur_prbidx=smrwk->cur_prbidx;
+        for(int i=0;i<sn_ids.size();i++)
+        {
+            smrwk2->bxz.push_back(smrwk->bxz[sn_ids[i]]);
+            smrwk2->sexz.push_back(smrwk->sexz[sn_ids[i]]);
+            smrwk2->freq.push_back(smrwk->freq[sn_ids[i]]);
+            smrwk2->byz.push_back(smrwk->byz[sn_ids[i]]);
+            smrwk2->seyz.push_back(smrwk->seyz[sn_ids[i]]);
+            smrwk2->pyz.push_back(smrwk->pyz[sn_ids[i]]);
+            smrwk2->zxz.push_back(smrwk->zxz[sn_ids[i]]);
+            smrwk2->curId.push_back(smrwk->curId[sn_ids[i]]);
+            smrwk2->bpsnp.push_back(smrwk->bpsnp[sn_ids[i]]);
+            smrwk2->snpchrom.push_back(smrwk->snpchrom[sn_ids[i]]);
+            smrwk2->rs.push_back(smrwk->rs[sn_ids[i]]);
+            smrwk2->allele1.push_back(smrwk->allele1[sn_ids[i]]);
+            smrwk2->allele2.push_back(smrwk->allele2[sn_ids[i]]);
+        }
+
+    }
+    void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1) {
+        //Modified version of rm_cor_indi from grm.cpp
+        
+        int i = 0, j = 0, i_buf = 0;
+        vector<int> rm_ID2;
+        
+        //float tmpr = 0;
+        for (i = 0; i < m; i++) {
+            for (j = 0; j < i; j++) {
+                if (fabs(R(i,j)) > R_cutoff ) {
+                    rm_ID1.push_back(i);
+                    rm_ID2.push_back(j);
+                }
+            }
+        }
+        
+        // count the number of appearance of each "position" in the vector, which involves a few steps
+        vector<int> rm_uni_ID(rm_ID1);
+        rm_uni_ID.insert(rm_uni_ID.end(), rm_ID2.begin(), rm_ID2.end());
+        stable_sort(rm_uni_ID.begin(), rm_uni_ID.end());
+        rm_uni_ID.erase(unique(rm_uni_ID.begin(), rm_uni_ID.end()), rm_uni_ID.end());
+        map<int, int> rm_uni_ID_count;
+        for (i = 0; i < rm_uni_ID.size(); i++) {
+            i_buf = count(rm_ID1.begin(), rm_ID1.end(), rm_uni_ID[i]) + count(rm_ID2.begin(), rm_ID2.end(), rm_uni_ID[i]);
+            rm_uni_ID_count.insert(pair<int, int>(rm_uni_ID[i], i_buf));
+        }
+        
+        // swapping
+        map<int, int>::iterator iter1, iter2;
+        for (i = 0; i < rm_ID1.size(); i++) {
+            iter1 = rm_uni_ID_count.find(rm_ID1[i]);
+            iter2 = rm_uni_ID_count.find(rm_ID2[i]);
+            if (iter1->second < iter2->second) {
+                i_buf = rm_ID1[i];
+                rm_ID1[i] = rm_ID2[i];
+                rm_ID2[i] = i_buf;
+            }
+        }
+        stable_sort(rm_ID1.begin(), rm_ID1.end());
+        rm_ID1.erase(unique(rm_ID1.begin(), rm_ID1.end()), rm_ID1.end());
+    }
+    void update_smrwk_x(SMRWK* smrwk,vector<int> &sn_ids,MatrixXd &X)
+    {
+        vector<double> byz,seyz, bxz,sexz,zxz,freq,pyz;
+        vector<uint32_t> curId;
+        vector<int>  bpsnp, snpchrom;
+        vector<string> rs,allele1, allele2;
+        MatrixXd _X;
+        byz.resize(sn_ids.size());
+        seyz.resize(sn_ids.size());
+        bxz.resize(sn_ids.size());
+        sexz.resize(sn_ids.size());
+        zxz.resize(sn_ids.size());
+        freq.resize(sn_ids.size());
+        pyz.resize(sn_ids.size());
+        curId.resize(sn_ids.size());
+        bpsnp.resize(sn_ids.size());
+        snpchrom.resize(sn_ids.size());
+        rs.resize(sn_ids.size());
+        allele1.resize(sn_ids.size());
+        allele2.resize(sn_ids.size());
+        _X.resize(X.rows(), sn_ids.size());
+        
+        #pragma omp parallel for
+        for(int j=0;j<sn_ids.size();j++)
+        {
+            byz[j]=smrwk->byz[sn_ids[j]];
+            seyz[j]=smrwk->seyz[sn_ids[j]];
+            bxz[j]=smrwk->bxz[sn_ids[j]];
+            sexz[j]=smrwk->sexz[sn_ids[j]];
+            zxz[j]=smrwk->zxz[sn_ids[j]];
+            freq[j]=smrwk->freq[sn_ids[j]];
+            pyz[j]=smrwk->pyz[sn_ids[j]];
+            curId[j]=smrwk->curId[sn_ids[j]];
+            bpsnp[j]=smrwk->bpsnp[sn_ids[j]];
+            snpchrom[j]=smrwk->snpchrom[sn_ids[j]];
+            rs[j]=smrwk->rs[sn_ids[j]];
+            allele1[j]=smrwk->allele1[sn_ids[j]];
+            allele2[j]=smrwk->allele2[sn_ids[j]];
+            _X.col(j)=X.col(sn_ids[j]);
+        }
+        smrwk->bxz.swap(bxz);
+        smrwk->sexz.swap(sexz);
+        smrwk->freq.swap(freq);
+        smrwk->byz.swap(byz);
+        smrwk->seyz.swap(seyz);
+        smrwk->pyz.swap(pyz);
+        smrwk->zxz.swap(zxz);
+        smrwk->curId.swap(curId);
+        smrwk->bpsnp.swap(bpsnp);
+        smrwk->snpchrom.swap(snpchrom);
+        smrwk->rs.swap(rs);
+        smrwk->allele1.swap(allele1);
+        smrwk->allele2.swap(allele2);
+        X=_X;
+    }
+
+
+    double heidi_test_new(bInfo* bdata,SMRWK* smrwk, long maxid,double ldr2_top, double threshold, int m_hetero,long &nsnp )
     {
         VectorXd ld_v;
         MatrixXd _X;
         vector<int> sn_ids;
-        Map<VectorXd> ei_bxz(&smrwk->bxz[0],smrwk->bxz.size());
-        Map<VectorXd> ei_sexz(&smrwk->sexz[0],smrwk->sexz.size());
-        
-        VectorXd zsxz=ei_bxz.array()/ei_sexz.array();
-        
-        
-        make_XMat(bdata,smrwk->curId, _X);
-        ld_calc_o2m(ld_v,maxid,_X);
-        if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
-        else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
+        double pthres=pchisq(threshold,1);
+        printf("Filtering SNPs (total %ld) with a p-value threshold for HEIDI test %e.\n",smrwk->zxz.size(), pthres);
+        for(int i=0;i<smrwk->zxz.size();i++)
+        {
+            if(smrwk->zxz[i]*smrwk->zxz[i]-threshold>1e-6) sn_ids.push_back(i);
+        }
         if(sn_ids.size() < m_hetero) {
             
             printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
             return -9;
         }
+        printf("%ld SNPs left after filtration.\n",sn_ids.size());
+        update_snidx(smrwk,sn_ids,500,"LD pruning");
+        
+        SMRWK smrwk_heidi;
+        extract_smrwk(smrwk,sn_ids,&smrwk_heidi);
+        long maxid_heidi=max_abs_id(smrwk_heidi.zxz);
+        
+        make_XMat(bdata,smrwk_heidi.curId, _X);
+        printf("Removing SNPs with LD r-square > the threshold %f between top-SNP %s ...\n",ldr2_top,smrwk_heidi.rs[maxid_heidi].c_str());
+        ld_calc_o2m(ld_v,maxid_heidi,_X);
+        sn_ids.clear();
+        if(abs(ldr2_top-1)>1e-6) {
+            
+            for(int i=0;i<smrwk_heidi.zxz.size();i++)
+            {
+                if(i!= maxid_heidi)
+                {
+                    if((ld_v(i)*ld_v(i)-ldr2_top)<1e-6) sn_ids.push_back(i);
+                }
+                else{
+                    sn_ids.push_back(i);
+                }
+            }
+        }
+        printf("%ld SNPs are removed and %ld SNPs are left.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
+        if(sn_ids.size() < m_hetero) {
+            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            return -9;
+        }
+        update_smrwk_x(&smrwk_heidi,sn_ids,_X);
+        maxid_heidi=max_abs_id(smrwk_heidi.zxz);
+        printf("Removing one of each pair of remaining SNPs with LD r-square > the threshold %f...\n",ldr2_top);
+        int m = (int)smrwk_heidi.bxz.size();
+        vector<int> rm_ID1;
+        MatrixXd C;
+        cor_calc(C, _X);
+        double ld_top=sqrt(ldr2_top);
+        if (ld_top < 1) rm_cor_sbat(C, ld_top, m, rm_ID1);
+        printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are left.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
+        if(m-rm_ID1.size() < m_hetero) {
+            
+            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            return -9;
+        }
+        //Create new index
+        sn_ids.clear();
+        int qi=0;
+        for (int i=0 ; i<m ; i++) {
+            if (rm_ID1.size() == 0) sn_ids.push_back(i);
+            else {
+                if (rm_ID1[qi] == i) qi++; //Skip removed snp
+                else sn_ids.push_back(i);
+            }
+        }
+        
+        update_snidx(&smrwk_heidi,sn_ids,20,"HEIDI test");
+        if (sn_ids.size() < C.size()) { //Build new matrix
+            MatrixXd D(sn_ids.size(),sn_ids.size());
+            for (int i = 0 ; i < sn_ids.size() ; i++) {
+                for (int j = 0 ; j < sn_ids.size() ; j++) {
+                    D(i,j) = C(sn_ids[i],sn_ids[j]);
+                }
+            }
+            C = D;
+        }        
         
         VectorXd _byz,_seyz, _bxz,_sexz,_zsxz;
-        MatrixXd _X_heidi, _LD_heidi;
         _byz.resize(sn_ids.size());
         _seyz.resize(sn_ids.size());
         _bxz.resize(sn_ids.size());
         _sexz.resize(sn_ids.size());
         _zsxz.resize(sn_ids.size());
-        _X_heidi.resize(_X.rows(), sn_ids.size());
-        
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int j=0;j<sn_ids.size();j++)
         {
-            _byz[j]=smrwk->byz[sn_ids[j]];
-            _seyz[j]=smrwk->seyz[sn_ids[j]];
-            _bxz[j]=smrwk->bxz[sn_ids[j]];
-            _sexz[j]=smrwk->sexz[sn_ids[j]];
-            _zsxz[j]=zsxz(sn_ids[j]);
-            _X_heidi.col(j)=_X.col(sn_ids[j]);
+            _byz[j]=smrwk_heidi.byz[sn_ids[j]];
+            _seyz[j]=smrwk_heidi.seyz[sn_ids[j]];
+            _bxz[j]=smrwk_heidi.bxz[sn_ids[j]];
+            _sexz[j]=smrwk_heidi.sexz[sn_ids[j]];
+            _zsxz[j]=smrwk_heidi.zxz[sn_ids[j]];
         }
-        _X.resize(0,0);
-        cor_calc(_LD_heidi, _X_heidi);
-        
-        _X_heidi.resize(0,0);
-        
+       
         nsnp = sn_ids.size();
-        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, _LD_heidi, &nsnp);
+        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
         
         return pdev;
     }
@@ -3285,8 +3474,6 @@ namespace SMRDATA
         double thresh_heidi= chi_val(1,p_hetero);
         VectorXd _byz,_seyz,_bxz,_sexz,_zsxz,ld_v,zsxz;
         MatrixXd _X,_LD,_LD_heidi,_X_heidi;
-        
-        
         
         FILE* smr=NULL;
         long write_count=0;
@@ -3335,7 +3522,9 @@ namespace SMRDATA
             
             init_smr_wk(&smrwk);
             smrwk.cur_prbidx=i;
+            smrwk.cur_chr=probechr;
             long maxid =fill_smr_wk(bdata, gdata, esdata, &smrwk, refSNP, cis_itvl,heidioffFlag);
+            
             if(refSNP!=NULL && maxid==-9)
             {
                 printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
@@ -3343,7 +3532,7 @@ namespace SMRDATA
             }
             if (smrwk.bxz.size() == 0) {
                 
-                printf("WARNING: no SNP fetched in probe %s.\n", probename.c_str());
+                printf("WARNING: No SNP fetched in probe %s.\n", probename.c_str());
                 continue;
             }
             
@@ -3357,6 +3546,8 @@ namespace SMRDATA
             if(refSNP==NULL && pxz_val>p_smr){
                 printf("WARNING: no SNP passed a p-value threshold %e for SMR analysis in probe %s.\n", p_smr, probename.c_str());
                 continue;
+            } else {
+                printf("Dealing with probe %s...\n", probename.c_str());
             }
             double bxy_val = smrwk.byz[maxid] / smrwk.bxz[maxid];
             double sexy_val = sqrt((smrwk.seyz[maxid] * smrwk.seyz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] + smrwk.sexz[maxid] * smrwk.sexz[maxid] * smrwk.byz[maxid] * smrwk.byz[maxid]) / (smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid]));
@@ -3366,7 +3557,7 @@ namespace SMRDATA
             SMRRLT currlt;
             if(smr)
             {
-                outstr = probename + '\t' + atos(probechr) + '\t' + probegene + '\t' + atos(probebp) + '\t' + smrwk.rs[maxid] + '\t' + atos(smrwk.snpchrom[maxid]) + '\t' + atos(smrwk.bpsnp[maxid]) + '\t' + smrwk.allele1[maxid] + '\t' + smrwk.alllele2[maxid] + '\t' + atos(smrwk.freq[maxid]) + '\t';
+                outstr = probename + '\t' + atos(probechr) + '\t' + probegene + '\t' + atos(probebp) + '\t' + smrwk.rs[maxid] + '\t' + atos(smrwk.snpchrom[maxid]) + '\t' + atos(smrwk.bpsnp[maxid]) + '\t' + smrwk.allele1[maxid] + '\t' + smrwk.allele2[maxid] + '\t' + atos(smrwk.freq[maxid]) + '\t';
                 outstr += atos(smrwk.byz[maxid]) + '\t' + atos(smrwk.seyz[maxid]) + '\t' + dtos(smrwk.pyz[maxid]) + '\t';
                 outstr += atos(smrwk.bxz[maxid]) + '\t' + atos(smrwk.sexz[maxid]) + '\t' + dtos(pxz_val) + '\t';
                 outstr += atos(bxy_val) + '\t' + atos(sexy_val) + '\t' + dtos(pxy_val) + '\t';
@@ -3381,7 +3572,7 @@ namespace SMRDATA
                 currlt.SNP_Chr=smrwk.snpchrom[maxid];
                 currlt.SNP_bp=smrwk.bpsnp[maxid];
                 currlt.A1=smrwk.allele1[maxid];
-                currlt.A2=smrwk.alllele2[maxid];
+                currlt.A2=smrwk.allele2[maxid];
                 currlt.Freq=smrwk.freq[maxid];
                 currlt.b_GWAS=smrwk.byz[maxid];
                 currlt.se_GWAS=smrwk.seyz[maxid];
@@ -3415,9 +3606,61 @@ namespace SMRDATA
             }
             else
             {
+                
+                /****Generate the test data***/
+                /*
+                 MatrixXd _X;
+                 make_XMat(bdata,smrwk.curId, _X);
+                 string xfilename =string(outFileName)+".mat";
+                 FILE* xfile = fopen(xfilename.c_str(), "w");
+                 if (!(xfile)) {
+                 printf("Open error %s\n", xfilename.c_str());
+                 exit(1);
+                 }
+                 string str=smrwk.rs[0];
+                 for( int j=1;j<smrwk.rs.size();j++) str+='\t'+smrwk.rs[j];
+                 str+='\n';
+                 fputs_checked(str.c_str(), xfile);
+                 for(int i=0;i<_X.rows();i++)
+                 {
+                 string str=atos(_X(i,0));
+                 for( int j=1;j<_X.cols();j++) str+='\t'+atos(_X(i,j));
+                 str+='\n';
+                 fputs_checked(str.c_str(), xfile);
+                 }
+                 fclose(xfile);
+                
+                string gwasfname =string(outFileName)+".gwas";
+                FILE* gfile = fopen(gwasfname.c_str(), "w");
+                if (!(gfile)) {
+                    printf("Open error %s\n", gwasfname.c_str());
+                    exit(1);
+                }
+                for( int j=0;j<smrwk.rs.size();j++)
+                {
+                    string str=smrwk.rs[j]+'\t'+atos(smrwk.byz[j])+'\t'+atos(smrwk.seyz[j])+'\n';
+                    fputs_checked(str.c_str(), gfile);
+                }
+                fclose(gfile);
+                
+                string eqtlfname =string(outFileName)+".eqtl";
+                FILE* efile = fopen(eqtlfname.c_str(), "w");
+                if (!(efile)) {
+                    printf("Open error %s\n", eqtlfname.c_str());
+                    exit(1);
+                }
+                for( int j=0;j<smrwk.rs.size();j++)
+                {
+                    string str=smrwk.rs[j]+'\t'+atos(smrwk.bxz[j])+'\t'+atos(smrwk.sexz[j])+'\n';
+                    fputs_checked(str.c_str(), efile);
+                }
+                fclose(efile);
+                 */
+                /*****/
+
                 long nsnp=-9;
                 double pdev=-9;
-                if(!heidioffFlag)  pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
+                if(!heidioffFlag)  pdev= heidi_test_new(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                 if(smr)
                 {
                     outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp) : "NA") + '\n';

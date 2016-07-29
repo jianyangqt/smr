@@ -187,10 +187,10 @@ namespace SMRDATA
         int cur_chr;
         int cur_prbidx;
         vector<double> bxz, sexz,freq,byz,seyz;
-        vector<double> pyz;
+        vector<double> pyz,zxz;
         vector<uint32_t> curId;
         vector<int>  bpsnp, snpchrom;
-        vector<string> rs,allele1, alllele2;
+        vector<string> rs,allele1, allele2;
     } SMRWK;
     
     typedef struct{
@@ -332,5 +332,7 @@ namespace SMRDATA
     void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile);
     void read_gene_anno(char* geneAnnoName,vector<int> &chr, vector<string> &genename,vector<int> &start,vector<int> &end);
     void rm_unmatched_snp(gwasData* gdata, eqtlInfo* esdata);
+    
+    void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */

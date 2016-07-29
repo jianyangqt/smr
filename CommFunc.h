@@ -41,6 +41,7 @@
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>
 #include <Eigen/Eigenvalues>
+#include <queue>
 
 typedef unsigned long long         uint64_t;
 typedef unsigned int         uint32_t;

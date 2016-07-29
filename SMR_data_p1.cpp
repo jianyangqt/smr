@@ -1939,48 +1939,6 @@ namespace SMRDATA
     }
 
    
-    void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1) {
-        //Modified version of rm_cor_indi from grm.cpp
-        
-        int i = 0, j = 0, i_buf = 0;
-        vector<int> rm_ID2;
-        
-        //float tmpr = 0;
-        for (i = 0; i < m; i++) {
-            for (j = 0; j < i; j++) {
-                if (fabs(R(i,j)) > R_cutoff ) {
-                    rm_ID1.push_back(i);
-                    rm_ID2.push_back(j);
-                }
-            }
-        }
-        
-        // count the number of appearance of each "position" in the vector, which involves a few steps
-        vector<int> rm_uni_ID(rm_ID1);
-        rm_uni_ID.insert(rm_uni_ID.end(), rm_ID2.begin(), rm_ID2.end());
-        stable_sort(rm_uni_ID.begin(), rm_uni_ID.end());
-        rm_uni_ID.erase(unique(rm_uni_ID.begin(), rm_uni_ID.end()), rm_uni_ID.end());
-        map<int, int> rm_uni_ID_count;
-        for (i = 0; i < rm_uni_ID.size(); i++) {
-            i_buf = count(rm_ID1.begin(), rm_ID1.end(), rm_uni_ID[i]) + count(rm_ID2.begin(), rm_ID2.end(), rm_uni_ID[i]);
-            rm_uni_ID_count.insert(pair<int, int>(rm_uni_ID[i], i_buf));
-        }
-        
-        // swapping
-        map<int, int>::iterator iter1, iter2;
-        for (i = 0; i < rm_ID1.size(); i++) {
-            iter1 = rm_uni_ID_count.find(rm_ID1[i]);
-            iter2 = rm_uni_ID_count.find(rm_ID2[i]);
-            if (iter1->second < iter2->second) {
-                i_buf = rm_ID1[i];
-                rm_ID1[i] = rm_ID2[i];
-                rm_ID2[i] = i_buf;
-            }
-        }
-        stable_sort(rm_ID1.begin(), rm_ID1.end());
-        rm_ID1.erase(unique(rm_ID1.begin(), rm_ID1.end()), rm_ID1.end());
-    }
-    
     int maxabsid(vector<double> &zsxz, vector<int> &ids)
     {
         
