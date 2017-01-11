@@ -15,7 +15,7 @@ namespace SMRDATA
     {
         ifstream flptr(syllabusName);
         if (!flptr) {
-            printf("Error: can not open the file %s to read.\n",syllabusName);
+            printf("ERROR: can not open the file %s to read.\n",syllabusName);
             exit(EXIT_FAILURE);
         }
         printf( "Reading eQTL probe information from \"%s\".\n", syllabusName);
@@ -25,6 +25,11 @@ namespace SMRDATA
         long mapsize=0;
         char buf[MAX_LINE_SIZE];
         flptr.getline(buf, MAX_LINE_SIZE); //header
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",syllabusName);
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -49,24 +54,24 @@ namespace SMRDATA
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=7 && col_num!=8) {
-                    printf("ERROR: column number is not right in row %d with probe ID %s!\n", fcount+2, vs_buf[1].c_str());
+                    printf("ERROR: column number is not correct in row %d with probe name %s.\n", fcount+2, vs_buf[1].c_str());
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na")
                 {
-                    printf("ERROR: Probe name can't be  \"NA\". \n");
+                    printf("ERROR: probe name is missing in row %d.\n", fcount+2);
                     exit(EXIT_FAILURE);
                 }
                 to_upper(vs_buf[0]);
                 to_upper(vs_buf[3]);
                 if(vs_buf[0]=="NA" || vs_buf[3]=="NA")
                 {
-                    printf("ERROR: \"NA\" found in Choromosome or probe position of probe %s!\n", vs_buf[1].c_str());
+                    printf("ERROR: probe chromosome information or probe position information of probe %s is missing in row %d.\n", vs_buf[1].c_str(),fcount+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[6]=="NA" || vs_buf[6]=="na")
                 {
-                    printf("ERROR: File path can't be  \"NA\". \n");
+                    printf("ERROR: ESD file path of probe %s is missing in row %d.\n", vs_buf[1].c_str(),fcount+2);
                     exit(EXIT_FAILURE);
                 }
                 string cpstr=vs_buf[0]+":"+vs_buf[1];
@@ -76,12 +81,12 @@ namespace SMRDATA
                 probe_map.insert(pair<string,int>(vs_buf[6],fcount));
                 if(probe_cp_map.size()!=probe_cpb_map.size())
                 {
-                    printf("ERROR: Different BPs of probe %s found.\n",vs_buf[1].c_str() );
+                    printf("ERROR: probe %s has multiple positions.\n",vs_buf[1].c_str() );
                     exit(EXIT_FAILURE);
                 }
                 if(mapsize==probe_map.size())
                 {
-                    printf("ERROR: Duplicate esd file name %s found.\n",vs_buf[6].c_str() );
+                    printf("ERROR: Duplicated ESD file name found for %s.\n",vs_buf[6].c_str() );
                     exit(EXIT_FAILURE);
                 } else {
                     mapsize=probe_map.size();
@@ -104,7 +109,7 @@ namespace SMRDATA
             }
         }
         flptr.close();
-        printf("%d esd files of total %ld probes infomation to be included from \"%s\".\n",lineNum, probe_cp_map.size(), syllabusName);
+        printf("%d ESD files of total %ld probes to be included from \"%s\".\n",lineNum, probe_cp_map.size(), syllabusName);
         return lineNum;
     }
     void read_smr_sa(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<string> &a1, vector<string> &a2, vector<float> &freq,vector<float> &beta,vector<float> &se,string esdpath)
@@ -116,7 +121,7 @@ namespace SMRDATA
         {
             gzfile = gzopen(esdpath.c_str(), "rb");
             if (!(gzfile)) {
-                fprintf (stderr, "%s: Couldn't open file %s\n",
+                fprintf (stderr, "%s: Error: can not open the file %s\n",
                          esdpath.c_str(), strerror (errno));
                 exit (EXIT_FAILURE);
             }
@@ -126,13 +131,18 @@ namespace SMRDATA
             flptr.open(esdpath.c_str());
             if (!flptr) throw ("Error: can not open the file [" + esdpath + "] to read.");
         }
-        cout << "Reading eQTL information from [" + string(esdpath) + "]." << endl;
+        cout << "Reading eQTL summary data from [" + string(esdpath) + "]." << endl;
         
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -150,11 +160,11 @@ namespace SMRDATA
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=9) {
-                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    printf("ERROR: column number is not correct in row %d.!", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 string tmpstr=vs_buf[1]+":"+vs_buf[3]+":"+vs_buf[4];
@@ -162,7 +172,7 @@ namespace SMRDATA
                 if(currssize<currs_map.size())
                 {
                     if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                        printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                        printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     int tmpchr;
@@ -172,7 +182,7 @@ namespace SMRDATA
                     chr.push_back(tmpchr);
                     rs.push_back(vs_buf[1]);
                     if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                        printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                        printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
 
@@ -186,7 +196,7 @@ namespace SMRDATA
                         float fq=atof(vs_buf[5].c_str());
                         if(fq<=0 || fq>=1)
                         {
-                            printf("ERROR: freq should be between 0 and 1.\n");
+                            printf("ERROR: allele frequency should be between 0 and 1 in row %d.\n",lineNum+2);
                             exit(EXIT_FAILURE);
                         }
                         freq.push_back(fq);
@@ -205,7 +215,7 @@ namespace SMRDATA
                     lineNum++;
                     currssize=currs_map.size();
                 } else {
-                    printf("WARNING: duplicate SNP %s with the same alleles found in file [%s]. This row was skiped:\n", vs_buf[1].c_str(),esdpath.c_str());
+                    printf("WARNING: duplicated SNP ID %s in file %s. The duplicated entry is omitted:\n", vs_buf[1].c_str(),esdpath.c_str());
                     printf("%s.\n",buf);
                 }
             }
@@ -213,7 +223,7 @@ namespace SMRDATA
         
         if(gzflag) gzclose(gzfile);
         else flptr.close();
-        cout << lineNum << " SNPs infomation to be included from [" + string(esdpath) + "]." << endl;
+        cout << lineNum << " SNPs to be included from [" + string(esdpath) + "]." << endl;
     }
     void read_smr_sa(vector<snpinfolst> &snpinfo,string esdpath)
     {
@@ -241,6 +251,11 @@ namespace SMRDATA
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -259,11 +274,11 @@ namespace SMRDATA
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=9) {
-                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    printf("ERROR: column number is not right in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 string tmpstr=vs_buf[1]+":"+vs_buf[3]+":"+vs_buf[4];
@@ -271,7 +286,7 @@ namespace SMRDATA
                 if(currssize<currs_map.size())
                 {
                     if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                        printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                        printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpesd.snpchr=23;
@@ -279,7 +294,7 @@ namespace SMRDATA
                     else tmpesd.snpchr=atoi(vs_buf[0].c_str());
                     tmpesd.snprs=vs_buf[1].c_str();
                     if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                        printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                        printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     tmpesd.bp=atoi(vs_buf[2].c_str());
@@ -292,7 +307,7 @@ namespace SMRDATA
                         float fq=atof(vs_buf[5].c_str());
                         if(fq<=0 || fq>=1)
                         {
-                            printf("ERROR: freq should be between 0 and 1.\n");
+                            printf("ERROR: freq should be between 0 and 1 in row %d.\n", lineNum+2);
                             exit(EXIT_FAILURE);
                         }
                         tmpesd.freq=fq;
@@ -312,7 +327,7 @@ namespace SMRDATA
                     lineNum++;
                     currssize=currs_map.size();
                 } else {
-                    printf("WARNING: duplicate SNP %s with the same alleles found in file [%s]. This row was skiped:\n", vs_buf[1].c_str(),esdpath.c_str());
+                    printf("WARNING: duplicated SNP ID %s in file %s. The duplicated entry is omitted:\n", vs_buf[1].c_str(),esdpath.c_str());
                     printf("%s.\n",buf);
                 }
             }
@@ -334,6 +349,11 @@ namespace SMRDATA
         }
         int lineNum(0);
         gzgets(gzfile, tbuf, MAX_LINE_SIZE); //head
+        if(tbuf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(tbuf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -353,11 +373,11 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
@@ -367,7 +387,7 @@ namespace SMRDATA
                 chr.push_back(tmpchr);
                 rs.push_back(vs_buf[1]);
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
 
@@ -398,6 +418,11 @@ namespace SMRDATA
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
         flptr.getline(buf,MAX_LINE_SIZE);
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -416,11 +441,11 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
@@ -430,7 +455,7 @@ namespace SMRDATA
                 chr.push_back(tmpchr);
                 rs.push_back(vs_buf[1]);
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 bp.push_back(atoi(vs_buf[2].c_str()));
@@ -476,6 +501,11 @@ namespace SMRDATA
         int lineNum(0);
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -496,11 +526,11 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpesd.snpchr=23;
@@ -509,7 +539,7 @@ namespace SMRDATA
                 
                 tmpesd.snprs=vs_buf[1].c_str();
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 tmpesd.bp=atoi(vs_buf[2].c_str());
@@ -559,6 +589,11 @@ namespace SMRDATA
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -579,11 +614,11 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
@@ -594,7 +629,7 @@ namespace SMRDATA
                 
                 rs.push_back(vs_buf[1]);
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 bp.push_back(atoi(vs_buf[2].c_str()));
@@ -607,7 +642,7 @@ namespace SMRDATA
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<0 || fq>1)
                     {
-                        printf("ERROR: freq should be between 0 and 1.\n");
+                        printf("ERROR: freq should be between 0 and 1 in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     freq.push_back(fq);
@@ -660,6 +695,11 @@ namespace SMRDATA
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -676,15 +716,16 @@ namespace SMRDATA
                 vs_buf.clear();
                 int col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=12) {
-                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    printf("ERROR: column number is not right in row %d.\n", lineNum+2);
+                    printf("\t%s\n",buf);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
@@ -695,7 +736,7 @@ namespace SMRDATA
                 
                 rs.push_back(vs_buf[0]);
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 bp.push_back(atoi(vs_buf[2].c_str()));
@@ -708,7 +749,7 @@ namespace SMRDATA
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
                     {
-                        printf("ERROR: freq should be between 0 and 1.\n");
+                        printf("ERROR: Allele frequency should be between 0 and 1 in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     freq.push_back(fq);
@@ -759,6 +800,11 @@ namespace SMRDATA
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -776,15 +822,15 @@ namespace SMRDATA
                 vs_buf.clear();
                 int col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=11) {
-                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    printf("ERROR: column number is not correct in row %d.!", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpesd.snpchr=23;
@@ -793,7 +839,7 @@ namespace SMRDATA
                 
                 tmpesd.snprs=vs_buf[1].c_str();
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 tmpesd.bp=atoi(vs_buf[2].c_str());
@@ -806,7 +852,7 @@ namespace SMRDATA
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
                     {
-                        printf("ERROR: freq should be between 0 and 1.\n");
+                        printf("ERROR: allele frequency should be between 0 and 1 in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     
@@ -859,6 +905,11 @@ namespace SMRDATA
         if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
         else flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
@@ -876,15 +927,16 @@ namespace SMRDATA
                 vs_buf.clear();
                 int col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=12) {
-                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    printf("ERROR: column number is not right in row %d.\n", lineNum+2);
+                    printf("\t%s\n",buf);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: \'NA\' of SNP name found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: \'NA\' of chromosome found in row %d.\n", lineNum+2);
+                    printf("ERROR: chromosome is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
@@ -895,7 +947,7 @@ namespace SMRDATA
                 
                 tmpesd.snprs=vs_buf[0].c_str();
                 if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
-                    printf("ERROR: \'NA\' of SNP position found in row %d.\n", lineNum+2);
+                    printf("ERROR: SNP position is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 tmpesd.bp=atoi(vs_buf[2].c_str());
@@ -908,7 +960,7 @@ namespace SMRDATA
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
                     {
-                        printf("ERROR: freq should be between 0 and 1.\n");
+                        printf("ERROR: allele frequency should be between 0 and 1 in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     
@@ -972,14 +1024,19 @@ namespace SMRDATA
             if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
             else flptr.getline(buf,MAX_LINE_SIZE);// the header
             vector<string> vs_buf;
+            if(buf[0]=='\0')
+            {
+                printf("ERROR: the first row of the file %s is empty.\n",esdfilename.c_str());
+                exit(EXIT_FAILURE);
+            }
             int col_num = split_string(buf, vs_buf, " \t\n");
             to_upper(vs_buf[0]);
             if(fformat<3 && vs_buf[0]!="CHR") {
-                printf("ERROR: the headers of file %s should be start with \"Chr\".\n",esdfilename.c_str());
+                printf("ERROR: the headers of file %s should start with \"Chr\".\n",esdfilename.c_str());
                 exit(EXIT_FAILURE);
             }
             if(fformat==3 && vs_buf[0]!="SNP") {
-                printf("ERROR: the headers of file %s should be start with \"SNP\".\n",esdfilename.c_str());
+                printf("ERROR: the headers of file %s should start with \"SNP\".\n",esdfilename.c_str());
                 exit(EXIT_FAILURE);
             }
             
@@ -1128,13 +1185,13 @@ namespace SMRDATA
                                 snptmp.a1=binfo._allele1[iter->second];
                                 snptmp.a2=binfo._allele2[iter->second];
                             }else {
-                                printf("ERROR: can't find SNP %s in the bim file %s.", tmpStr.c_str(), bimfname.c_str());
+                                printf("ERROR: can not find SNP %s in the bim file %s.\n", tmpStr.c_str(), bimfname.c_str());
                                 exit(EXIT_FAILURE);
                             }
                             iss>>tmpStr; //BP
                             if(tmpStr=="NA" ||tmpStr=="na" )
                             {
-                                printf("ERROR: SNP BP can't be \"NA\" in  file \"%s\"!\n", esdfilename.c_str());
+                                printf("ERROR: SNP BP is \"NA\" in  file \"%s\"!\n", esdfilename.c_str());
                                 exit(EXIT_FAILURE);
                             }
 
@@ -1244,7 +1301,7 @@ namespace SMRDATA
                             iss>>tmpStr; //BP
                             if(tmpStr=="NA" ||tmpStr=="na" )
                             {
-                                printf("ERROR: SNP position can't be \"NA\" in  file \"%s\"!\n", esdfilename.c_str());
+                                printf("ERROR: SNP position is \"NA\" in  file \"%s\"!\n", esdfilename.c_str());
                                 exit(EXIT_FAILURE);
                             }
                             snptmp.bp=atoi(tmpStr.c_str());
@@ -1289,8 +1346,8 @@ namespace SMRDATA
         uint64_t bsize=(uint64_t)esiNum<<1;
         float* buffer=(float*)malloc (sizeof(float)*bsize);
         if (NULL == buffer) {
-            fprintf(stderr, "Malloc failed\n");
-            exit(-1);
+            printf("ERROR: failed to allocate write buffer for file %s.\n",esdfile.c_str());
+            exit(EXIT_FAILURE);
         }
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -1304,7 +1361,7 @@ namespace SMRDATA
             printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
             fflush(stdout);
             int esdnumcurprb=epi2esd[j+1]-epi2esd[j];
-            printf("Reading %d text file(s) of probe %s.\n", esdnumcurprb, prbiflst[epi2esd[j]].probeId.c_str());
+            printf("Reading the probe %s from %d text file(s).\n",prbiflst[epi2esd[j]].probeId.c_str(), esdnumcurprb);
             for(int k=0;k<bsize;k++) buffer[k]=-9; //init
             for(int k=epi2esd[j];k<epi2esd[j+1];k++)
             {
@@ -1341,13 +1398,13 @@ namespace SMRDATA
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) rsid[l]=iter->second;
                     else {
-                        printf("ERROR: SNP is not in SNP map. If you are using --geno-uni, please disable it then try again, else please report this bug.");
+                        printf("ERROR: SNP %s is not in output SNP set. If you are using --geno-uni, please disable it then try again. Otherwise please report this bug.\n",_rs[l].c_str());
                         exit(EXIT_FAILURE);
                     }
                 }
                 for(int l=0;l<rsid.size();l++)
                 {
-                    if(fformat==0)
+                    if(fformat!=1)
                     {
                         if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l]){
                             buffer[rsid[l]]=_beta[l];
@@ -1356,6 +1413,12 @@ namespace SMRDATA
                             buffer[rsid[l]]=-1.0*_beta[l];
                             buffer[esiNum+rsid[l]]=_se[l];
                         } else {
+                            printf("ERROR: inconsistent allele pairs of SNP %s found.\n",_rs[l].c_str());
+                            printf("Discrepant Allele pairs: (%s,%s) with (%s,%s).\n",esi_a1[rsid[l]].c_str(), esi_a2[rsid[l]].c_str(),_a1[l].c_str(), _a2[l].c_str());
+                            exit(EXIT_FAILURE);
+                            
+                            //this part is for multi-allelic SNPs. since we don't save multi-allelic SNPs anymore, so we should disable it.
+                            /*
                             int did=-9;
                             float sig=1.0;
                             for(int m=0;m<esi_rs.size();m++)
@@ -1382,6 +1445,7 @@ namespace SMRDATA
                             }
                             buffer[did]=sig*_beta[l];
                             buffer[esiNum+did]=_se[l];
+                             */
                         }
                     } else {
                         buffer[rsid[l]]=_beta[l];
@@ -1393,7 +1457,7 @@ namespace SMRDATA
         }
         fclose (smr1);
         free(buffer);
-        cout<<"Beta values and SE values for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
 
     }
     
@@ -1470,7 +1534,7 @@ namespace SMRDATA
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) rsid[l]=iter->second;
                     else {
-                        printf("ERROR: SNP is not in SNP map. If you are using --geno-uni, please disable it then try again, else please report this bug.");
+                        printf("ERROR: SNP %s is not in output SNP set. If you are using --geno-uni, please disable it then try again. Otherwise please report this bug.\n",_rs[l].c_str());
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -1482,7 +1546,7 @@ namespace SMRDATA
                         rsa_map.insert(pair<string,int>(chckstr,l));
                         if(rsNum<rsa_map.size())
                         {
-                            if(fformat==0)
+                            if(fformat!=1)
                             {
                                 if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l] ){
                                     val.push_back(_beta[l]);
@@ -1495,6 +1559,12 @@ namespace SMRDATA
                                     tmpse.push_back(_se[l]);
                                     tmprid.push_back(rsid[l]);
                                 } else {
+                                    printf("ERROR: inconsistent allele pairs of SNP %s found.\n",_rs[l].c_str());
+                                    printf("Discrepant Allele pairs: (%s,%s) with (%s,%s).\n",esi_a1[rsid[l]].c_str(), esi_a2[rsid[l]].c_str(),_a1[l].c_str(), _a2[l].c_str());
+                                    exit(EXIT_FAILURE);
+                                    
+                                    //this part is for multi-allelic SNPs. since we don't save multi-allelic SNPs anymore, so we should disable it.
+                                    /*
                                         int did=-9;
                                         float sig=1.0;
                                         for(int m=0;m<esi_rs.size();m++)
@@ -1523,6 +1593,7 @@ namespace SMRDATA
                                         rowids.push_back(did);
                                         tmpse.push_back(_se[l]);
                                         tmprid.push_back(did);
+                                     */
                                 }
                             } else {
                                     val.push_back(_beta[l]);
@@ -1532,10 +1603,10 @@ namespace SMRDATA
                             }
                             rsNum=rsa_map.size();
                         } else {
-                            printf("WARNING: duplicate SNP %s with the same alleles belonging to the same probe %s found in current esd file\"%s\" and the esd file(s) read before. \n",_rs[l].c_str(),prbiflst[k].probeId.c_str(),zname.c_str());
+                            printf("WARNING: duplicated SNP ID %s for the probe %s. The duplicated entry is omitted.\n",_rs[l].c_str(),prbiflst[k].probeId.c_str());
                         }
                     } else {
-                        printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n",_rs[l].c_str());
+                        printf("WARNING: SNP %s  with \"NA\" value is found and skipped.\n",_rs[l].c_str());
                     }
                    
                     
@@ -1557,7 +1628,7 @@ namespace SMRDATA
         fwrite (&val[0],sizeof(float), val.size(), smr1);
         fclose (smr1);
         
-        cout<<"Beta values and SE values for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
     }
 
     void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile)
@@ -1584,7 +1655,7 @@ namespace SMRDATA
         long cisuperBounder= probbp+cis_itvl;
         long cislowerBounder=((probbp-cis_itvl>0)?(probbp-cis_itvl):0);
        
-        printf("Extracting information of probe %s...\n", probid.c_str());
+        printf("Extracting information of the probe %s...\n", probid.c_str());
         for(int l=0;l<snpinfo.size();l++)
         {
             if(abs(snpinfo[l].se+9)>1e-6)
@@ -1729,7 +1800,7 @@ namespace SMRDATA
             printf("Something is wrong with this selection methold. Please report this bug.\n");
             exit(EXIT_FAILURE);
         }
-        printf("%ld SNPs in the cis-region, %ld SNPs in total %ld trans-region(s), %ld SNPs beyond cis-region and trans-region(s) have been extracted.\n",cissnpnum,transsnpnum,transnum,othersnpnum);
+        printf("%ld SNPs in the cis-region, %ld SNPs in total %ld trans-region(s), %ld other SNPs have been extracted.\n",cissnpnum,transsnpnum,transnum,othersnpnum);
         //log
        
         if(cis_idx.size() || nsnp.size() || other_idx.size())
@@ -1857,7 +1928,7 @@ namespace SMRDATA
                 iter = esi_map.find(_rs[l]);
                 if (iter != esi_map.end()) rsid[l]=iter->second;
                 else {
-                    printf("ERROR: SNP is not in SNP map. If you are using --geno-uni, please disable it then try again, else please report this bug.");
+                    printf("ERROR: SNP %s is not in the output SNP set. If you are using --geno-uni, please disable it then try again. Otherwise please report this bug.\n",_rs[l].c_str());
                     exit(EXIT_FAILURE);
                 }
             }
@@ -1871,7 +1942,7 @@ namespace SMRDATA
                   //  rsa_map.insert(pair<string,int>(chckstr,l)); // in slct_sparse_per_prb, ras_map can privent selecting duplicate SNPs and double-slelecting SNPs. so we can move rsa_map here.
                    // if(rsNum<rsa_map.size())
                    // {
-                        if(fformat==0)
+                        if(fformat!=1)
                         {
                             if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l] ){
                                 val.push_back(_beta[l]);
@@ -1884,6 +1955,12 @@ namespace SMRDATA
                                 tmpse.push_back(_se[l]);
                                 tmprid.push_back(rsid[l]);
                             } else {
+                                printf("ERROR: inconsistent allele pairs of SNP %s found.\n",_rs[l].c_str());
+                                printf("Discrepant Allele pairs: (%s,%s) with (%s,%s).\n",esi_a1[rsid[l]].c_str(), esi_a2[rsid[l]].c_str(),_a1[l].c_str(), _a2[l].c_str());
+                                exit(EXIT_FAILURE);
+                                
+                                //this part is for multi-allelic SNPs. since we don't save multi-allelic SNPs anymore, so we should disable it.
+                                /*
                                 int did=-9;
                                 float sig=1.0;
                                 for(int m=0;m<esi_rs.size();m++)
@@ -1912,6 +1989,7 @@ namespace SMRDATA
                                 rowids.push_back(did);
                                 tmpse.push_back(_se[l]);
                                 tmprid.push_back(did);
+                                 */
                             }
                         } else {
                             val.push_back(_beta[l]);
@@ -1944,23 +2022,23 @@ namespace SMRDATA
         fwrite (&val[0],sizeof(float), val.size(), smr1);
         fclose (smr1);
         
-        printf("The summary information of selection has been saved in %s.\n", logfname.c_str());
-        cout<<"\nBeta values and SE values for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
+        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
         
     }
     void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag,bool boltflag, bool save_dense_flag,int cis_itvl, int trans_itvl, float transThres, float restThres,bool samegeno)
     {
         if(samegeno) {
-            printf("WARNING: --geno-uni is actived. Please ensure the SNPs in all the text files are the same!\n");
+            printf("WARNING: --geno-uni is enabled. Please ensure the SNPs and their alleles identical across all the text files.\n");
         }
-        if(syllabusName==NULL) throw("Error: please input eQTL syllabus file by the flag --eqtl-flist.");
+        if(syllabusName==NULL) throw("Error: please input eQTL file list by the flag --eqtl-flist.");
         int flagcount=0, fformat=0;
         if(gctaflag){ flagcount++; fformat=0;}
         if(plinkflag){ flagcount++;fformat=1;}
         if(gemmaflag){ flagcount++; fformat=2;}
         if(boltflag){ flagcount++; fformat=3;}
-        if(flagcount==0 || flagcount>1) throw("Error: please verify the file format flags. Only one flag can be specified.");
+        if(flagcount==0 || flagcount>1) throw("ERROR: please verify the file format flags. Only one flag can be specified.\n");
         vector<probeinfolst> prbiflstinfo;
         int esdfileNum=read_probeinfolst(prbiflstinfo,syllabusName);
         probeinfolst* prbiflst=&prbiflstinfo[0];
@@ -1974,7 +2052,7 @@ namespace SMRDATA
         ofstream epi(epifile.c_str());
         if (!epi)
         {
-            printf("Error: can not open the epi file %s to save!", epifile.c_str());
+            printf("ERROR: can not open the EPI file %s to save!\n", epifile.c_str());
             exit(EXIT_FAILURE);
         }
         vector<int> epi2esd;
@@ -1993,7 +2071,7 @@ namespace SMRDATA
         
         //get esi: from bim file
         vector<snpinfolst> snpinfo;
-        printf("\nScaning %d esd files to generate esi file...\n", esdfileNum);
+        printf("\nScaning %d ESD files to generate ESI file...\n", esdfileNum);
         int filenum2scan=0;
         if(samegeno) filenum2scan=1;
         else filenum2scan=esdfileNum;
@@ -2007,25 +2085,25 @@ namespace SMRDATA
         vector<string> esi_a2(esiNum);
         string esifile =  string(outFileName)+string(".esi");
         ofstream esi(esifile.c_str());
-        if (!esi) throw ("Error: can not open the esi file to save!");
+        if (!esi) throw ("ERROR: can not open the ESI file to save!");
         for (int j = 0;j <esiNum; j++) {
-            esi<<snpinfo[j].snpchr<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<snpinfo[j].bp<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<snpinfo[j].freq<<'\n';
+            esi<<snpinfo[j].snpchr<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<snpinfo[j].bp<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<(abs(snpinfo[j].freq+9)>1e-6?atos(snpinfo[j].freq):"NA")<<'\n';
             esi_rs[j]=snpinfo[j].snprs;
             esi_a1[j]=snpinfo[j].a1;
             esi_a2[j]=snpinfo[j].a2;
         }
         esi.close();
         cout<<esiNum<<" SNPs have been saved in the file [" + esifile + "]."<<endl;
-        printf("\nScaning %d esd files to generate besd file...\n", esdfileNum);
+        printf("\nScaning %d ESD files to generate BESD file...\n", esdfileNum);
         if(save_dense_flag)
         {
             double sparsity=1.0*ttlv/(esiNum*epiNum);
             if(sparsity>=0.4)
             {
-                printf("The sparsity of your data matrix is %f. We are going to save it in dense format!\n", sparsity);
+                printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
                 save_txts_dbesd(outFileName, esiNum, epiNum,epi2esd, prbiflst,fformat, esi_rs, esi_a1,esi_a2);
             } else {
-                printf("The sparsity of your data matrix is %f. We are going to save it in sparse format!\n", sparsity);
+                printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
                 save_full_txts_sbesd( outFileName,  esiNum,  epiNum,epi2esd,prbiflst,fformat,esi_rs,esi_a1,esi_a2);
             }
             
@@ -2043,25 +2121,37 @@ namespace SMRDATA
             exit(EXIT_FAILURE);
         }
         
-        printf("Reading data from %s ...\n", qfileName);
+        printf("Reading eQTL summary data from %s ...\n", qfileName);
         vector<probeinfolst> prbiflst;
         vector<snpinfolst> snpinfo;
-        vector<string> _ttl_rs;
-        vector<string> _ttl_probe;
-        vector<float> _ttl_beta;
-        vector<float> _ttl_se;
-        vector<string> _ttl_a1;
-        vector<string> _ttl_a2;
-        vector<int> _ttl_chr;
-        vector<int> _ttl_bp;
+        vector< vector<string> > _ttl_rs;
+        vector< vector<float> > _ttl_beta;
+        vector< vector<float> > _ttl_se;
+        
+        vector< vector<string> > _ttl_a1;
+        vector< vector<string> > _ttl_a2;
+        vector< vector<int> > _ttl_chr;
+        vector< vector<int> > _ttl_bp;
+        
         bool warningdone=false;
+        bool warningdone1=false;
         char buf[MAX_LINE_SIZE];
         fgets(buf, MAX_LINE_SIZE, qfile); //header
+        if(buf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",qfileName);
+            exit(EXIT_FAILURE);
+        }
         vector<string> vs_buf;
         split_string(buf, vs_buf, " \t\n");
         to_upper(vs_buf[0]);
         if(vs_buf[0]!="SNP") {
             printf("ERROR: the headers of query file should start with \"SNP\".\n");
+            exit(EXIT_FAILURE);
+        }
+        if(vs_buf.size()==13) {
+            printf("ERROR: the input file could be in the old Query format. Please update it by adding one column of the effect allele frequency.\n");
+            printf("http://cnsgenomics.com/software/smr/query.html\n");
             exit(EXIT_FAILURE);
         }
         long lineNum(0);
@@ -2070,43 +2160,46 @@ namespace SMRDATA
         snpinfolst tmpsnpinfo;
         probeinfolst tmpprbinfo;
         map<string, int> esi_map;
-         long size=0;
+        map<string,int>::iterator iter;
         map<string, int> epi_map;
-        map<string, int> rsbp_map;
-        map<string, int> rsaa_map;
-        map<string, int> probe_cp_map;
-        map<string, int> probe_cpb_map;
+        map<string, int> rs_prb_map;
+        long rsprbmapsize(0);
         while(fgets(buf, MAX_LINE_SIZE, qfile))
         {
             vs_buf.clear();
             int col_num = split_string(buf, vs_buf, " \t\n");
-            if(col_num!=13) {
+            if(col_num!=14) {
                 printf("ERROR: column number is not right in row %ld.\n", lineNum+2);
                 exit(EXIT_FAILURE);
             }
             if( (vs_buf[0]=="NA" || vs_buf[0]=="na"))
             {
-                printf("ERROR: SNP name can't be \"NA\".\n");
+                printf("ERROR: SNP name is \"NA\".\n");
                 exit(EXIT_FAILURE);
             }
             if(!save_dense_flag && (vs_buf[1]=="NA" || vs_buf[1]=="na"))
             {
-                printf("ERROR: chromosome infomation of SNPs can't be \"NA\".\n");
+                printf("ERROR: chromosome infomation of SNP is \"NA\".\n");
                 exit(EXIT_FAILURE);
             }
             if(!save_dense_flag && (vs_buf[6]=="NA" || vs_buf[6]=="na"))
             {
-                printf("ERROR: chromosome infomation of probes can't be \"NA\". \n");
-                exit(EXIT_FAILURE);
-            }
-            if(!save_dense_flag && (vs_buf[2]=="NA" || vs_buf[2]=="na"))
-            {
-                printf("ERROR: position of SNPs can't be \"NA\". \n");
+                printf("ERROR: Probe name is missing.\n");
                 exit(EXIT_FAILURE);
             }
             if(!save_dense_flag && (vs_buf[7]=="NA" || vs_buf[7]=="na"))
             {
-                printf("ERROR: position of probes can't be \"NA\". \n");
+                printf("ERROR: chromosome infomation of probe is \"NA\". \n");
+                exit(EXIT_FAILURE);
+            }
+            if(!save_dense_flag && (vs_buf[2]=="NA" || vs_buf[2]=="na"))
+            {
+                printf("ERROR: SNP position is \"NA\". \n");
+                exit(EXIT_FAILURE);
+            }
+            if(!save_dense_flag && (vs_buf[8]=="NA" || vs_buf[8]=="na"))
+            {
+                printf("ERROR: probe position is \"NA\". \n");
                 exit(EXIT_FAILURE);
             }
             if((vs_buf[3]=="NA" || vs_buf[4]=="NA" || vs_buf[3]=="na" || vs_buf[4]=="na") && !warningdone)
@@ -2115,65 +2208,67 @@ namespace SMRDATA
                 warningdone=true;
                
             }
+            if((vs_buf[5]=="NA" || vs_buf[5]=="NA" ) && !warningdone1)
+            {
+                printf("WARING: allele frequency of one or more SNPs are missing.\n");
+                warningdone1=true;
+                
+            }
             int tmpchr;
             if(vs_buf[1]=="X" || vs_buf[1]=="x") tmpchr=23;
             else if(vs_buf[1]=="Y" || vs_buf[1]=="y") tmpchr=24;
             else tmpchr=atoi(vs_buf[1].c_str());
             to_upper(vs_buf[3]);
             to_upper(vs_buf[4]);
-            to_upper(vs_buf[10]);
+            to_upper(vs_buf[5]);
             to_upper(vs_buf[11]);
-            if(!vs_buf[10].compare("NA") || !vs_buf[11].compare("NA")) {
+            to_upper(vs_buf[12]);
+            if(!vs_buf[11].compare("NA") || !vs_buf[12].compare("NA")) {
                 
-                printf("WARNING: \"NA\" value of beta or se found, this row is skipped.\n");
+                printf("WARNING: the effect size (or SE) of the SNP is missing (\"NA\"), this row is omitted.\n");
                 printf("%s",buf);
                 continue;
             }
-            string crsstr=vs_buf[0]+":"+vs_buf[1];
-            string crsbpstr=vs_buf[0]+":"+vs_buf[1]+":"+vs_buf[2];
-            string crsbpaastr=vs_buf[0]+":"+vs_buf[1]+":"+vs_buf[2]+":"+vs_buf[3]+":"+vs_buf[4];
-            string crsbpaastr_iv=vs_buf[0]+":"+vs_buf[1]+":"+vs_buf[2]+":"+vs_buf[4]+":"+vs_buf[3];
-            esi_map.insert(pair<string, int>(crsstr.c_str(), lineNum));
-            rsbp_map.insert(pair<string, int>(crsbpstr.c_str(), lineNum));
-            rsaa_map.insert(pair<string, int>(crsbpaastr.c_str(), lineNum));
-            if(esi_map.size() != rsbp_map.size())
+            string rsprb=vs_buf[0]+":"+vs_buf[6];
+            rs_prb_map.insert(pair<string, int>(rsprb.c_str(), lineNum));
+            if(rsprbmapsize<rs_prb_map.size())
             {
-                printf("ERROR: SNP %s on Chromosome %s has multiple BPs, please check.\n", vs_buf[0].c_str(), vs_buf[1].c_str());
+                rsprbmapsize=rs_prb_map.size();
+            } else {
+                printf("ERROR: duplicated records found for the SNP %s and the probe %s.\n", vs_buf[0].c_str(),vs_buf[6].c_str());
                 exit(EXIT_FAILURE);
             }
-            bool newsnp=false;
-            if (size < esi_map.size())
-            {
-                newsnp=true;
-                size = esi_map.size();
-            }else {
-                //check multi-allelic SNPs
-                
-                if(esi_map.size() != rsaa_map.size())
-                {
-                    long tmpsize=rsaa_map.size();
-                    rsaa_map.insert(pair<string, int>(crsbpaastr_iv.c_str(), lineNum));
-                    if(tmpsize==rsaa_map.size())
-                    {
-                        printf("WARING: switched ref allele with alt allele of SNP %s found.\n", vs_buf[0].c_str());
-                        vs_buf[10]=atos(-1.0*atof(vs_buf[10].c_str()));
-                        string a0=vs_buf[3];
-                        vs_buf[3]=vs_buf[4];
-                        vs_buf[4]=a0;
-                    } else {
-                        newsnp=true;
-                        printf("WARING: multi-allelic SNP %s found.\n", vs_buf[0].c_str());
-                        esi_map.insert(pair<string, int>((crsbpaastr+"_m").c_str(), lineNum));
-                        rsbp_map.insert(pair<string, int>((crsbpaastr+"_m").c_str(), lineNum));
-                    }
-                    esi_map.insert(pair<string, int>((crsbpaastr+"_").c_str(), lineNum));
-                    rsbp_map.insert(pair<string, int>((crsbpaastr+"_").c_str(), lineNum));
-                    size = esi_map.size();
+            iter=esi_map.find(vs_buf[0]);
+            if(iter!=esi_map.end()){
+                int idx=iter->second;
+                string esi_a1=snpinfo[idx].a1;
+                string esi_a2=snpinfo[idx].a2;
+                int esi_bp=snpinfo[idx].bp;
+                int esi_chr=snpinfo[idx].snpchr;
+                if(tmpchr!=esi_chr) {
+                    printf("ERROR: the same SNP ID %s on different chromosomes, please check.\n", vs_buf[0].c_str());
+                    exit(EXIT_FAILURE);
                 }
-                 
-            }
-            if(newsnp)
-            {
+                if(atoi(vs_buf[2].c_str())!=esi_bp)
+                {
+                    printf("ERROR: multiple positions found for the same SNP %s on Chromosome %s, please check.\n", vs_buf[0].c_str(), vs_buf[1].c_str());
+                    exit(EXIT_FAILURE);
+                }
+                if(esi_a1==vs_buf[3] && esi_a2==vs_buf[4]) {
+                    
+                } else if(esi_a1==vs_buf[4] && esi_a2==vs_buf[3]) {
+                    printf("WARING: switched ref allele with alt allele of SNP %s found. Then the sign of beta value is changed.\n", vs_buf[0].c_str());
+                    vs_buf[11]=atos(-1.0*atof(vs_buf[11].c_str()));
+                    string a0=vs_buf[3];
+                    vs_buf[3]=vs_buf[4];
+                    vs_buf[4]=a0;
+                } else {
+                    printf("ERROR: inconsistent alleles for the SNP %s with multiple alleles <%s,%s> and <%s,%s>.\n", vs_buf[0].c_str(),esi_a1.c_str(),esi_a2.c_str(),vs_buf[3].c_str(),vs_buf[4].c_str());
+                    exit(EXIT_FAILURE);
+                }
+                
+            } else {
+                esi_map.insert(pair<string, int>(vs_buf[0].c_str(), esiNum));
                 snpinfolst snptmp;
                 snptmp.snpchr=tmpchr;
                 snptmp.snprs=vs_buf[0].c_str();
@@ -2181,51 +2276,82 @@ namespace SMRDATA
                 snptmp.a1=vs_buf[3].c_str();
                 snptmp.a2=vs_buf[4].c_str();
                 snptmp.gd=0;
-                snptmp.freq=-9;
+                snptmp.freq=vs_buf[5]=="NA"?-9:atof(vs_buf[5].c_str());
                 snpinfo.push_back(snptmp);
                 esiNum++;
             }
-            string cpstr=vs_buf[5]+":"+vs_buf[6];
-            string cpbstr=vs_buf[5]+":"+vs_buf[6]+":"+vs_buf[7];
-            probe_cp_map.insert(pair<string,int>(cpstr,lineNum));
-            probe_cpb_map.insert(pair<string,int>(cpbstr,lineNum));
-            if(probe_cp_map.size()!=probe_cpb_map.size())
-            {
-                printf("ERROR: Different BPs of probe %s found.\n",vs_buf[5].c_str() );
-                exit(EXIT_FAILURE);
-            }
-            epi_map.insert(pair<string,int>(vs_buf[5],epiNum));
-            if(epiNum<epi_map.size())
-            {
-                tmpprbinfo.probeId=vs_buf[5].c_str();
-                tmpprbinfo.probechr=atoi(vs_buf[6].c_str());
-                tmpprbinfo.bp=atoi(vs_buf[7].c_str());
-                tmpprbinfo.genename=vs_buf[8].c_str();
-                tmpprbinfo.orien=vs_buf[9][0];
+         
+            iter=epi_map.find(vs_buf[6]);
+            if(iter!=epi_map.end()){
+                int idx=iter->second;
+                int epi_bp=prbiflst[idx].bp;
+                int epi_chr=prbiflst[idx].probechr;
+                if(epi_chr != atoi(vs_buf[7].c_str()))
+                {
+                    printf("ERROR: the same probe ID %s found on different chromosomes.\n",vs_buf[5].c_str() );
+                    exit(EXIT_FAILURE);
+                }
+                if(epi_bp != atoi(vs_buf[8].c_str()))
+                {
+                    printf("ERROR: multiple posisions found for the same probe %s.\n",vs_buf[5].c_str() );
+                    exit(EXIT_FAILURE);
+                }
+                _ttl_rs[idx].push_back(vs_buf[0].c_str());
+                _ttl_beta[idx].push_back(atof(vs_buf[11].c_str()));
+                _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
+                if(!save_dense_flag) {
+                    _ttl_a1[idx].push_back(vs_buf[3].c_str());
+                    _ttl_a2[idx].push_back(vs_buf[4].c_str());
+                    _ttl_chr[idx].push_back(tmpchr);
+                    _ttl_bp[idx].push_back(atoi(vs_buf[2].c_str()));
+                }
+                
+            } else {
+                epi_map.insert(pair<string,int>(vs_buf[6],epiNum));
+                tmpprbinfo.probeId=vs_buf[6].c_str();
+                tmpprbinfo.probechr=atoi(vs_buf[7].c_str());
+                tmpprbinfo.bp=atoi(vs_buf[8].c_str());
+                tmpprbinfo.genename=vs_buf[9].c_str();
+                tmpprbinfo.orien=vs_buf[10][0];
                 tmpprbinfo.gd=0;
                 prbiflst.push_back(tmpprbinfo);
+                vector<string> rstmp;
+                rstmp.push_back(vs_buf[0].c_str());
+                _ttl_rs.push_back(rstmp);
+                vector<float> betatmp;
+                betatmp.push_back(atof(vs_buf[11].c_str()));
+                _ttl_beta.push_back(betatmp);
+                vector<float> setmp;
+                setmp.push_back(atof(vs_buf[12].c_str()));
+                _ttl_se.push_back(setmp);
+                if(!save_dense_flag) {
+                    vector<string> a1tmp;
+                    a1tmp.push_back(vs_buf[3].c_str());
+                    _ttl_a1.push_back(a1tmp);
+                    vector<string> a2tmp;
+                    a2tmp.push_back(vs_buf[4].c_str());
+                    _ttl_a2.push_back(a2tmp);
+                    vector<int> chrtmp;
+                    chrtmp.push_back(tmpchr);
+                    _ttl_chr.push_back(chrtmp);
+                    vector<int> bptmp;
+                    bptmp.push_back(atoi(vs_buf[2].c_str()));
+                    _ttl_bp.push_back(bptmp);
+                }
+                
                 epiNum++;
             }
-            
-            _ttl_rs.push_back(vs_buf[0].c_str());
-            _ttl_a1.push_back(vs_buf[3].c_str());
-            _ttl_a2.push_back(vs_buf[4].c_str());
-            _ttl_probe.push_back(vs_buf[5]);
-            _ttl_beta.push_back(atof(vs_buf[10].c_str()));
-            _ttl_se.push_back(atof(vs_buf[11].c_str()));
-            _ttl_chr.push_back(tmpchr);
-            _ttl_bp.push_back(atoi(vs_buf[2].c_str()));
             lineNum++;
         }
-        printf("%ld SNPs summary info to be included from %s.\n", lineNum, qfileName);
+        printf("%ld SNPs to be included from %s.\n", lineNum, qfileName);
         fclose(qfile);
-        
+		for (int j = 0; j < epiNum; j++) prbiflst[j].gd = j;
         printf("\nGenerating epi file...\n");
         probeinfolst* epiptr=&prbiflst[0];
         qsort(epiptr,epiNum,sizeof(probeinfolst),comp);
         string epifile = string(outFileName)+string(".epi");
         ofstream epi(epifile.c_str());
-        if (!epi) throw ("Error: can not open the epi file " + epifile + " to save!");
+        if (!epi) throw ("Error: can not open the EPI file " + epifile + " to save!");
         for (int j = 0;j <epiNum; j++) {
             epi<<(prbiflst[j].probechr==0?"NA":atos(prbiflst[j].probechr))<<'\t'<<prbiflst[j].probeId<<'\t'<<0<<'\t'<<(prbiflst[j].bp==0?"NA":atos(prbiflst[j].bp))<<'\t'<<prbiflst[j].genename<<'\t'<<prbiflst[j].orien<<'\n';
         }
@@ -2238,35 +2364,26 @@ namespace SMRDATA
         qsort(esiptr,esiNum,sizeof(snpinfolst),comp_esi);
         epi_map.clear();
         esi_map.clear();
-        vector<string> esi_rs(esiNum);
-        vector<string> esi_a1(esiNum);
-        vector<string> esi_a2(esiNum);
+        
         string esifile =  string(outFileName)+string(".esi");
         ofstream esi(esifile.c_str());
-        if (!esi) throw ("Error: can not open the esi file to save!");
+        if (!esi) throw ("Error: can not open the ESI file to save!");
         for (int j = 0;j <esiNum; j++) {
-            esi<<(snpinfo[j].snpchr==0?"NA":atos(snpinfo[j].snpchr))<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<(snpinfo[j].bp==0?"NA":atos(snpinfo[j].bp))<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<snpinfo[j].freq<<'\n';
-            esi_rs[j]=snpinfo[j].snprs;
+            esi<<(snpinfo[j].snpchr==0?"NA":atos(snpinfo[j].snpchr))<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<(snpinfo[j].bp==0?"NA":atos(snpinfo[j].bp))<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<(snpinfo[j].freq+9>1e-6?atos(snpinfo[j].freq):"NA")<<'\n';
             esi_map.insert(pair<string,int>(snpinfo[j].snprs,j));
-            esi_a1[j]=snpinfo[j].a1;
-            esi_a2[j]=snpinfo[j].a2;
         }
         esi.close();
         printf("%ld SNPs have been saved in the file %s.\n",esiNum,esifile.c_str());
         
         double sparsity=1.0*lineNum/(esiNum*epiNum);
-        rsbp_map.clear();
-        rsaa_map.clear();
-        probe_cp_map.clear();
-        probe_cpb_map.clear();
         printf("\nGenerating besd file...\n");
        
-        
+        // quanlity control and correctness are done above.
         if(save_dense_flag)
         {
             if(sparsity>0.4)
             {
-                printf("The sparsity of your data matrix is %f. We are going to save it in dense format!\n", sparsity);
+                printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
                 
                 string esdfile=string(outFileName)+string(".besd");
                 FILE * smr1;
@@ -2289,90 +2406,32 @@ namespace SMRDATA
                 {
                     printf("Redinging... %3.0f%%\r", 100.0*j/epiNum);
                     fflush(stdout);
+					int pkey = prbiflst[j].gd;
                     for(int k=0;k<bsize;k++) buffer[k]=-9; //init
-                    vector<string> _rs;
-                    vector<float> _beta;
-                    vector<float> _se;
-                    vector<string> _a1;
-                    vector<string> _a2;
-                    string curprb=prbiflst[j].probeId;
-                    for( int k=0;k<_ttl_probe.size();k++)
-                        if(curprb==_ttl_probe[k])
-                        {
-                            _rs.push_back(_ttl_rs[k]);
-                            _a1.push_back(_ttl_a1[k]);
-                            _a2.push_back(_ttl_a2[k]);
-                            _beta.push_back(_ttl_beta[k]);
-                            _se.push_back(_ttl_se[k]);
-                        }
-                    vector<int> rsid(_rs.size());
+					vector<int> rsid(_ttl_rs[pkey].size());
                     #pragma omp parallel for private(iter)
-                    for (int l = 0; l<_rs.size(); l++){
-                        iter = esi_map.find(_rs[l]);
+					for (int l = 0; l<_ttl_rs[pkey].size(); l++){
+						iter = esi_map.find(_ttl_rs[pkey][l]);
                         if (iter != esi_map.end()) rsid[l]=iter->second;
                         else {
-                            printf("ERROR: SNP is not in SNP map. Please report this bug.");
+                            printf("ERROR: SNP is not in SNP map. Please report this bug.\n");
                             exit(EXIT_FAILURE);
                         }
                     }
-                    map<string, int> rsa_map;
-                    long rsNum=0;
-                    
                     for(int l=0;l<rsid.size();l++)
                     {
-                        string chckstr=_rs[l]+":"+_a1[l]+":"+_a2[l];
-                        rsa_map.insert(pair<string,int>(chckstr,l));
-                        if(rsNum<rsa_map.size())
-                        {
-                            if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l]){
-                                buffer[rsid[l]]=_beta[l];
-                                buffer[esiNum+rsid[l]]=_se[l];
-                            } else if(esi_a1[rsid[l]]==_a2[l] && esi_a2[rsid[l]]==_a1[l]){
-                                // can't enter here, cos it has done in reading.
-                                buffer[rsid[l]]=-1.0*_beta[l];
-                                buffer[esiNum+rsid[l]]=_se[l];
-                            } else {
-                                int did=-9;
-                                float sig=1.0;
-                                for(int m=0;m<esi_rs.size();m++)
-                                {
-                                    if(esi_rs[m]==_rs[l])
-                                    {
-                                        if(esi_a1[m]==_a1[l] && esi_a2[m]==_a2[l])
-                                        {
-                                            did=m;
-                                            break;
-                                        }
-                                        if(esi_a1[m]==_a2[l] && esi_a2[m]==_a1[l])
-                                        {
-                                            did=m;
-                                            sig=-1.0;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if(did==-9)
-                                {
-                                    printf("ERROR: This would not go to happen. Please report this bug.");
-                                    exit(EXIT_FAILURE);
-                                }
-                                buffer[did]=sig*_beta[l];
-                                buffer[esiNum+did]=_se[l];
-                            }
-                            rsNum=rsa_map.size();
-                        } else {
-                            printf("WARNING: duplicate SNP %s with the same alleles belonging to the same probe %s found. \n",_rs[l].c_str(),curprb.c_str());
-                        }
+						buffer[rsid[l]] = _ttl_beta[pkey][l];
+						buffer[esiNum + rsid[l]] = _ttl_se[pkey][l];
                     }
                     fwrite (buffer,sizeof(float), bsize, smr1);
                 }
                 fclose (smr1);
                 free(buffer);
-                cout<<"Beta values and SE values for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+                cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
                 
             } else {
                 
-                printf("The sparsity of your data matrix is %f. We are going to save it in sparse format!\n", sparsity);
+                printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
                 
                 string esdfile=string(outFileName)+string(".besd");
                 FILE * smr1;
@@ -2385,132 +2444,50 @@ namespace SMRDATA
                 fwrite (&filetype,sizeof(float), 1, smr1);
                 
                 vector<uint64_t> cols((epiNum<<1)+1);;
-                vector<uint32_t> rowids;
-                vector<float> val;
+                uint64_t valNum=0;
                 cols[0]=0;
                 
                 map<string, int>::iterator iter;
                 for(int j=0;j<epiNum;j++)
                 {
+					int pkey = prbiflst[j].gd;
+					uint64_t real_num = _ttl_beta[pkey].size();
+                    cols[(j<<1)+1]=real_num+cols[j<<1];
+                    cols[j+1<<1]=(real_num<<1)+cols[j<<1];
+                    valNum+=real_num*2;
+                }
+                fwrite (&valNum,sizeof(uint64_t), 1, smr1);
+                fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
+
+                for(int j=0;j<epiNum;j++)
+                {
                     printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
                     fflush(stdout);
-                    vector<string> _rs;
-                    vector<float> _beta;
-                    vector<float> _se;
-                    vector<string> _a1;
-                    vector<string> _a2;
-                    string curprb=prbiflst[j].probeId;
-                    for( int k=0;k<_ttl_probe.size();k++)
-                        if(curprb==_ttl_probe[k])
-                        {
-                            _rs.push_back(_ttl_rs[k]);
-                            _a1.push_back(_ttl_a1[k]);
-                            _a2.push_back(_ttl_a2[k]);
-                            _beta.push_back(_ttl_beta[k]);
-                            _se.push_back(_ttl_se[k]);
-                        }
-
-                     vector<int> rsid(_rs.size());
+					int pkey = prbiflst[j].gd;
+					vector<uint32_t> rowids(_ttl_rs[pkey].size());
                     #pragma omp parallel for private(iter)
-                    for (int l = 0; l<_rs.size(); l++){
-                        iter = esi_map.find(_rs[l]);
-                        if (iter != esi_map.end()) rsid[l]=iter->second;
+					for (int l = 0; l<_ttl_rs[pkey].size(); l++){
+						iter = esi_map.find(_ttl_rs[pkey][l]);
+                        if (iter != esi_map.end()) rowids[l]=iter->second;
                         else {
-                            printf("ERROR: SNP is not in SNP map. Please report this bug.");
+                            printf("ERROR: SNP is not in SNP map. Please report this bug.\n");
                             exit(EXIT_FAILURE);
                         }
                     }
-                  
-                    if(rsid.size()!=_rs.size())
-                    {
-                        printf("ERROR: SNP names don't match in %s. Please report this bug.", curprb.c_str());
-                        exit(EXIT_FAILURE);
-                    }
-
-                    map<string, int> rsa_map;
-                    long rsNum=0;
-                    vector<uint32_t> tmprid;
-                    vector<float> tmpse;
-                    for(int l=0;l<rsid.size();l++)
-                    {
-                        if(abs(_se[l]+9)>1e-6)
-                        {
-                            string chckstr=_rs[l]+":"+_a1[l]+":"+_a2[l];
-                            rsa_map.insert(pair<string,int>(chckstr,l));
-                            if(rsNum<rsa_map.size())
-                            {
-                                if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l] )
-                                {
-                                    val.push_back(_beta[l]);
-                                    rowids.push_back(rsid[l]);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(rsid[l]);
-                                } else if(esi_a1[rsid[l]]==_a2[l] && esi_a2[rsid[l]]==_a1[l] )
-                                {
-                                     // can't enter here, cos it has done in reading.
-                                    val.push_back(-1.0*_beta[l]);
-                                    rowids.push_back(rsid[l]);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(rsid[l]);
-                                } else
-                                {
-                                    int did=-9;
-                                    float sig=1.0;
-                                    for(int m=0;m<esi_rs.size();m++)
-                                    {
-                                        if(esi_rs[m]==_rs[l])
-                                        {
-                                            if(esi_a1[m]==_a1[l] && esi_a2[m]==_a2[l])
-                                            {
-                                                did=m;
-                                                break;
-                                            }
-                                            if(esi_a1[m]==_a2[l] && esi_a2[m]==_a1[l])
-                                            {
-                                                did=m;
-                                                sig=-1.0;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if(did==-9)
-                                    {
-                                        printf("ERROR: This would not go to happen. Please report this bug.");
-                                        exit(EXIT_FAILURE);
-                                    }
-                                    val.push_back(sig*_beta[l]);
-                                    rowids.push_back(did);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(did);
-                                }
-                                rsNum=rsa_map.size();
-                            } else
-                            {
-                                printf("WARNING: duplicate SNP %s with the same alleles belonging to the same probe %s found. \n",_rs[l].c_str(),curprb.c_str());
-                            }
-                        } else
-                        {
-                            printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n",_rs[l].c_str());
-                        }
-                        
-                    }
-                    for(int k=0;k<tmpse.size();k++)
-                    {
-                        val.push_back(tmpse[k]);
-                        rowids.push_back(tmprid[k]);
-                    }
-                    uint64_t real_num=tmpse.size();
-                    cols[(j<<1)+1]=real_num+cols[j<<1];
-                    cols[j+1<<1]=(real_num<<1)+cols[j<<1];
+                    fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
+                    fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
                 }
-                uint64_t valNum=val.size();
-                fwrite (&valNum,sizeof(uint64_t), 1, smr1);
-                fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
-                fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
-                fwrite (&val[0],sizeof(float), val.size(), smr1);
-                fclose (smr1);
                 
-                cout<<"Beta values and SE values for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+                for(int j=0;j<epiNum;j++)
+                {
+                    printf("Saving... %3.0f%%\r", (100.0*j/(2*epiNum)+50));
+                    fflush(stdout);
+					int pkey = prbiflst[j].gd;
+					fwrite(&_ttl_beta[pkey][0], sizeof(float), _ttl_beta[pkey].size(), smr1);
+					fwrite(&_ttl_se[pkey][0], sizeof(float), _ttl_se[pkey].size(), smr1);
+                }
+                fclose (smr1);
+                cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
             }
         } else {
             // get esd info
@@ -2554,24 +2531,24 @@ namespace SMRDATA
             {
                 printf("Redinging... %3.0f%%\r", 100.0*j/epiNum);
                 fflush(stdout);
+				int pkey = prbiflst[j].gd;
                 vector<uint32_t> tmprid;
                 vector<float> tmpse;
                 string curprb=prbiflst[j].probeId;
                 snpinfo.clear();
                 
-                for( int k=0;k<_ttl_probe.size();k++)
-                    if(curprb==_ttl_probe[k])
-                    {
-                        snpinfolst tmpinfo;
-                        tmpinfo.snprs=_ttl_rs[k];
-                        tmpinfo.a1=_ttl_a1[k];
-                        tmpinfo.a2=_ttl_a2[k];
-                        tmpinfo.beta=_ttl_beta[k];
-                        tmpinfo.se=_ttl_se[k];
-                        tmpinfo.snpchr=_ttl_chr[k];
-                        tmpinfo.bp=_ttl_bp[k];
+				for (int k = 0; k<_ttl_beta[pkey].size(); k++)
+                {
+                    snpinfolst tmpinfo;
+					tmpinfo.snprs = _ttl_rs[pkey][k];
+					tmpinfo.a1 = _ttl_a1[pkey][k];
+					tmpinfo.a2 = _ttl_a2[pkey][k];
+					tmpinfo.beta = _ttl_beta[pkey][k];
+					tmpinfo.se = _ttl_se[pkey][k];
+					tmpinfo.snpchr = _ttl_chr[pkey][k];
+					tmpinfo.bp = _ttl_bp[pkey][k];
                         snpinfo.push_back(tmpinfo);
-                    }
+                }
                 
                 snpinfolst* sortptr=&snpinfo[0];
                 qsort(sortptr,snpinfo.size(),sizeof(snpinfolst),comp_esi);
@@ -2606,62 +2583,15 @@ namespace SMRDATA
                     printf("ERROR: SNP names don't match in probe %s. Please report this bug.", prbiflst[j].probeId.c_str());
                     exit(EXIT_FAILURE);
                 }
-                map<string, int> rsa_map;
-                long rsNum=0;
+              
                 for(int l=0;l<rsid.size();l++)
                 {
                     if(abs(_se[l]+9)>1e-6) // can move this. the NA is controled in slct_sparse_per_prb
                     {
-                        string chckstr=_rs[l]+":"+_a1[l]+":"+_a2[l];
-                        rsa_map.insert(pair<string,int>(chckstr,l)); // in slct_sparse_per_prb, ras_map can privent selecting duplicate SNPs and double-slelecting SNPs. so we can move rsa_map here.
-                        if(rsNum<rsa_map.size())
-                        {
-                            
-                                if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l] ){
-                                    val.push_back(_beta[l]);
-                                    rowids.push_back(rsid[l]);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(rsid[l]);
-                                } else if(esi_a1[rsid[l]]==_a2[l] && esi_a2[rsid[l]]==_a1[l] ){
-                                    val.push_back(-1.0*_beta[l]);
-                                    rowids.push_back(rsid[l]);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(rsid[l]);
-                                } else {
-                                    int did=-9;
-                                    float sig=1.0;
-                                    for(int m=0;m<esi_rs.size();m++)
-                                    {
-                                        if(esi_rs[m]==_rs[l])
-                                        {
-                                            if(esi_a1[m]==_a1[l] && esi_a2[m]==_a2[l])
-                                            {
-                                                did=m;
-                                                break;
-                                            }
-                                            if(esi_a1[m]==_a2[l] && esi_a2[m]==_a1[l])
-                                            {
-                                                did=m;
-                                                sig=-1.0;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if(did==-9)
-                                    {
-                                        printf("ERROR: This would not go to happen. Please report this bug.");
-                                        exit(EXIT_FAILURE);
-                                    }
-                                    val.push_back(sig*_beta[l]);
-                                    rowids.push_back(did);
-                                    tmpse.push_back(_se[l]);
-                                    tmprid.push_back(did);
-                                }
-                            
-                            rsNum=rsa_map.size();
-                        } else {
-                            printf("WARNING: duplicate SNP %s with the same alleles belonging to the same probe %s. \n",_rs[l].c_str(),prbiflst[j].probeId.c_str());
-                        }
+                        val.push_back(_beta[l]);
+                        rowids.push_back(rsid[l]);
+                        tmpse.push_back(_se[l]);
+                        tmprid.push_back(rsid[l]);
                     } else {
                         printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n",_rs[l].c_str());
                     }
@@ -2674,7 +2604,6 @@ namespace SMRDATA
                 uint64_t real_num=tmpse.size();
                 cols[(j<<1)+1]=real_num+cols[j<<1];
                 cols[j+1<<1]=(real_num<<1)+cols[j<<1];
-                
             }
             uint64_t valNum=val.size();
             fwrite (&valNum,sizeof(uint64_t), 1, smr1);
@@ -2683,11 +2612,383 @@ namespace SMRDATA
             fwrite (&val[0],sizeof(float), val.size(), smr1);
             fclose (smr1);
             
-            printf("The summary information of selection has been saved in %s.\n", logfname.c_str());
-            cout<<"\nBeta values and SE values for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+            printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
+            cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
             fclose(logfile);
 
         }
         
+    }
+    
+    void read_maf_file(vector<string> &rs,vector<string> &a1,vector<string> &a2,vector< vector<float> > &maf, vector<string> &cohorts, map<string,int> &rs_map, string mafFileName){
+        
+        cout << "Reading summary information from [" + mafFileName + "]." << endl;
+        char tbuf[MAX_LINE_SIZE];
+        gzFile gzfile = gzopen(mafFileName.c_str(), "rb");
+        if (!(gzfile)) {
+            fprintf (stderr, "%s: Couldn't open file %s\n",
+                     mafFileName.c_str(), strerror (errno));
+            exit (EXIT_FAILURE);
+        }
+        int lineNum(0);
+        gzgets(gzfile, tbuf, MAX_LINE_SIZE); //head
+        if(tbuf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",mafFileName.c_str());
+            exit(EXIT_FAILURE);
+        }
+        vector<string> vs_buf;
+        int col_num_header = split_string(tbuf, vs_buf, " \t\n");
+        to_upper(vs_buf[0]);
+        if(vs_buf[0]!="SNP") {
+            printf("ERROR: the headers should start with \"SNP\"");
+            exit(EXIT_FAILURE);
+        }
+        for(int i=3;i<col_num_header;i++)
+        {
+            cohorts.push_back(vs_buf[i]);
+        }
+        while(!gzeof(gzfile))
+        {
+            gzgets(gzfile, tbuf, MAX_LINE_SIZE);
+            if(tbuf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(tbuf, vs_buf, " \t\n");
+                if(col_num!=col_num_header) {
+                    printf("ERROR: column number is not right in row %d.!", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
+                    printf("ERROR: SNP is \'NA\' in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                    printf("ERROR: AlleleA  is \'NA\' in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
+                    printf("ERROR: AlleleB  is \'NA\' in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                rs_map.insert(pair<string,int>(vs_buf[0], lineNum));
+                if(rs_map.size()!=lineNum+1)
+                {
+                    printf("ERROR: duplicate SNP found in row %d.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                rs.push_back(vs_buf[0]);
+                a1.push_back(vs_buf[1]);
+                a2.push_back(vs_buf[2]);
+                vector<float> tmpmaf;
+                for(int i=3;i<col_num;i++)
+                {
+                    if(vs_buf[i]=="NA" || vs_buf[i]=="na"){
+                        tmpmaf.push_back(-9);
+                    }
+                    else {
+                        tmpmaf.push_back(atof(vs_buf[i].c_str()));
+                    }
+                }
+                maf.push_back(tmpmaf);
+                lineNum++;
+            }
+        }
+        gzclose(gzfile);
+        cout << lineNum << " MAF info to be included from [" + mafFileName + "]." << endl;
+    }
+
+    void make_qfile(char* outFileName, char* eFileName, char* mafFileName)
+    {
+        vector<string> rs;
+        vector<string> a1;
+        vector<string> a2;
+        vector< vector<float> > maf;
+        vector<string> cohorts_maf;
+        map<string,int> rsmap;
+        map<string, int>::iterator iter;
+    
+        read_maf_file(rs,a1,a2,maf,cohorts_maf,rsmap,mafFileName);
+        for(int i=0;i<cohorts_maf.size();i++)
+        {
+            if(cohorts_maf[i]=="BSGS_unrelated")
+            {
+                cohorts_maf[i]="BSGS";
+            }
+            if(cohorts_maf[i]=="EGCUT_small")
+            {
+                cohorts_maf[i]="EGCUT2";
+            }
+            if(cohorts_maf[i]=="HVNv3")
+            {
+                cohorts_maf[i]="HVN_v3";
+            }
+            if(cohorts_maf[i]=="HVNv4")
+            {
+                cohorts_maf[i]="HVN_v4";
+            }
+            if(cohorts_maf[i]=="Sorbs_unrelated")
+            {
+                cohorts_maf[i]="Sorbs";
+            }
+            if(cohorts_maf[i]=="FehrmannHT12v3")
+            {
+                cohorts_maf[i]="Fehrmann_HT12v3";
+            }
+            if(cohorts_maf[i]=="LIFEa1")
+            {
+                cohorts_maf[i]="LIFE_a1";
+            }
+        }
+        
+        gzFile gzfile = gzopen(eFileName, "rb");
+        if (!(gzfile)) {
+            fprintf (stderr, "%s: Couldn't open file %s\n",
+                     eFileName, strerror (errno));
+            exit (EXIT_FAILURE);
+        }
+        long lineNum(0);
+        char tbuf[MAX_LINE_SIZE];
+        gzgets(gzfile, tbuf, MAX_LINE_SIZE); //head
+        if(tbuf[0]=='\0')
+        {
+            printf("ERROR: the first row of the file %s is empty.\n",eFileName);
+            exit(EXIT_FAILURE);
+        }
+        vector<string> vs_buf;
+        vector<string> alleles;
+        vector<string> cohorts;
+        vector<string> nstr;
+        vector<int> ns;
+        int col_num_header = split_string(tbuf, vs_buf, " \t\n");
+        to_upper(vs_buf[0]);
+        if(vs_buf[0]!="PVALUE") {
+            printf("ERROR: the headers should start with \"PValue\"");
+            exit(EXIT_FAILURE);
+        }
+        
+        
+        FILE* queryfile=NULL;
+        queryfile = fopen(outFileName, "w");
+        if (!(queryfile)) {
+            printf("Open error %s\n", outFileName);
+            exit(1);
+        }
+        
+        FILE* smpfile=NULL;
+        smpfile = fopen("sample_size.txt", "w");
+        if (!(smpfile)) {
+            printf("Open error %s\n", "sample_size.txt");
+            exit(1);
+        }
+        
+        string outstr="SNP\tChr\tBP\tA1\tA2\tFreq\tProbe\tProbe_Chr\tProbe_bp\tGene\tOrientation\tb\tSE\tp\n";
+        if(fputs_checked(outstr.c_str(),queryfile))
+        {
+            printf("ERROR: in writing file %s .\n", outFileName);
+            exit(EXIT_FAILURE);
+        }
+
+        
+        while(!gzeof(gzfile))
+        {
+            gzgets(gzfile, tbuf, MAX_LINE_SIZE);
+            if(tbuf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(tbuf, vs_buf, "\t\n");
+                if(col_num!=col_num_header-2) {
+                    printf("ERROR: column number is not right in row %ld.!", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                    printf("ERROR: SNP is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
+                    printf("ERROR: SNPchr is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[3]=="NA" || vs_buf[3]=="na"){
+                    printf("ERROR: SNPpos is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[4]=="NA" || vs_buf[4]=="na"){
+                    printf("ERROR: probename is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[5]=="NA" || vs_buf[5]=="na"){
+                    printf("ERROR: probeChr is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[6]=="NA" || vs_buf[6]=="na"){
+                    printf("ERROR: probeBP is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[8]=="NA" || vs_buf[8]=="na"){
+                    printf("ERROR: snp type is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[9]=="NA" || vs_buf[9]=="na"){
+                    printf("ERROR: effectallele is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[10]=="NA" || vs_buf[10]=="na"){
+                    printf("ERROR: zscore is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[11]=="NA" || vs_buf[11]=="na"){
+                    printf("ERROR: corhot string is \'NA\' in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[13]=="NA" || vs_buf[13]=="na"){
+                    printf("Waring: sple is \'NA\' in row %ld.\n", lineNum+2);
+                }
+                if(vs_buf[16]=="NA" || vs_buf[16]=="na"){
+                    printf("Waring: HGNC is \'NA\' in row %ld.\n", lineNum+2);
+                }
+                double p=atof(vs_buf[0].c_str());
+                string rs=vs_buf[1];
+                int rs_chr;
+                if(vs_buf[2]=="X" || vs_buf[2]=="x") rs_chr=23;
+                else if(vs_buf[2]=="Y" || vs_buf[2]=="y") rs_chr=24;
+                else if(vs_buf[2]=="XY" || vs_buf[2]=="xy") rs_chr=25;
+                else if(vs_buf[2]=="M" || vs_buf[2]=="m") rs_chr=26;
+                else rs_chr=atoi(vs_buf[2].c_str());
+                int rs_bp = atoi(vs_buf[3].c_str());
+                string probename=vs_buf[4];
+                int prb_chr;
+                if(vs_buf[5]=="X" || vs_buf[5]=="x") prb_chr=23;
+                else if(vs_buf[5]=="Y" || vs_buf[5]=="y") prb_chr=24;
+                else if(vs_buf[5]=="XY" || vs_buf[5]=="xy") prb_chr=25;
+                else if(vs_buf[5]=="M" || vs_buf[5]=="m") prb_chr=26;
+                else prb_chr=atoi(vs_buf[5].c_str());
+                int prb_bp = atoi(vs_buf[6].c_str());
+                alleles.clear();
+                int allelenum = split_string(vs_buf[8], alleles, "/");
+                if(allelenum!=2) {
+                    printf("ERROR: allele number is not right in row %ld.!", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                string effect_allele=vs_buf[9];
+                string alt_allele;
+                if(alleles[0]==effect_allele){
+                    alt_allele=alleles[1];
+                } else if(alleles[1]==effect_allele) {
+                    alt_allele=alleles[0];
+                } else {
+                    printf("ERROR: allele does not match in row %ld.!", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                double zscore=atof(vs_buf[10].c_str());
+                cohorts.clear();
+                int cornum=split_string(vs_buf[11], cohorts, ";");
+                nstr.clear(); //number of samples in string
+                ns.clear(); //number of samples in integer
+                int nnum=split_string(vs_buf[13], nstr, ";");
+                if(cornum!=nnum) {
+                    printf("ERROR: corhot and samplesize don't match in row %ld.!", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
+                int realcortnum=0;
+                for(int i=0;i<nnum;i++){
+                    if(cohorts[i]=="-")
+                    {
+                        if(nstr[i]!="-")
+                        {
+                            printf("ERROR: missing of corhot and samplesize don't match in row %ld.!", lineNum+2);
+                            exit(EXIT_FAILURE);
+                        }
+                    } else {
+                        realcortnum++;
+                    }
+                    ns.push_back(atoi(nstr[i].c_str()));
+                }
+                iter=rsmap.find(rs);
+                int rsid;
+                if(iter==rsmap.end()) {
+                    printf("ERROR: SNP %s can't be find in MAF file.\n", rs.c_str());
+                    exit(EXIT_FAILURE);
+                } else {
+                    rsid=iter->second;
+                }
+                bool sign;
+                if(effect_allele==a2[rsid] && alt_allele == a1[rsid])
+                {
+                    sign=true;
+                }
+                else if(effect_allele == a1[rsid] && alt_allele == a2[rsid])
+                {
+                    sign=false;
+                } else {
+                    printf("ERROR: Alleles of SNP %s don't match in MAF file.\n", rs.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                vector<int> idx;
+                match(cohorts, cohorts_maf, idx);
+                int sumn=0;
+                double sumfn=0.0;
+                int matchnum=0;
+                for(int i=0;i<idx.size();i++)
+                {
+                    if(idx[i]!=-9)
+                    {
+                        sumn+=ns[i];
+                        sumfn+=ns[i]*maf[rsid][idx[i]];
+                        matchnum++;
+                    }
+                }
+                if(matchnum!=realcortnum)
+                {
+                    printf("ERROR: Some abnormal cohort names in eQTL file %s.\n",eFileName);
+                    exit(EXIT_FAILURE);
+                }
+                double freq_effect_allele;
+                if(sign) freq_effect_allele=sumfn/sumn;
+                else freq_effect_allele=1-sumfn/sumn;
+                
+                double se=1/sqrt(2*freq_effect_allele*(1-freq_effect_allele)*(sumn+zscore*zscore));
+                double beta=zscore*se;
+                
+                string gene=vs_buf[16];
+                gene.erase(std::remove(gene.begin(), gene.end(), ' '), gene.end());
+                if(prb_bp<0){
+                    if(gene=="ENST00000328596") prb_bp=1140488;
+                    else if(gene=="ENST00000339368") prb_bp=70638;
+                    else if(gene=="ENST00000344450") prb_bp=321706;
+                    else if(gene=="ENST00000176195") prb_bp=626777;
+                    else if(gene=="ENST00000472539,ENST00000356815,ENST00000496585") prb_bp=216369;
+                    else if(gene=="ENST00000329244") prb_bp=74013;
+                    else if(gene=="ENST00000268661") prb_bp=1999629;
+                    else if(gene=="ENST00000215368") prb_bp=1293790;
+                    else if(gene=="ENST00000585721") prb_bp=167013;
+                    else if(gene=="ENST00000250974") prb_bp=1881246;
+                    else {
+                        printf("ERROR: probename %s, gene %s , bp %d.\n", probename.c_str(),gene.c_str(), prb_bp);
+                        exit(EXIT_FAILURE);
+                    }
+                    
+                }
+                
+                string spln=probename+'\t'+rs+'\t'+atos(sumn)+'\n';
+                if(fputs_checked(spln.c_str(),smpfile))
+                {
+                    printf("ERROR: in writing smaple size file %s .\n", "sample_size.txt");
+                    exit(EXIT_FAILURE);
+                }
+
+                string Orientation="*";
+                outstr=rs+'\t'+atos(rs_chr)+'\t'+atos(rs_bp)+'\t'+effect_allele+'\t'+alt_allele+'\t'+atos(freq_effect_allele)+'\t'+probename+'\t'+atos(prb_chr)+'\t'+atos(prb_bp)+'\t'+gene+'\t'+Orientation+'\t'+atos(beta)+'\t'+atos(se)+'\t'+dtos(p)+'\n';
+                if(fputs_checked(outstr.c_str(),queryfile))
+                {
+                    printf("ERROR: in writing file %s .\n", outFileName);
+                    exit(EXIT_FAILURE);
+                }
+
+                lineNum++;
+            }
+        }
+        fclose(smpfile);
+        fclose(queryfile);
+        gzclose(gzfile);
+        printf("%ld rows have been saved in %s.\n", lineNum,outFileName);
     }
 }
