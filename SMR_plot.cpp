@@ -887,7 +887,7 @@ namespace SMRDATA
         }
         gdata->snpNum=gdata->snpName.size();
     }
-    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet)
+    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt)
     {        
        
         setNbThreads(thread_num);
@@ -1014,7 +1014,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> smrrlts;
-        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd);
+        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)
@@ -1054,7 +1054,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> msmrrlts;
-        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd);
+        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt);
         vector<int> mgstart;
         vector<int> mgend;
         for(int i=0;i<msmrrlts.size();i++)

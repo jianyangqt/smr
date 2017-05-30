@@ -42,19 +42,19 @@ int StrFunc::split_string(const string &str, vector<string> &vec_str, string sep
 	}
 	if(look) vec_str.push_back(str_buf);
 
-	return vec_str.size();
+	return (int)vec_str.size();
 }
 
 string StrFunc::first_string(const string &str, const char separator)
 {
-	int pos=str.find(separator);
+	int pos=(int)str.find(separator);
 	if(pos!=-1) return string(str.begin(), str.begin()+pos);
 	return string("");
 }
 
 string StrFunc::last_string(const string &str, const char separator)
 {
-	int pos=str.find_last_of(separator);
+	int pos=(int)str.find_last_of(separator);
 	if(pos!=-1) return string(str.begin()+pos+1, str.end());
 	return string("");
 }

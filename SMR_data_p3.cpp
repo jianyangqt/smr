@@ -40,11 +40,11 @@ namespace SMRDATA
                     snpinfolst snpinfotmp;
                     counter = rs_map.size();
                     snpinfotmp.snpchr=etmp._esi_chr[j];
-                    snpinfotmp.snprs=etmp._esi_rs[j];
+                    strcpy2(&snpinfotmp.snprs, etmp._esi_rs[j]);
                     snpinfotmp.bp=etmp._esi_bp[j];
                     snpinfotmp.gd=etmp._esi_gd[j];
-                    snpinfotmp.a1=etmp._esi_allele1[j];
-                    snpinfotmp.a2=etmp._esi_allele2[j];
+                    strcpy2(&snpinfotmp.a1, etmp._esi_allele1[j]);
+                    strcpy2(&snpinfotmp.a2, etmp._esi_allele2[j]);
                     snpinfotmp.freq=etmp._esi_freq[j];
                     snpinfo.push_back(snpinfotmp);
                 }
@@ -79,10 +79,10 @@ namespace SMRDATA
                     probeinfolst2 probinfotmp;
                     counter=prb_map.size();
                     probinfotmp.probechr=etmp._epi_chr[j];
-                     probinfotmp.probeId=etmp._epi_prbID[j];
+                    strcpy2(&probinfotmp.probeId, etmp._epi_prbID[j]);
                      probinfotmp.bp=etmp._epi_bp[j];
                     probinfotmp.gd=etmp._epi_gd[j];
-                     probinfotmp.genename=etmp._epi_gene[j];
+                    strcpy2(&probinfotmp.genename, etmp._epi_gene[j]);
                      probinfotmp.orien=etmp._epi_orien[j];
                     probinfotmp.vnum=0;
                     probinfotmp.rowid=NULL;
@@ -1308,9 +1308,9 @@ namespace SMRDATA
                             tmpinfo.beta=beta;
                             tmpinfo.se=se;
                             tmpinfo.snpchr=eqtlinfo._esi_chr[jj];
-                            tmpinfo.snprs=eqtlinfo._esi_rs[jj];
-                            tmpinfo.a1=eqtlinfo._esi_allele1[jj];
-                            tmpinfo.a2=eqtlinfo._esi_allele2[jj];
+                            strcpy2(&tmpinfo.snprs, eqtlinfo._esi_rs[jj]);
+                            strcpy2(&tmpinfo.a1, eqtlinfo._esi_allele1[jj]);
+                            strcpy2(&tmpinfo.a2, eqtlinfo._esi_allele2[jj]);
                             tmpinfo.bp=eqtlinfo._esi_bp[jj];
                             snpinfo.push_back(tmpinfo);
                             snpmapsize=snp_map.size();
@@ -1347,9 +1347,9 @@ namespace SMRDATA
                                 tmpinfo.beta=beta;
                                 tmpinfo.se=se;
                                 tmpinfo.snpchr=eqtlinfo._esi_chr[rowid];
-                                tmpinfo.snprs=eqtlinfo._esi_rs[rowid];
-                                tmpinfo.a1=eqtlinfo._esi_allele1[rowid];
-                                tmpinfo.a2=eqtlinfo._esi_allele2[rowid];
+                                strcpy2(&tmpinfo.snprs, eqtlinfo._esi_rs[rowid]);
+                                strcpy2(&tmpinfo.a1, eqtlinfo._esi_allele1[rowid]);
+                                strcpy2(&tmpinfo.a2, eqtlinfo._esi_allele2[rowid]);
                                 tmpinfo.bp=eqtlinfo._esi_bp[rowid];
                                 snpinfo.push_back(tmpinfo);
                                 snpmapsize=snp_map.size();
@@ -1370,10 +1370,11 @@ namespace SMRDATA
                 probeinfolst prbifo;
                 prbifo.bp=probeinfo[j].bp;
                 prbifo.probechr=probeinfo[j].probechr;
-                prbifo.probeId=probeinfo[j].probeId;
-                
+                strcpy2(&prbifo.probeId, probeinfo[j].probeId);
+              
                 vector<int> slct_idx;
                 slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                free2(&prbifo.probeId);
                 stable_sort(slct_idx.begin(),slct_idx.end());
                 vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
                 vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
@@ -1473,7 +1474,8 @@ namespace SMRDATA
             } else {
                 cols[(j<<1)+1]=cols[j<<1];
                 cols[j+1<<1]=cols[j<<1];
-            }            
+            }
+            free_snplist(snpinfo);
         }
         uint64_t valNum=val.size();
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
@@ -1481,7 +1483,6 @@ namespace SMRDATA
         fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
         fwrite (&val[0],sizeof(float), val.size(), smr1);
         fclose (smr1);
-        
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
         cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
@@ -1617,14 +1618,14 @@ namespace SMRDATA
                         
                         if(probeinfo[prbindx].vnum==0)
                         {
-                            snpinfolst2* tmpsinfo=(snpinfolst2 *)malloc(sizeof(snpinfolst2)*num);
+                            snpinfolst* tmpsinfo=(snpinfolst *)malloc(sizeof(snpinfolst)*num);
                             if(NULL == tmpsinfo)
                             {
                                 printf("ERROR: Memory allocation error when saving SNP information of probe %s.\n",curprb.c_str());
                                 exit(EXIT_FAILURE);
                             }
 
-                            memset(tmpsinfo,0,num*sizeof(snpinfolst2));
+                            memset(tmpsinfo,0,num*sizeof(snpinfolst));
                             for(int jj=0;jj<num;jj++)
                             {
                                 float beta=betasebuff[jj];
@@ -1675,14 +1676,14 @@ namespace SMRDATA
                             if(keepid.size()>0)
                             {
                                 long num_new=probeinfo[prbindx].vnum+keepid.size();
-                                snpinfolst2* sinfo_new=(snpinfolst2*)malloc(num_new*sizeof(snpinfolst2));
+                                snpinfolst* sinfo_new=(snpinfolst*)malloc(num_new*sizeof(snpinfolst));
                                 if(NULL == sinfo_new)
                                 {
                                     printf("ERROR: Memory allocation error when when merging data of probe %s.\n",curprb.c_str());
                                     exit(EXIT_FAILURE);
                                 }
-                                memset(sinfo_new,0,num_new*sizeof(snpinfolst2));
-                                memcpy(sinfo_new, probeinfo[prbindx].sinfo, probeinfo[prbindx].vnum*sizeof(snpinfolst2));
+                                memset(sinfo_new,0,num_new*sizeof(snpinfolst));
+                                memcpy(sinfo_new, probeinfo[prbindx].sinfo, probeinfo[prbindx].vnum*sizeof(snpinfolst));
                                 for(int l=0;l<keepid.size();l++) {
                                     double beta=betasebuff[keepid[l]];
                                     double se=betasebuff[keepid[l]+num];
@@ -1728,13 +1729,12 @@ namespace SMRDATA
         {
             if(probeinfo[j].vnum>0)
             {
-                qsort(probeinfo[j].sinfo,probeinfo[j].vnum,sizeof(snpinfolst2),comp_esi2);
+                qsort(probeinfo[j].sinfo,probeinfo[j].vnum,sizeof(snpinfolst),comp_esi);
                 
                 probeinfolst prbifo;
                 prbifo.bp=probeinfo[j].bp;
                 prbifo.probechr=probeinfo[j].probechr;
-                prbifo.probeId=probeinfo[j].probeId;
-                
+                strcpy2(&prbifo.probeId, probeinfo[j].probeId);
                 vector<snpinfolst> snpinfo(probeinfo[j].vnum);
                 for(int k=0;k<probeinfo[j].vnum;k++)
                 {
@@ -1750,18 +1750,18 @@ namespace SMRDATA
                 vector<int> slct_idx;
                 slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
                 stable_sort(slct_idx.begin(),slct_idx.end());
-                
+                free2(&prbifo.probeId);
                 uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
                 if(NULL == ridbuff)
                 {
-                    printf("ERROR: Memory allocation error when when dealing with probe %s.\n",probeinfo[j].probeId.c_str());
+                    printf("ERROR: Memory allocation error when when dealing with probe %s.\n",probeinfo[j].probeId);
                     exit(EXIT_FAILURE);
                 }
                 memset(ridbuff,0,slct_idx.size()*2*sizeof(uint32_t));
                 float* betasebuff=(float*)malloc(slct_idx.size()*2*sizeof(float));
                 if(NULL == betasebuff)
                 {
-                    printf("ERROR: Memory allocation error when when dealing with probe %s.\n",probeinfo[j].probeId.c_str());
+                    printf("ERROR: Memory allocation error when when dealing with probe %s.\n",probeinfo[j].probeId);
                     exit(EXIT_FAILURE);
                 }
                 memset(betasebuff,0,slct_idx.size()*2*sizeof(float));
@@ -1781,19 +1781,19 @@ namespace SMRDATA
                             
                         } else if(esi_a1[esiidx]==snpinfo[slct_idx[l]].a2 && esi_a2[esiidx]==snpinfo[slct_idx[l]].a1 )
                         {
-                            printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", snpinfo[slct_idx[l]].snprs.c_str());
+                            printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", snpinfo[slct_idx[l]].snprs);
                             snpinfo[slct_idx[l]].beta=-1.0*snpinfo[slct_idx[l]].beta;
                             betasebuff[l]=snpinfo[slct_idx[l]].beta;
                             betasebuff[l+slct_idx.size()]=snpinfo[slct_idx[l]].se;
                         } else {
-                            printf("ERROR: SNP %s with multiple alleles <%s,%s> and <%s,%s> does not pass the allele check.\n", snpinfo[slct_idx[l]].snprs.c_str(),esi_a1[esiidx].c_str(),esi_a2[esiidx].c_str(),snpinfo[slct_idx[l]].a1.c_str(),snpinfo[slct_idx[l]].a2.c_str());
+                            printf("ERROR: SNP %s with multiple alleles <%s,%s> and <%s,%s> does not pass the allele check.\n", snpinfo[slct_idx[l]].snprs,esi_a1[esiidx].c_str(),esi_a2[esiidx].c_str(),snpinfo[slct_idx[l]].a1,snpinfo[slct_idx[l]].a2);
                             exit(EXIT_FAILURE);
                         }
 
                         
                     }
                     else {
-                        printf("ERROR: SNP %s is not in SNP map. if you are using --geno-uni, please disable it then try again. Otherwise please report this bug.\n",snpinfo[slct_idx[l]].snprs.c_str());
+                        printf("ERROR: SNP %s is not in SNP map. if you are using --geno-uni, please disable it then try again. Otherwise please report this bug.\n",snpinfo[slct_idx[l]].snprs);
                         exit(EXIT_FAILURE);
                     }
                 }
@@ -1985,9 +1985,9 @@ namespace SMRDATA
                             tmpinfo.beta=beta;
                             tmpinfo.se=se;
                             tmpinfo.snpchr=eqtlinfo._esi_chr[rowid];
-                            tmpinfo.snprs=eqtlinfo._esi_rs[rowid];
-                            tmpinfo.a1=eqtlinfo._esi_allele1[rowid];
-                            tmpinfo.a2=eqtlinfo._esi_allele2[rowid];
+                            strcpy2(&tmpinfo.snprs, eqtlinfo._esi_rs[rowid]);
+                            strcpy2(&tmpinfo.a1, eqtlinfo._esi_allele1[rowid]);
+                            strcpy2(&tmpinfo.a2, eqtlinfo._esi_allele2[rowid]);
                             tmpinfo.bp=eqtlinfo._esi_bp[rowid];
                             snpinfo.push_back(tmpinfo);
                             rowidx.push_back(rowid);
@@ -2007,12 +2007,12 @@ namespace SMRDATA
                         probeinfolst prbifo;
                         prbifo.bp=eqtlinfo._epi_bp[j];// probeinfo[prbindx].bp;
                         prbifo.probechr=eqtlinfo._epi_chr[j];//probeinfo[prbindx].probechr;
-                        prbifo.probeId=curprb;//probeinfo[prbindx].probeId;
+                        strcpy2(&prbifo.probeId, curprb); //probeinfo[prbindx].probeId;
                         
                         vector<int> slct_idx;
                         slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
                         stable_sort(slct_idx.begin(),slct_idx.end());
-                        
+                        free2(&prbifo.probeId);
                         uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
                         if(NULL == ridbuff)
                         {
@@ -2060,7 +2060,7 @@ namespace SMRDATA
                         probeinfo[prbindx].rowid=ridbuff;
                         probeinfo[prbindx].beta_se=betasebuff;
                     }
-                    
+                    free_snplist(snpinfo);
                 }
                 
                 free(colbuf);
@@ -2099,9 +2099,9 @@ namespace SMRDATA
                         tmpinfo.beta=beta;
                         tmpinfo.se=se;
                         tmpinfo.snpchr=eqtlinfo._esi_chr[jj];
-                        tmpinfo.snprs=eqtlinfo._esi_rs[jj];
-                        tmpinfo.a1=eqtlinfo._esi_allele1[jj];
-                        tmpinfo.a2=eqtlinfo._esi_allele2[jj];
+                        strcpy2(&tmpinfo.snprs, eqtlinfo._esi_rs[jj]);
+                        strcpy2(&tmpinfo.a1, eqtlinfo._esi_allele1[jj]);
+                        strcpy2(&tmpinfo.a2, eqtlinfo._esi_allele2[jj]);
                         tmpinfo.bp=eqtlinfo._esi_bp[jj];
                         snpinfo.push_back(tmpinfo);
                         rowidx.push_back(jj);
@@ -2115,12 +2115,12 @@ namespace SMRDATA
                         probeinfolst prbifo;
                         prbifo.bp=eqtlinfo._epi_bp[j];// probeinfo[prbindx].bp;
                         prbifo.probechr=eqtlinfo._epi_chr[j];//probeinfo[prbindx].probechr;
-                        prbifo.probeId=curprb;//probeinfo[prbindx].probeId;
+                        strcpy2(&prbifo.probeId, curprb); //probeinfo[prbindx].probeId;
                         
                         vector<int> slct_idx;
                         slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
                         stable_sort(slct_idx.begin(),slct_idx.end());
-                        
+                        free2(&prbifo.probeId);
                         uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
                         if(NULL == ridbuff)
                         {
@@ -2153,6 +2153,7 @@ namespace SMRDATA
                         probeinfo[prbindx].rowid=ridbuff;
                         probeinfo[prbindx].beta_se=betasebuff;
                     }
+                    free_snplist(snpinfo);
                 }
                 free(tmpbetase);
             }
@@ -2291,6 +2292,8 @@ namespace SMRDATA
                 else save_slct_besds_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames);
             }
         }
+        free_snplist(snpinfo);
+        free_probelist(probeinfo);
     }
     float est_sample_size(float freq, float beta, float se)
     {
@@ -2327,12 +2330,12 @@ namespace SMRDATA
             iter=_incld_id_map.find(rid);
             if(iter!=_incld_id_map.end())
             {
-                snpinfotmp.snprs=etmp->_esi_rs[rid];
+                strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[rid]);
                 snpinfotmp.snpchr=etmp->_esi_chr[rid];
                 snpinfotmp.bp=etmp->_esi_bp[rid];
                 snpinfotmp.gd=etmp->_esi_gd[rid];
-                snpinfotmp.a1=etmp->_esi_allele1[rid];
-                snpinfotmp.a2=etmp->_esi_allele2[rid];
+                strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[rid]);
+                strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[rid]);
                 snpinfotmp.freq=etmp->_esi_freq[rid];
                 snpinfotmp.beta=*(val_ptr+j);
                 snpinfotmp.se=*(val_ptr+j+num);
@@ -2345,13 +2348,13 @@ namespace SMRDATA
                     }
                     if(snpinfotmp.freq<1e-8)
                     {
-                        printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs.c_str());
+                        printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
                         continue;
                     }
                     snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
                     if(snpinfotmp.estn<0)
                     {
-                        printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs.c_str());
+                        printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
                         exit(EXIT_FAILURE);
                     }
                     snpinfo.push_back(snpinfotmp);
@@ -2383,12 +2386,12 @@ namespace SMRDATA
             if(abs(se+9)>1e-6)
             {
                 snpinfolst snpinfotmp;
-                snpinfotmp.snprs=etmp->_esi_rs[etmp->_esi_include[j]];
+                strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[etmp->_esi_include[j]]);
                 snpinfotmp.snpchr=etmp->_esi_chr[etmp->_esi_include[j]];
                 snpinfotmp.bp=etmp->_esi_bp[etmp->_esi_include[j]];
                 snpinfotmp.gd=etmp->_esi_gd[etmp->_esi_include[j]];
-                snpinfotmp.a1=etmp->_esi_allele1[etmp->_esi_include[j]];
-                snpinfotmp.a2=etmp->_esi_allele2[etmp->_esi_include[j]];
+                strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[etmp->_esi_include[j]]);
+                strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[etmp->_esi_include[j]]);
                 snpinfotmp.freq=etmp->_esi_freq[etmp->_esi_include[j]];
                 snpinfotmp.beta=*(ft + etmp->_esi_include[j]);
                 snpinfotmp.se=se;
@@ -2656,12 +2659,12 @@ namespace SMRDATA
                     if(abs(se+9)>1e-6)
                     {
                         snpinfolst snpinfotmp;
-                        snpinfotmp.snprs=etmp._esi_rs[etmp._esi_include[j]];
+                        strcpy2(&snpinfotmp.snprs, etmp._esi_rs[etmp._esi_include[j]]);
                         snpinfotmp.snpchr=etmp._esi_chr[etmp._esi_include[j]];
                         snpinfotmp.bp=etmp._esi_bp[etmp._esi_include[j]];
                         snpinfotmp.gd=etmp._esi_gd[etmp._esi_include[j]];
-                        snpinfotmp.a1=etmp._esi_allele1[etmp._esi_include[j]];
-                        snpinfotmp.a2=etmp._esi_allele2[etmp._esi_include[j]];
+                        strcpy2(&snpinfotmp.a1, etmp._esi_allele1[etmp._esi_include[j]]);
+                        strcpy2(&snpinfotmp.a2, etmp._esi_allele2[etmp._esi_include[j]]);
                         snpinfotmp.freq=etmp._esi_freq[etmp._esi_include[j]];
                         snpinfotmp.beta=*(ft + etmp._esi_include[j]);
                         snpinfotmp.se=se;
@@ -2674,13 +2677,13 @@ namespace SMRDATA
                             }
                             if(abs(snpinfotmp.freq)<1e-8)
                             {
-                                printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs.c_str());
+                                printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
                                 continue;
                             }
                             snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, se);
                             if(snpinfotmp.estn<0)
                             {
-                                printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs.c_str());
+                                printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
                                 exit(EXIT_FAILURE);
                             }
                             snpinfo.push_back(snpinfotmp);
@@ -2695,8 +2698,8 @@ namespace SMRDATA
             probeinfolst prbifo;
             prbifo.bp=etmp._epi_bp[etmp._include[i]];
             prbifo.probechr=etmp._epi_chr[etmp._include[i]];
-            prbifo.probeId=etmp._epi_prbID[etmp._include[i]];
-            prbifo.genename=etmp._epi_gene[etmp._include[i]];
+            strcpy2(&prbifo.probeId, etmp._epi_prbID[etmp._include[i]]);
+            strcpy2(&prbifo.genename, etmp._epi_gene[etmp._include[i]]);
             prbifo.orien=etmp._epi_orien[etmp._include[i]];
             
             //  QC
@@ -2817,6 +2820,11 @@ namespace SMRDATA
             uint64_t real_num=tmpse.size();
             cols[(i<<1)+1]=real_num+cols[i<<1];
             cols[i+1<<1]=(real_num<<1)+cols[i<<1];
+            
+            free_snplist(snpinfo);
+            free2(&prbifo.probeId);
+            free2(&prbifo.genename);
+            
         }
         
         uint64_t valNum2write=val.size();
@@ -3224,7 +3232,7 @@ namespace SMRDATA
             fflush(stdout);
             int prbidx=eqtlinfo->_include[i];
             string prbid=eqtlinfo->_epi_prbID[prbidx];
-            
+            snpinfo.clear();
             if(eqtlinfo->_rowid.empty())
             {
                 for (int j = 0; j<eqtlinfo->_esi_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
@@ -3251,11 +3259,11 @@ namespace SMRDATA
                             warnnullfrqflag=true;
                             continue;
                         }
-                        snptmp.snprs=eqtlinfo->_esi_rs[snpidx];
+                        strcpy2(&snptmp.snprs, eqtlinfo->_esi_rs[snpidx]);
                         snptmp.snpchr=eqtlinfo->_esi_chr[snpidx];
                         snptmp.bp=eqtlinfo->_esi_bp[snpidx];
-                        snptmp.a1=eqtlinfo->_esi_bp[snpidx];
-                        snptmp.a2=eqtlinfo->_esi_bp[snpidx];
+                        strcpy2(&snptmp.a1, eqtlinfo->_esi_allele1[snpidx]);
+                        strcpy2(&snptmp.a2, eqtlinfo->_esi_allele2[snpidx]);
                         snptmp.freq=freq;
                         snptmp.beta=eqtlinfo->_bxz[prbidx][snpidx];
                         snptmp.se=se;
@@ -3295,10 +3303,10 @@ namespace SMRDATA
                     snptmp.se=se;
                     snptmp.estn= est_sample_size(freq, snptmp.beta, se);
                     snptmp.gd=snpidx;
-                    snptmp.snprs=eqtlinfo->_esi_rs[snpidx];
+                    strcpy2(&snptmp.snprs, eqtlinfo->_esi_rs[snpidx]);
                     snptmp.snpchr=eqtlinfo->_esi_chr[snpidx];
-                    snptmp.a1=eqtlinfo->_esi_allele1[snpidx];
-                    snptmp.a2=eqtlinfo->_esi_allele2[snpidx];
+                    strcpy2(&snptmp.a1, eqtlinfo->_esi_allele1[snpidx]);
+                    strcpy2(&snptmp.a2, eqtlinfo->_esi_allele2[snpidx]);
                     snptmp.bp=eqtlinfo->_esi_bp[snpidx];
                     snptmp.freq=eqtlinfo->_esi_freq[snpidx];
                     snpinfo.push_back(snptmp);
@@ -3308,8 +3316,8 @@ namespace SMRDATA
             probeinfolst prbifo;
             prbifo.bp=eqtlinfo->_epi_bp[prbidx];
             prbifo.probechr=eqtlinfo->_epi_chr[prbidx];
-            prbifo.probeId=eqtlinfo->_epi_prbID[prbidx];
-            prbifo.genename=eqtlinfo->_epi_gene[prbidx];
+            strcpy2(&prbifo.probeId, eqtlinfo->_epi_prbID[prbidx]);
+            strcpy2(&prbifo.genename, eqtlinfo->_epi_gene[prbidx]);
             prbifo.orien=eqtlinfo->_epi_orien[prbidx];
             
             //  QC
@@ -3337,9 +3345,11 @@ namespace SMRDATA
             else {
                 
             }
-
+            free2(&prbifo.probeId);
+            free2(&prbifo.genename);
+            free_snplist(snpinfo);
         }
-            
-        
+       
     }
+    
 }

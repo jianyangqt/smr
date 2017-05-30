@@ -196,7 +196,7 @@ void CommFunc::getRank_norep(vector<int> &a, vector<int> &b)
             rep_chck.insert(pair<int,int>(count,i));
         }
         mapsize=rep_chck.size();
-        b[i] = count;       
+        b[i] = count;
     }
 }
 void CommFunc::getUnique(vector<uint32_t> &a)
@@ -218,3 +218,20 @@ void CommFunc::match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB,
         else VecC.push_back(iter->second);
     }    
 }
+
+void CommFunc::strcpy2(char** to, string from)
+{
+    char* tmp=new char[from.size() + 1];
+    copy(from.begin(), from.end(), tmp);
+    tmp[from.size()]='\0';
+    *to=tmp;
+}
+void CommFunc::free2(char** to)
+{
+    if(*to)
+    {
+        delete(*to);
+        *to=NULL;
+    }
+}
+

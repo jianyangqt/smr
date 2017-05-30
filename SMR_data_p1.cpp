@@ -2561,7 +2561,7 @@ namespace SMRDATA
                     smrwk.seyz.swap(slct_seyz);
                     smrwk.rs.swap(slct_snpName);
                     
-                    if(!heidioffFlag)  pdev= heidi_test_new(&bdata,&smrwk,slct_maxid, ld_top,  threshold,  m_hetero, nsnp );
+                    if(!heidioffFlag)  pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp );
 
                     
                     outstr = probename + '\t' + atos(probechr) + '\t' + probegene + '\t' + atos(probebp) + '\t' + topsnpname + '\t' + atos(esdata._esi_chr[out_raw_id]) + '\t' + atos(esdata._esi_bp[out_raw_id]) + '\t' + esdata._esi_allele1[out_raw_id] + '\t' + esdata._esi_allele2[out_raw_id] + '\t' + atos(bdata._mu[bdata._include[out_raw_id]] / 2) + '\t';
@@ -2711,7 +2711,7 @@ namespace SMRDATA
                 smrwk.seyz.swap(slct_seyz);
                 smrwk.rs.swap(slct_snpName);
                 
-                if(!heidioffFlag)  pdev= heidi_test_new(&bdata,&smrwk,slct_maxid, ld_top,  threshold,  m_hetero, nsnp );
+                if(!heidioffFlag)  pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp );
                 				
 				outstr = probename + '\t' + atos(probechr) + '\t' + probegene + '\t' + atos(probebp) + '\t' + topsnpname + '\t' + atos(esdata._esi_chr[out_raw_id]) + '\t' + atos(esdata._esi_bp[out_raw_id]) + '\t' + esdata._esi_allele1[out_raw_id] + '\t' + esdata._esi_allele2[out_raw_id] + '\t' + atos(bdata._mu[bdata._include[out_raw_id]] / 2) + '\t';
 				//outstr += atos(byz_max) + '\t' + atos(seyz_max) + '\t' + dtos(pyz_max) + '\t' + dtos(set_pval_gwas) + '\t';
@@ -2736,7 +2736,512 @@ namespace SMRDATA
         free_gwas_data( &gdata);
         
     }
+    void getMetaEsi(vector<eqtlInfo> &eqtls, vector<string> &besds)
+    {
+        vector<string> alfairs;
+        map<string, int>::iterator iter;
+        long f2r=besds.size();
+        map<string, int> allel_map;
+        for (int i = 0; i < f2r; i++)
+        {
+            eqtlInfo etmp;
+            string eifile = besds[i]+".esi";
+            read_esifile(&etmp, eifile);
+            eifile = besds[i]+".epi";
+            read_epifile(&etmp, eifile);
+            eqtls.push_back(etmp);
+        }
+        printf("\nPerforming Allele checking. This step could be a little long....\n");
+        printf("We set the first BESD as the baseline to conduct allele check.\n");
+        vector<string> commrs;
+        vector<string> commprb;
+        vector< vector<int> > epi_include;
+        vector< vector<int> > esi_include;
+        vector< vector<bool> > reverse;
+        for(int i=0; i<eqtls[0]._snpNum;i++)
+        {
+            string rs=eqtls[0]._esi_rs[i];
+            allel_map.clear();
+            allel_map.insert(pair<string,int>(eqtls[0]._esi_allele1[i],0));
+            allel_map.insert(pair<string,int>(eqtls[0]._esi_allele2[i],1));
+            bool hitall=false;
+            vector<int> icldtmp;
+            vector<bool> revtmp;
+            icldtmp.push_back(i);
+            revtmp.push_back(false);
+            for(int j=1;j<eqtls.size();j++)
+            {
+                iter = eqtls[j]._snp_name_map.find(rs);
+                if (iter != eqtls[j]._snp_name_map.end()) {
+                    int id=iter->second;
+                    allel_map.insert(pair<string,int>(eqtls[j]._esi_allele1[id],allel_map.size()));
+                    allel_map.insert(pair<string,int>(eqtls[j]._esi_allele2[id],allel_map.size()));
+                    if(allel_map.size()>2) {
+                        alfairs.push_back(rs);
+                        hitall=false;
+                        break;
+                    } else{
+                        hitall=true;
+                        icldtmp.push_back(id);
+                        if(eqtls[j]._esi_allele1[id]==eqtls[0]._esi_allele1[i] && eqtls[j]._esi_allele2[id]==eqtls[0]._esi_allele2[i])  revtmp.push_back(false);
+                        else if(eqtls[j]._esi_allele1[id]==eqtls[0]._esi_allele2[i] && eqtls[j]._esi_allele2[id]==eqtls[0]._esi_allele1[i])  revtmp.push_back(true);
+                        else printf("Can't happen!\n");
+                    }
+                } else {
+                    hitall=false;
+                    break;
+                }
+            }
+            if(hitall) {
+                commrs.push_back(rs);
+                esi_include.push_back(icldtmp);
+                reverse.push_back(revtmp);
+            }
+        }
+        printf("%ld common SNPs are included from %ld datasets.\n", commrs.size(), eqtls.size());
+        
+        printf("\nPerforming common probe selection....\n");
+        for(int i=0; i<eqtls[0]._probNum;i++)
+        {
+            string prb=eqtls[0]._epi_prbID[i];
+            bool hitall=false;
+            vector<int> icldtmp;
+            icldtmp.push_back(i);
+            for(int j=1;j<eqtls.size();j++)
+            {
+                iter = eqtls[j]._probe_name_map.find(prb);
+                if (iter != eqtls[j]._probe_name_map.end()) {
+                    int id=iter->second;
+                    hitall=true;
+                    icldtmp.push_back(id);
+                } else {
+                    hitall=false;
+                    break;
+                }
+            }
+            if(hitall) {
+                commprb.push_back(prb);
+                epi_include.push_back(icldtmp);
+            }
+        }
+        
+        printf("%ld common probes are included from %ld datasets.\n", commprb.size(), eqtls.size());
+        for(int i=0;i<eqtls.size();i++){
+            eqtls[i]._esi_include.clear();
+            eqtls[i]._snp_name_map.clear();
+            for(int j=0;j<esi_include.size();j++)
+            {
+                int idx=esi_include[j][i];
+                eqtls[i]._esi_include.push_back(idx);
+                eqtls[i]._snp_name_map.insert(pair<string,int>(eqtls[i]._esi_rs[idx],idx));
+                if(reverse[j][i]) {
+                    eqtls[i]._esi_gd[idx]=1;
+                    //cout<<eqtls[i]._esi_rs[idx]<<":"<<commrs[j]<<endl;
+                }
+            }
+        }
+        
+        for(int i=0;i<eqtls.size();i++){
+            eqtls[i]._include.clear();
+            eqtls[i]._probe_name_map.clear();
+            for(int j=0;j<epi_include.size();j++)
+            {
+                int idx=epi_include[j][i];
+                eqtls[i]._include.push_back(idx);
+                eqtls[i]._probe_name_map.insert(pair<string,int>(eqtls[i]._epi_prbID[idx],idx));
+            }
+        }
+
+        
+    }
+    void extract_one_probe(eqtlInfo* esdata,int prbidx, vector<double> &bxz, vector<double> &sexz, vector<string> &rs,vector<int> &curId)
+    {
+        //here prbidx should be the index of esdata->_epi_probeID not the index of esdata->_include
+        int i=prbidx;
+        if(esdata->_rowid.empty())
+        {
+            for (int j = 0; j<esdata->_esi_include.size(); j++) // esdata->_esi_include.size() should equal esdata->_snp_num
+            {
+                if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
+                {
+                    bxz.push_back(esdata->_bxz[i][j]);
+                    sexz.push_back(esdata->_sexz[i][j]);
+                    curId.push_back(j);
+                    rs.push_back(esdata->_esi_rs[j]);
+                }
+            }
+            
+        }
+        else{
+            uint64_t beta_start=esdata->_cols[i<<1];
+            uint64_t se_start=esdata->_cols[1+(i<<1)];
+            uint64_t numsnps=se_start-beta_start;
+            for(int j=0;j<numsnps;j++)
+            {
+                int ge_rowid=esdata->_rowid[beta_start+j];
+                    bxz.push_back(esdata->_val[beta_start+j]);
+                    sexz.push_back(esdata->_val[se_start+j]);
+                    curId.push_back(ge_rowid); //save snp id of the raw
+                    rs.push_back(esdata->_esi_rs[ge_rowid]);
+            }
+        }
+    }
+    void getCommonPerProbe(vector<eqtlInfo> &eqtls, int i,vector< vector<double> > &slct_beta,vector< vector<double> > &slct_se,vector<int> &slct_idx)
+    {
+        vector< vector<double> > beta, se;
+        vector< vector<int> > ids;
+        vector< map<int,int> > idmaps;
+        map<int, int>::iterator iter;
+        for(int j=0;j<eqtls.size();j++)
+        {
+            vector<double> bxz,sexz;
+            vector<string> rs;
+            vector<int> curId;
+            extract_one_probe(&eqtls[j],i,bxz,sexz,rs,curId);
+            string tmstr="th";
+            if(!j) tmstr="st";
+            else if(j==1) tmstr="nd";
+            else if (j==2) tmstr="rd";
+            else tmstr="th";
+            printf("%ld SNPs are included from the %d%s BESD dataset.\n", rs.size(), j+1,tmstr.c_str());
+            for(int k=0;k<curId.size();k++)
+            {
+                if(eqtls[j]._esi_gd[curId[k]]) {
+                    bxz[k]*=-1;
+                   // printf("Beta of SNP %s has been changed to %f because of allele check. \n",rs[k].c_str(),bxz[k]);
+                }
+            }
+            map<int,int> tmpmap;
+            for(int k=0;k<rs.size();k++) tmpmap.insert(pair<int,int>(curId[k],k));
+            idmaps.push_back(tmpmap);
+            beta.push_back(bxz);
+            se.push_back(sexz);
+            ids.push_back(curId);
+        }
+        slct_beta.resize(eqtls.size());
+        slct_se.resize(eqtls.size());
+        for(int j=0;j<ids[0].size();j++)
+        {
+            int snpid=ids[0][j];
+            bool hitall=false;
+            vector<double> tbeta;
+            vector<double> tse;
+            tbeta.push_back(beta[0][j]);
+            tse.push_back(se[0][j]);
+            for( int k=1;k<idmaps.size();k++)
+            {
+                iter = idmaps[k].find(snpid);
+                if (iter != idmaps[k].end()) {
+                    hitall=true;
+                    tbeta.push_back(beta[k][iter->second]);
+                    tse.push_back(se[k][iter->second]);
+                } else {
+                    hitall= false;
+                    break;
+                }
+            }
+            if(hitall) {
+                for(int k=0;k<eqtls.size();k++)
+                {
+                    slct_beta[k].push_back(tbeta[k]);
+                    slct_se[k].push_back(tse[k]);
+                }
+                slct_idx.push_back(snpid);
+            }
+        }
+    }
+    void getV(MatrixXd &V, vector< vector<double> > &slct_beta,vector< vector<double> > &slct_se)
+    {
+        vector<double> SD,MEAN;
+        vector<double> bi_bj;
+        for(int i=0;i<slct_se.size();i++) {
+            bi_bj.clear();
+            for(int j=0;j<slct_se[i].size();j++) bi_bj.push_back(slct_se[i][j]*slct_se[i][j]);
+            MEAN.push_back(mean(bi_bj));
+            SD.push_back(sqrt(var(slct_se[i])));
+        }
+        for(int i=0;i<slct_beta.size();i++)
+        {
+            for(int j=i;j<slct_beta.size();j++) {
+                bi_bj.clear();
+                for(int k=0;k<slct_beta[i].size();k++)
+                    bi_bj.push_back(slct_beta[i][k]-slct_beta[j][k]);
+                V(i,j)=V(j,i)=(MEAN[i]+MEAN[j]+cov(bi_bj,slct_beta[j])-cov(bi_bj,slct_beta[i]))/(2*sqrt(MEAN[i]*MEAN[j]));
+            }
+        }
+    }
     
-  
+    void inverse_V(MatrixXd &Vi, bool &determinant_zero)
+    {
+        SelfAdjointEigenSolver<MatrixXd> eigensolver(Vi);
+        VectorXd eval = eigensolver.eigenvalues();
+        for(int i=0;i<eval.size();i++)
+        {
+            if(abs(eval(i))<1e-6) {
+                determinant_zero=true;
+                eval(i)=0;
+            } else {
+                eval(i) = 1.0 / eval(i);
+            }
+        }
+        Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
+    }
+    void write_epi(char* outFileName, eqtlInfo* esdata)
+    {
+        printf("\nGenerating epi file...\n");
+        string epifile = string(outFileName)+string(".epi");
+        ofstream epi(epifile.c_str());
+        if (!epi) throw ("Error: can not open the EPI file " + epifile + " to save!");
+        for (int j = 0;j <esdata->_include.size(); j++) {
+            epi<<esdata->_epi_chr[esdata->_include[j]]<<'\t'<<esdata->_epi_prbID[esdata->_include[j]]<<'\t'<<esdata->_epi_gd[esdata->_include[j]]<<'\t'<<esdata->_epi_bp[esdata->_include[j]]<<'\t'<<esdata->_epi_gene[esdata->_include[j]]<<'\t'<<esdata->_epi_orien[esdata->_include[j]]<<'\n';
+        }
+        epi.close();
+        printf("%ld probes have been saved in the file %s.\n",esdata->_include.size(),epifile.c_str());
+        
+    }
+    void write_esi(char* outFileName, eqtlInfo* esdata)
+    {
+        printf("\nGenerating esi file...\n");
+        string esifile =  string(outFileName)+string(".esi");
+        ofstream esi(esifile.c_str());
+        if (!esi) throw ("Error: can not open the ESI file to save!");
+        for (int j = 0;j <esdata->_esi_include.size(); j++) {
+            esi<<esdata->_esi_chr[esdata->_esi_include[j]] <<'\t'<<esdata->_esi_rs[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_gd[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_bp[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_allele1[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_allele2[esdata->_esi_include[j]]<<'\t'<<(esdata->_esi_freq[esdata->_esi_include[j]]+9>1e-6?atos(esdata->_esi_freq[esdata->_esi_include[j]]):"NA")<<'\n';
+        }
+        esi.close();
+        printf("%ld SNPs have been saved in the file %s.\n",esdata->_esi_include.size(),esifile.c_str());
+    }
+    void write_sbesd3(char* outFileName,vector<uint64_t> &cols, vector<uint32_t> &rowids, vector<float> &val)
+    {
+        printf("\nGenerating besd file...\n");
+        string esdfile=string(outFileName)+string(".besd");
+        FILE * smr1;
+        smr1 = fopen (esdfile.c_str(), "wb");
+        if (!(smr1)) {
+            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            exit(EXIT_FAILURE);
+        }
+        float filetype=SPARSE_FILE_TYPE_3;
+        fwrite (&filetype,sizeof(float), 1, smr1);
+        
+        uint64_t valNum=val.size();
+        fwrite (&valNum,sizeof(uint64_t), 1, smr1);
+        fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
+        fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
+        fwrite (&val[0],sizeof(float), val.size(), smr1);
+        fclose (smr1);
+        printf("eQTL summary statistics have been saved in binary file %s.\n", outFileName);
+
+    }
+     void meta_nooverlap_func(vector< vector<double> > &slct_beta,vector< vector<double> > &slct_se,vector<int> &slct_idx)
+    {
+        for(int j=0;j<slct_idx.size();j++)
+        {
+            double numerator=0.0;
+            double deno=0.0;
+            for(int k=0;k<slct_beta.size();k++)
+            {
+                double tmp2=slct_se[k][j]*slct_se[k][j];
+                deno+=1/tmp2;
+                numerator+=slct_beta[k][j]/tmp2;
+            }
+            slct_beta[0][j]=numerator/deno;
+            slct_se[0][j]=1/sqrt(deno);
+        }
+
+    }
+    void meta_overlap_func(vector< vector<double> > &slct_beta,vector< vector<double> > &slct_se,vector<int> &slct_idx,bool detailout, vector<int> &noninvertible, vector<int> &negativedeno)
+    {
+        
+         MatrixXd V(slct_beta.size(),slct_beta.size());
+         getV(V, slct_beta,slct_se);
+        if(detailout){
+            FILE* tmpfile=fopen("est_cor.txt","w");
+            if(!tmpfile)
+            {
+                printf("error open file.\n");
+                exit(EXIT_FAILURE);
+            }
+            for(int t=0;t<V.cols();t++)
+            {
+                string str="";
+                for(int tt=0;tt<V.rows();tt++)
+                {
+                    str+=atos(V(tt,t))+'\t';
+                }
+                str+='\n';
+                fputs(str.c_str(),tmpfile);
+            }
+            
+            fclose(tmpfile);
+
+        }
+         
+         for(int j=0;j<slct_idx.size();j++)
+         {
+             VectorXd sev(slct_se.size());
+             for(int k=0;k<slct_se.size();k++) sev(k)=slct_se[k][j];
+             MatrixXd W=sev*sev.transpose();
+             W=W.array()*V.array();
+             bool determinant_zero=false;
+             inverse_V(W,determinant_zero);
+             if(determinant_zero) noninvertible.push_back(slct_idx[j]);
+             double deno=W.sum();
+             if(deno<=0) {
+                 negativedeno.push_back(slct_idx[j]);
+                 slct_beta[0][j]=0;
+                 slct_se[0][j]=-9;
+             } else {
+                 VectorXd colsum=W.colwise().sum();
+                 double numerator=0.0;
+                 for(int k=0;k<slct_beta.size();k++) numerator+=colsum(k)*slct_beta[k][j];
+                 slct_beta[0][j]=numerator/deno;
+                 slct_se[0][j]=1/sqrt(deno);
+             }
+             
+         }
+        
+    }
+
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, bool detailout)
+    {
+        printf("\nNOTE: This version has no memroy optimization. All the BESD files included in this analysis should be loaded into memory.\n");
+        vector<string> besds;
+        vector<eqtlInfo> eqtls;
+    
+        read_smaslist(besds, string(besdlistFileName));
+        if(besds.size()<=1) throw("Less than 2 BESD files list in [ "+ string(besdlistFileName)  +" ]");
+        
+        eqtlInfo eMeta;
+    
+        getMetaEsi(eqtls, besds);
+        printf("\nRead eQTL summary data....\n");
+        for(int i=0;i<besds.size();i++)
+        {
+            string besdfile = besds[i]+".besd";
+            read_besdfile(&eqtls[i], besdfile);
+        }
+        //now all the BESDs are aligned
+        
+        vector<uint64_t> cols((eqtls[0]._include.size()<<1)+1);
+        vector<uint32_t> rowids;
+        vector<float> val;
+        cols[0]=0;
+        vector<string> noninvtb_prbs;
+        vector<string> nega_prbs;
+        printf("\nPerforming meta analysis....\n");
+        for(int i=0;i<eqtls[0]._include.size();i++) {
+            printf("%3.0f%%\r", 100.0*i/(eqtls[0]._include.size()));
+            fflush(stdout);
+            printf("processing with probe %s...\n",eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
+            vector< vector<double> > slct_beta; // row(1st dimension) is tissue, column(2nd dimension) is snp
+            vector< vector<double> > slct_se;
+            vector<int> slct_idx;
+            getCommonPerProbe(eqtls,i,slct_beta,slct_se,slct_idx);
+            if(slct_idx.size()==0) {
+                printf("NO common SNPs found!\n");
+                uint64_t real_num=slct_idx.size();
+                cols[(i<<1)+1]=real_num+cols[i<<1];
+                cols[i+1<<1]=(real_num<<1)+cols[i<<1];
+                continue;
+            }
+            uint64_t real_num=slct_idx.size();
+            cols[(i<<1)+1]=real_num+cols[i<<1];
+            cols[i+1<<1]=(real_num<<1)+cols[i<<1];
+            
+            if(detailout){
+                /****test**/
+                string filename=eqtls[0]._epi_prbID[eqtls[0]._include[i]]+".txt";
+                FILE* tmpfile=fopen(filename.c_str(),"w");
+                if(!tmpfile)
+                {
+                    printf("error open file.\n");
+                    exit(EXIT_FAILURE);
+                }
+                for(int t=0;t<slct_idx.size();t++)
+                {
+                    string str=atos(eqtls[0]._esi_rs[slct_idx[t]])+'\t'+atos(eqtls[0]._esi_allele1[slct_idx[t]]);
+                    for(int tt=0;tt<slct_beta.size();tt++)
+                    {
+                        str+='\t'+atos(slct_beta[tt][t])+'\t'+atos(slct_se[tt][t]);
+                    }
+                    str+='\n';
+                    fputs(str.c_str(),tmpfile);
+                }
+                
+                fclose(tmpfile);
+
+                /***end test**/
+            }
+           
+            printf("%ld common SNPs of probe %s are extracted from %ld datasets.\n",slct_idx.size(), eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str(), eqtls.size());
+            vector<int> noninvertible, negativedeno;
+            if(meta_mth==0) meta_nooverlap_func(slct_beta,slct_se,slct_idx);
+            else meta_overlap_func(slct_beta,slct_se,slct_idx,detailout,noninvertible,negativedeno);
+            if(noninvertible.size()>0) {
+                noninvtb_prbs.push_back(eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
+            }
+            if(negativedeno.size()>0) {
+                nega_prbs.push_back(eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
+            }
+            for(int j=0;j<slct_idx.size();j++)
+            {
+                val.push_back((float)(slct_beta[0][j]));
+                rowids.push_back((uint32_t)slct_idx[j]);
+            }
+            for(int j=0;j<slct_idx.size();j++)
+            {
+                val.push_back((float)(slct_se[0][j]));
+                rowids.push_back((uint32_t)slct_idx[j]);
+            }
+            
+        }
+        
+        if(noninvtb_prbs.size()>0)
+        {
+            printf("\nWARNING: %ld probes have at least one eQTL whose V is non-invertible.\n",noninvtb_prbs.size());
+            string filename=string(outFileName)+".non-invertible.probe.list";
+            FILE* tmpfile=fopen(filename.c_str(),"w");
+            if(!tmpfile)
+            {
+                printf("error open file.\n");
+                exit(EXIT_FAILURE);
+            }
+            for(int t=0;t<noninvtb_prbs.size();t++)
+            {
+                string str=noninvtb_prbs[t]+'\n';
+                fputs(str.c_str(),tmpfile);
+            }
+            fclose(tmpfile);
+            printf("These probes are saved in file %s.\n",filename.c_str());
+        }
+        
+        if(nega_prbs.size()>0)
+        {
+            printf("\nWARNING: %ld probes have at least one eQTL whose 1'inv(v)1 is negative .\n",nega_prbs.size());
+            printf("WARNING: That means we can't get SE by doing square-root. Pleae report to us to update the method.\n");
+            printf("WARNING: In term of such case we set effect size as 0 and SE as missing (-9).\n");
+            string filename=string(outFileName)+".negative.probe.list";
+            FILE* tmpfile=fopen(filename.c_str(),"w");
+            if(!tmpfile)
+            {
+                printf("error open file.\n");
+                exit(EXIT_FAILURE);
+            }
+            for(int t=0;t<nega_prbs.size();t++)
+            {
+                string str=nega_prbs[t]+'\n';
+                fputs(str.c_str(),tmpfile);
+            }
+            fclose(tmpfile);
+            printf("These probes are saved in file %s.\n",filename.c_str());
+        }
+
+        write_epi(outFileName, &eqtls[0]);
+        write_esi(outFileName, &eqtls[0]);
+        write_sbesd3(outFileName, cols, rowids, val);
+        
+    }
+
     
 }

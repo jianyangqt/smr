@@ -83,7 +83,9 @@ namespace CommFunc
     static inline unsigned int fputs_checked(const char* ss, FILE* outfile) {
         fputs(ss, outfile);
         return ferror(outfile);
-    }   
+    }
+    void strcpy2(char** to, string from);
+    void free2(char** to);
 }
 
 #endif
