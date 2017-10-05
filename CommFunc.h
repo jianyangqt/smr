@@ -29,6 +29,8 @@
 #define SPARSE_FILE_TYPE_3 3 // float + uint64_t + uint64_ts + uint32_ts + floats
 #define DENSE_FILE_TYPE_2 4
 
+#define MIN_PVAL_ADJUSTED 1e-150
+
 #include <limits>
 #include <complex>
 #include <vector>

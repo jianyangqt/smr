@@ -1373,7 +1373,7 @@ namespace SMRDATA
                 strcpy2(&prbifo.probeId, probeinfo[j].probeId);
               
                 vector<int> slct_idx;
-                slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
                 free2(&prbifo.probeId);
                 stable_sort(slct_idx.begin(),slct_idx.end());
                 vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
@@ -1748,7 +1748,7 @@ namespace SMRDATA
                 }
                 
                 vector<int> slct_idx;
-                slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
                 stable_sort(slct_idx.begin(),slct_idx.end());
                 free2(&prbifo.probeId);
                 uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
@@ -2010,7 +2010,7 @@ namespace SMRDATA
                         strcpy2(&prbifo.probeId, curprb); //probeinfo[prbindx].probeId;
                         
                         vector<int> slct_idx;
-                        slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                        slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
                         stable_sort(slct_idx.begin(),slct_idx.end());
                         free2(&prbifo.probeId);
                         uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
@@ -2118,7 +2118,7 @@ namespace SMRDATA
                         strcpy2(&prbifo.probeId, curprb); //probeinfo[prbindx].probeId;
                         
                         vector<int> slct_idx;
-                        slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                        slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
                         stable_sort(slct_idx.begin(),slct_idx.end());
                         free2(&prbifo.probeId);
                         uint32_t* ridbuff=(uint32_t*)malloc(slct_idx.size()*2*sizeof(uint32_t));
@@ -2299,8 +2299,8 @@ namespace SMRDATA
     {
         return (1.0-2*freq*(1-freq)*beta*beta)/(2*freq*(1-freq)*se*se);
     }
-    void get_snpinfo_cur_prb_sparse(vector<snpinfolst> &snpinfo,FILE* fptr,  uint64_t pid, uint64_t* ptr, uint64_t rowSTART,uint64_t valSTART,eqtlInfo* etmp,map<int, int> &_incld_id_map, bool qcflag){
-        
+    void get_snpinfo_cur_prb_sparse(vector<snpinfolst> &snpinfo,FILE* fptr,  uint64_t pid, uint64_t* ptr, uint64_t rowSTART,uint64_t valSTART,eqtlInfo* etmp,map<int, int> &_incld_id_map, bool qcflag)
+    {
         uint64_t pos=*(ptr+(pid<<1)); //BETA START
         uint64_t pos1=*(ptr+(pid<<1)+1); //SE START
         uint64_t num=pos1-pos;
@@ -2330,42 +2330,42 @@ namespace SMRDATA
             iter=_incld_id_map.find(rid);
             if(iter!=_incld_id_map.end())
             {
-                strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[rid]);
-                snpinfotmp.snpchr=etmp->_esi_chr[rid];
-                snpinfotmp.bp=etmp->_esi_bp[rid];
-                snpinfotmp.gd=etmp->_esi_gd[rid];
-                strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[rid]);
-                strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[rid]);
-                snpinfotmp.freq=etmp->_esi_freq[rid];
-                snpinfotmp.beta=*(val_ptr+j);
-                snpinfotmp.se=*(val_ptr+j+num);
-                if(qcflag){
-                    if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
-                    {
-                        printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
-                        nufreqwarnflg=true;
-                        continue;
+                    strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[rid]);
+                    snpinfotmp.snpchr=etmp->_esi_chr[rid];
+                    snpinfotmp.bp=etmp->_esi_bp[rid];
+                    snpinfotmp.gd=etmp->_esi_gd[rid];
+                    strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[rid]);
+                    strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[rid]);
+                    snpinfotmp.freq=etmp->_esi_freq[rid];
+                    snpinfotmp.beta=*(val_ptr+j);
+                    snpinfotmp.se=*(val_ptr+j+num);
+                    if(qcflag){
+                        if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
+                        {
+                            printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
+                            nufreqwarnflg=true;
+                            continue;
+                        }
+                        if(snpinfotmp.freq<1e-8)
+                        {
+                            printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
+                            continue;
+                        }
+                        snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
+                        if(snpinfotmp.estn<0)
+                        {
+                            printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
+                            exit(EXIT_FAILURE);
+                        }
+                        snpinfo.push_back(snpinfotmp);
+                    } else {
+                        snpinfotmp.estn=-9;
+                        snpinfo.push_back(snpinfotmp);
                     }
-                    if(snpinfotmp.freq<1e-8)
-                    {
-                        printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
-                        continue;
-                    }
-                    snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
-                    if(snpinfotmp.estn<0)
-                    {
-                        printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
-                        exit(EXIT_FAILURE);
-                    }
-                    snpinfo.push_back(snpinfotmp);
-                } else {
-                    snpinfotmp.estn=-9;
-                    snpinfo.push_back(snpinfotmp);
-                }
-                
-                //int sid=iter->second;
-                //cout<<rid<<":"<<etmp._esi_include[sid]<<endl; // test passed
-                real_num++;
+                    
+                    //int sid=iter->second;
+                    //cout<<rid<<":"<<etmp._esi_include[sid]<<endl; // test passed
+                    real_num++;
             }
             
         }
@@ -2489,14 +2489,36 @@ namespace SMRDATA
         suminfo.push_back(rmnum);
     }
     
-    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh)
+    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh,bool extract_cis_only,char* prbseqregion)
     {
         
         eqtlInfo etmp;
+        bool rmTechnicaleQTL=false;
+        if(extract_cis_only) printf("Only cis information would be extracted.\n");
         read_esifile(&etmp, string(eqtlFileName)+".esi");
         esi_man(&etmp, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname);
         if(snplst2exclde != NULL) exclude_eqtl_snp(&etmp, snplst2exclde);
         read_epifile(&etmp, string(eqtlFileName)+".epi");
+        if(prbseqregion!= NULL) {
+            rmTechnicaleQTL=true;
+            read_epistartend(&etmp,prbseqregion);
+            
+            if(rmTechnicaleQTL) {
+                string tmp=string(outFileName) +".technical_eQTL.txt";
+                techeQTLfile=fopen(tmp.c_str(),"w");
+                if (!(techeQTLfile)) {
+                    printf("Error: Failed to open techeQTL file.\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            if(techeQTLfile) {
+                
+                string tmp="SNP\tChr\tBP\tA1\tA2\tFreq\tProbe\tProbe_Chr\tProbe_bp\tGene\tOrientation\tb\tSE\tp\n";
+                fputs(tmp.c_str(),techeQTLfile);
+                fflush(techeQTLfile);
+            }
+
+        }
         epi_man(&etmp, problstName, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename);
         if(problst2exclde != NULL) exclude_prob(&etmp, problst2exclde);
         
@@ -2642,6 +2664,7 @@ namespace SMRDATA
             fflush(stdout);
             bool nufreqwarnflg=false;
             string prbname=etmp._epi_prbID[etmp._include[i]];
+            int prbbp=etmp._epi_bp[etmp._include[i]];
             vector<uint32_t> tmprid;
             vector<float> tmpse;
             snpinfo.clear();
@@ -2701,6 +2724,12 @@ namespace SMRDATA
             strcpy2(&prbifo.probeId, etmp._epi_prbID[etmp._include[i]]);
             strcpy2(&prbifo.genename, etmp._epi_gene[etmp._include[i]]);
             prbifo.orien=etmp._epi_orien[etmp._include[i]];
+            if(etmp._epi_start.size()>0 && etmp._epi_end.size()>0) //remove technical eQTL
+            {
+                prbifo.start=etmp._epi_start[etmp._include[i]];
+                prbifo.end=etmp._epi_end[etmp._include[i]];
+            }
+           
             
             //  QC
             if(qcflag && snpinfo.size()>0) {
@@ -2723,7 +2752,7 @@ namespace SMRDATA
            
             
             vector<int> slct_idx;
-            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,extract_cis_only,rmTechnicaleQTL); //slct_idx with no order if there are trans-rgeions
             stable_sort(slct_idx.begin(),slct_idx.end());
             vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
             vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
@@ -2846,7 +2875,7 @@ namespace SMRDATA
             fclose(outlierfptr);
             fclose(qcsryfptr);
         }
-        
+        if(techeQTLfile) fclose(techeQTLfile);
         
     }
     

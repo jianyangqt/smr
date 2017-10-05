@@ -300,7 +300,7 @@ int StatFunc::RandAbs(int a, int b, int &seed) { //a,bΪ������Ҷ˵�
 }
 
 ///////// Random Number Generation Functions End ////////
-
+//not good, do not use
 double StatFunc::chi_val(double df, double prob) {
     double walk = 100.0;
     double chi_val = walk;
@@ -603,7 +603,7 @@ double StatFunc::pchisq(double x, double df) {
     // Return p-value
     return q;
 }
-
+// q is not good to be less than 1e-161
 double StatFunc::qchisq(double q, double df) {
     if (q < 0) return -9;
     else if (q >= 1) return 0;

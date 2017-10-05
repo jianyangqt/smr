@@ -53,6 +53,7 @@ namespace SMRDATA
     void init_smr_wk(SMRWK* smrwk);
     long fill_smr_wk(bInfo* bdata,gwasData* gdata,eqtlInfo* esdata,SMRWK* smrwk, const char* refSNP,int cis_itvl, bool heidioffFlag);
     void meta(char* besdlistFileName, char* outFileName,int meta_mth, bool detailout);
+    
 }
 
 #endif /* defined(__SMR_CPP__SMR_data_p1__) */

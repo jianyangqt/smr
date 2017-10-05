@@ -7,9 +7,14 @@
 //
 
 #include "SMR_data_p2.h"
-
+FILE* techeQTLfile=NULL;
 namespace SMRDATA
 {
+    double adjSE(double beta,double p)
+    {
+        double z2=qchisq(p, 1);
+        return abs(beta/sqrt(z2));
+    }
     // below for txt 2 besd
     int read_probeinfolst(vector<probeinfolst> &prbiflst,char* syllabusName)
     {
@@ -169,7 +174,7 @@ namespace SMRDATA
                     printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
-                string tmpstr=vs_buf[1]+":"+vs_buf[3]+":"+vs_buf[4];
+                string tmpstr=vs_buf[0]+":"+vs_buf[1];
                 currs_map.insert(pair<string,int>(tmpstr,lineNum));
                 if(currssize<currs_map.size())
                 {
@@ -193,7 +198,7 @@ namespace SMRDATA
                     a1.push_back(vs_buf[3]);
                     to_upper(vs_buf[4]);
                     a2.push_back(vs_buf[4]);
-                    if(vs_buf[5].compare("NA") || vs_buf[5].compare("na"))
+                    if(vs_buf[5].compare("NA") && vs_buf[5].compare("na"))
                     {
                         float fq=atof(vs_buf[5].c_str());
                         if(fq<=0 || fq>=1)
@@ -207,10 +212,30 @@ namespace SMRDATA
                     }
                     to_upper(vs_buf[6]);
                     to_upper(vs_buf[7]);
-                    if(vs_buf[6].compare("NA") && vs_buf[7].compare("NA")){
+                    to_upper(vs_buf[8]);
+                    if(vs_buf[6].compare("NA") && (vs_buf[7].compare("NA") || vs_buf[8].compare("NA"))){
                         beta.push_back(atof(vs_buf[6].c_str()));
-                        se.push_back(atof(vs_buf[7].c_str()));
+                        if(vs_buf[8]=="NA") se.push_back(atof(vs_buf[7].c_str()));
+                        else {
+                            double betatmp=atof(vs_buf[6].c_str());
+                            double ptmp=atof(vs_buf[8].c_str());
+                            if(ptmp<0)
+                            {
+                                printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                                printf("%s\n",buf);
+                                exit(EXIT_FAILURE);
+                            }
+                            if(ptmp==0) {
+                                ptmp=__DBL_MIN__;
+                                printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                                printf("%s\n",buf);
+                            }
+                            if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") se.push_back(atof(vs_buf[7].c_str()));
+                            else se.push_back(adjSE(betatmp, ptmp));
+                        }
                     } else {
+                        printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                        printf("%s\n",buf);
                         beta.push_back(-9);
                         se.push_back(-9);
                     }
@@ -283,7 +308,7 @@ namespace SMRDATA
                     printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
-                string tmpstr=vs_buf[1]+":"+vs_buf[3]+":"+vs_buf[4];
+                string tmpstr=vs_buf[0]+":"+vs_buf[1];
                 currs_map.insert(pair<string,int>(tmpstr,lineNum));
                 if(currssize<currs_map.size())
                 {
@@ -304,7 +329,7 @@ namespace SMRDATA
                      strcpy2(&tmpesd.a1,vs_buf[3]);
                      to_upper(vs_buf[4]);
                     strcpy2(&tmpesd.a2,vs_buf[4]);
-                    if(vs_buf[5].compare("NA") || vs_buf[5].compare("na"))
+                    if(vs_buf[5].compare("NA") && vs_buf[5].compare("na"))
                     {
                         float fq=atof(vs_buf[5].c_str());
                         if(fq<=0 || fq>=1)
@@ -318,11 +343,31 @@ namespace SMRDATA
                     }
                      to_upper(vs_buf[6]);
                      to_upper(vs_buf[7]);
-                    if(vs_buf[6].compare("NA") && vs_buf[7].compare("NA")){
+                    to_upper(vs_buf[8]);
+                    if(vs_buf[6].compare("NA") && (vs_buf[7].compare("NA") || vs_buf[8].compare("NA"))){
                         tmpesd.beta=atof(vs_buf[6].c_str());
-                        tmpesd.se=atof(vs_buf[7].c_str());
+                        if(vs_buf[8]=="NA") tmpesd.se=atof(vs_buf[7].c_str());
+                        else {
+                            double betatmp=atof(vs_buf[6].c_str());
+                            double ptmp=atof(vs_buf[8].c_str());
+                            if(ptmp<0)
+                            {
+                                printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                                printf("%s\n",buf);
+                                exit(EXIT_FAILURE);
+                            }
+                            if(ptmp==0) {
+                                ptmp=__DBL_MIN__;
+                                printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                                printf("%s\n",buf);
+                            }
+                            if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") tmpesd.se=atof(vs_buf[7].c_str());
+                            else tmpesd.se=adjSE(betatmp, ptmp);
+                        }
                         snpinfo.push_back(tmpesd);
                     } else {
+                        printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                        printf("%s\n",buf);
                         tmpesd.beta=-9;
                         tmpesd.se=-9;
                     }
@@ -394,13 +439,33 @@ namespace SMRDATA
                 }
 
                 bp.push_back(atoi(vs_buf[2].c_str()));
-                 to_upper(vs_buf[4]);
-                 to_upper(vs_buf[5]);
-                if(vs_buf[4].compare("NA") && vs_buf[5].compare("NA"))
+                to_upper(vs_buf[4]);
+                to_upper(vs_buf[5]);
+                to_upper(vs_buf[8]);
+                if(vs_buf[4].compare("NA") && (vs_buf[5].compare("NA") || vs_buf[8].compare("NA")))
                 {
                     beta.push_back(atof(vs_buf[4].c_str()));
-                    se.push_back(atof(vs_buf[5].c_str()));
+                    if(vs_buf[8]=="NA") se.push_back(atof(vs_buf[5].c_str()));
+                    else {
+                        double betatmp=atof(vs_buf[4].c_str());
+                        double ptmp=atof(vs_buf[8].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",tbuf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",tbuf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[5]!="NA") se.push_back(atof(vs_buf[5].c_str()));
+                        else se.push_back(adjSE(betatmp, ptmp));
+                    }
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",tbuf);
                     beta.push_back(-9);
                     se.push_back(-9);
                 }
@@ -463,11 +528,31 @@ namespace SMRDATA
                 bp.push_back(atoi(vs_buf[2].c_str()));
                  to_upper(vs_buf[4]);
                  to_upper(vs_buf[5]);
-                if(vs_buf[4].compare("NA") && vs_buf[5].compare("NA"))
+                to_upper(vs_buf[8]);
+                if(vs_buf[4].compare("NA") && (vs_buf[5].compare("NA") || vs_buf[8].compare("NA")))
                 {
                     beta.push_back(atof(vs_buf[4].c_str()));
-                    se.push_back(atof(vs_buf[5].c_str()));
+                    if(vs_buf[8]=="NA") se.push_back(atof(vs_buf[5].c_str()));
+                    else {
+                        double betatmp=atof(vs_buf[4].c_str());
+                        double ptmp=atof(vs_buf[8].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[5]!="NA") se.push_back(atof(vs_buf[5].c_str()));
+                        else se.push_back(adjSE(betatmp, ptmp));
+                    }
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                     beta.push_back(-9);
                     se.push_back(-9);
                 }
@@ -546,12 +631,32 @@ namespace SMRDATA
                 tmpesd.bp=atoi(vs_buf[2].c_str());
                  to_upper(vs_buf[4]);
                  to_upper(vs_buf[5]);
-                if(vs_buf[4].compare("NA") && vs_buf[5].compare("NA"))
+                to_upper(vs_buf[8]);
+                if(vs_buf[4].compare("NA") && (vs_buf[5].compare("NA") || vs_buf[8].compare("NA")))
                 {
-                   tmpesd.beta=atof(vs_buf[4].c_str());
-                   tmpesd.se=atof(vs_buf[5].c_str());
+                    tmpesd.beta=atof(vs_buf[4].c_str());
+                    if(vs_buf[8]=="NA") tmpesd.se=atof(vs_buf[5].c_str());
+                    else {
+                        double betatmp=atof(vs_buf[4].c_str());
+                        double ptmp=atof(vs_buf[8].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[5]!="NA") tmpesd.se=atof(vs_buf[5].c_str());
+                        else tmpesd.se=adjSE(betatmp, ptmp);
+                    }
                     snpinfo.push_back(tmpesd);
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                    tmpesd.beta=-9;
                    tmpesd.se=-9;
                 }
@@ -632,11 +737,32 @@ namespace SMRDATA
 
                 to_upper(vs_buf[6]);
                 to_upper(vs_buf[7]);
-                if(vs_buf[6].compare("NA") && vs_buf[7].compare("NA"))
+                to_upper(vs_buf[10]);
+                if(vs_buf[6].compare("NA") && (vs_buf[7].compare("NA") || vs_buf[10].compare("NA")))
                 {
                     beta.push_back(atof(vs_buf[6].c_str()));
-                    se.push_back(atof(vs_buf[7].c_str()));
+                    if(vs_buf[10]=="NA") se.push_back(atof(vs_buf[7].c_str()));
+                    else {
+                        double betatmp=atof(vs_buf[6].c_str());
+                        double ptmp=atof(vs_buf[10].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",tbuf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",tbuf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") se.push_back(atof(vs_buf[7].c_str()));
+                        else se.push_back(adjSE(betatmp, ptmp));
+
+                    }
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",tbuf);
                     beta.push_back(-9);
                     se.push_back(-9);
                 }
@@ -720,7 +846,7 @@ namespace SMRDATA
                 a1.push_back(vs_buf[4]);
                  to_upper(vs_buf[5]);
                 a2.push_back(vs_buf[5]);
-                if(vs_buf[6].compare("NA") || vs_buf[6].compare("na"))
+                if(vs_buf[6].compare("NA") && vs_buf[6].compare("na"))
                 {
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<0 || fq>1)
@@ -736,10 +862,30 @@ namespace SMRDATA
                 
                  to_upper(vs_buf[7]);
                  to_upper(vs_buf[8]);
-                if(vs_buf[7].compare("NA") && vs_buf[8].compare("NA")) {
+                 to_upper(vs_buf[10]);
+                if(vs_buf[7].compare("NA") && (vs_buf[8].compare("NA") || vs_buf[10].compare("NA"))) {
                     beta.push_back(atof(vs_buf[7].c_str()));
-                    se.push_back(atof(vs_buf[8].c_str()));
+                    if(vs_buf[10]=="NA") se.push_back(atof(vs_buf[8].c_str()));
+                    else {
+                        double betatmp=atof(vs_buf[7].c_str());
+                        double ptmp=atof(vs_buf[10].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[8]!="NA") se.push_back(atof(vs_buf[8].c_str()));
+                        else se.push_back(adjSE(betatmp, ptmp));
+                    }
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                     beta.push_back(-9);
                     se.push_back(-9);
                 }
@@ -827,7 +973,7 @@ namespace SMRDATA
                 a1.push_back(vs_buf[4]);
                 to_upper(vs_buf[5]);
                 a2.push_back(vs_buf[5]);
-                if(vs_buf[6].compare("NA") || vs_buf[6].compare("na"))
+                if(vs_buf[6].compare("NA") && vs_buf[6].compare("na"))
                 {
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
@@ -841,10 +987,30 @@ namespace SMRDATA
                 }
                 to_upper(vs_buf[8]);
                 to_upper(vs_buf[9]);
-                if(vs_buf[8].compare("NA") && vs_buf[9].compare("NA")) {
+                to_upper(vs_buf[11]);
+                if(vs_buf[8].compare("NA") && (vs_buf[9].compare("NA") || vs_buf[11].compare("NA"))) {
                     beta.push_back(atof(vs_buf[8].c_str()));
-                    se.push_back(atof(vs_buf[9].c_str()));
+                    if(vs_buf[11]=="NA") se.push_back(atof(vs_buf[9].c_str()));
+                    else {
+                        double betatmp=atof(vs_buf[8].c_str());
+                        double ptmp=atof(vs_buf[11].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[9]!="NA") se.push_back(atof(vs_buf[9].c_str()));
+                        else se.push_back(adjSE(betatmp, ptmp));
+                    }
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                     beta.push_back(-9);
                     se.push_back(-9);
                 }
@@ -929,7 +1095,7 @@ namespace SMRDATA
                 strcpy2(&tmpesd.a1,vs_buf[4]);
                  to_upper(vs_buf[5]);
                 strcpy2(&tmpesd.a2,vs_buf[5]);
-                if(vs_buf[6].compare("NA") || vs_buf[6].compare("na"))
+                if(vs_buf[6].compare("NA") && vs_buf[6].compare("na"))
                 {
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
@@ -944,11 +1110,31 @@ namespace SMRDATA
                 }
                  to_upper(vs_buf[7]);
                  to_upper(vs_buf[8]);
-                if(vs_buf[7].compare("NA") && vs_buf[8].compare("NA")) {
+                to_upper(vs_buf[10]);
+                if(vs_buf[7].compare("NA") && (vs_buf[8].compare("NA") || vs_buf[10].compare("NA"))) {
                     tmpesd.beta=atof(vs_buf[7].c_str());
-                    tmpesd.se=atof(vs_buf[8].c_str());
+                    if(vs_buf[10]=="NA") tmpesd.se=atof(vs_buf[8].c_str());
+                    else {
+                        double betatmp=atof(vs_buf[7].c_str());
+                        double ptmp=atof(vs_buf[10].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[8]!="NA") tmpesd.se=atof(vs_buf[8].c_str());
+                        else tmpesd.se=adjSE(betatmp, ptmp);
+                    }
                     snpinfo.push_back(tmpesd);
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                     tmpesd.beta=-9;
                     tmpesd.se=-9;
                 }
@@ -1036,7 +1222,7 @@ namespace SMRDATA
                 strcpy2(&tmpesd.a1,vs_buf[4]);
                 to_upper(vs_buf[5]);
                 strcpy2(&tmpesd.a2,vs_buf[5]);
-                if(vs_buf[6].compare("NA") || vs_buf[6].compare("na"))
+                if(vs_buf[6].compare("NA") && vs_buf[6].compare("na"))
                 {
                     float fq=atof(vs_buf[6].c_str());
                     if(fq<=1e-8 || fq>=1)
@@ -1051,11 +1237,31 @@ namespace SMRDATA
                 }
                 to_upper(vs_buf[8]);
                 to_upper(vs_buf[9]);
-                if(vs_buf[8].compare("NA") && vs_buf[9].compare("NA")) {
+                to_upper(vs_buf[11]);
+                if(vs_buf[8].compare("NA") && (vs_buf[9].compare("NA") || vs_buf[11].compare("NA"))) {
                     tmpesd.beta=atof(vs_buf[8].c_str());
-                    tmpesd.se=atof(vs_buf[9].c_str());
+                    if(vs_buf[11]=="NA") tmpesd.se=atof(vs_buf[9].c_str());
+                    else {
+                        double betatmp=atof(vs_buf[8].c_str());
+                        double ptmp=atof(vs_buf[11].c_str());
+                        if(ptmp<0)
+                        {
+                            printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
+                            printf("%s\n",buf);
+                            exit(EXIT_FAILURE);
+                        }
+                        if(ptmp==0) {
+                            ptmp=__DBL_MIN__;
+                            printf("WARNING: p-value 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                            printf("%s\n",buf);
+                        }
+                        if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[9]!="NA") tmpesd.se=atof(vs_buf[9].c_str());
+                        else tmpesd.se=adjSE(betatmp, ptmp);
+                    }
                     snpinfo.push_back(tmpesd);
                 } else {
+                    printf("WARNING: beta is missing or both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                    printf("%s\n",buf);
                     tmpesd.beta=-9;
                     tmpesd.se=-9;
                 }
@@ -1841,7 +2047,7 @@ namespace SMRDATA
         cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
     }
 
-    void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile)
+    void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile, bool extract_cis_only, bool rmTechnicaleQTL)
     {
         // no null se in snpinfo has been guaranteed before here.
         // for log file
@@ -1875,20 +2081,38 @@ namespace SMRDATA
                 
                 if(snpinfo[l].snpchr == probchr && snpinfo[l].bp<=cisuperBounder && snpinfo[l].bp>=cislowerBounder)
                 {
-                    string chckstr=string(snpinfo[l].snprs)+":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
-                    rsa_map.insert(pair<string,int>(chckstr,rsNum));
-                    if(rsNum<rsa_map.size()){
-                        slct_idx.push_back(l);
-                        rsNum=rsa_map.size();
-                        cis_idx.push_back(l);
+                    if(rmTechnicaleQTL && snpinfo[l].bp<= prbifo->end && snpinfo[l].bp>=prbifo->start) // no need to check if prbifo->end == -9
+                    {
+                        printf("The following is technical eQTL and excluded.\n");
+                        double z=(snpinfo[l].beta/snpinfo[l].se);
+                        double p=pchisq(z*z, 1);
+                        string tmp=atos(snpinfo[l].snprs)+"\t"+ atos(snpinfo[l].snpchr)+"\t"+ atos(snpinfo[l].bp)+"\t"+ atos(snpinfo[l].a1)+"\t"+ atos(snpinfo[l].a2)+"\t"+ atos(snpinfo[l].freq)+"\t"+ atos(prbifo->probeId)+"\t"+ atos(prbifo->probechr)+"\t"+ atos(prbifo->bp)+"\t" + atos(prbifo->genename)+"\t"+ atos(prbifo->orien)+"\t"+ atos(snpinfo[l].beta)+"\t"+ atos(snpinfo[l].se)+"\t"+ dtos(p)+"\n";
+                        if(techeQTLfile) {
+                            fputs(tmp.c_str(),techeQTLfile);
+                            fflush(techeQTLfile);
+                        }
+                        
+                        printf("%s\n",tmp.c_str());
+                        
+                    } else {
+                        string chckstr=string(snpinfo[l].snprs);
+                        //if(snpinfo[l].a1 && snpinfo[l].a2) chckstr += ":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
+                        rsa_map.insert(pair<string,int>(chckstr,rsNum));
+                        if(rsNum<rsa_map.size()){
+                            slct_idx.push_back(l);
+                            rsNum=rsa_map.size();
+                            cis_idx.push_back(l);
+                        }
+
                     }
                     
                 }
-                else if(pxz<=transThres)
+                else if(!extract_cis_only && pxz<=transThres)
                 {
                     uint64_t transNum=0;
                     int curChr=snpinfo[l].snpchr;
-                    string chckstr=string(snpinfo[l].snprs)+":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
+                    string chckstr=string(snpinfo[l].snprs);
+                    //if(snpinfo[l].a1 && snpinfo[l].a2) chckstr += ":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
                     rsa_map.insert(pair<string, int>(chckstr,rsNum));
                     if(rsNum<rsa_map.size()){
                         slct_idx.push_back(l);
@@ -1918,7 +2142,8 @@ namespace SMRDATA
                             {
                                 break;
                             }
-                            string chckstr=string(snpinfo[startptr].snprs)+":"+string(snpinfo[startptr].a1)+":"+string(snpinfo[startptr].a2);
+                            string chckstr=string(snpinfo[startptr].snprs);
+                            //if(snpinfo[startptr].a1 && snpinfo[startptr].a2) chckstr += ":"+string(snpinfo[startptr].a1)+":"+string(snpinfo[startptr].a2);
                             iter=other_idx.find(chckstr);
                             if(iter!=other_idx.end()) // trans merges other eqtl
                             {
@@ -1948,7 +2173,8 @@ namespace SMRDATA
                                 
                             }  else {
                                 
-                                string chckstr=string(snpinfo[startptr].snprs)+":"+string(snpinfo[startptr].a1)+":"+string(snpinfo[startptr].a2);
+                                string chckstr=string(snpinfo[startptr].snprs);
+                                //if(snpinfo[startptr].a1 && snpinfo[startptr].a2) chckstr += ":"+string(snpinfo[startptr].a1)+":"+string(snpinfo[startptr].a2);
                                 rsa_map.insert(pair<string, int>(chckstr,rsNum));
                                 if(rsNum<rsa_map.size()){
                                     slct_idx.push_back(startptr);
@@ -1985,9 +2211,10 @@ namespace SMRDATA
                     }
                     
                 }
-                else if(pxz<restThres)
+                else if(!extract_cis_only && pxz<restThres)
                 {
-                    string chckstr=string(snpinfo[l].snprs)+":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
+                    string chckstr=string(snpinfo[l].snprs);
+                    //+":"+string(snpinfo[l].a1)+":"+string(snpinfo[l].a2);
                     rsa_map.insert(pair<string,int>(chckstr,rsNum));
                     if(rsNum<rsa_map.size()){
                         slct_idx.push_back(l);
@@ -2036,6 +2263,13 @@ namespace SMRDATA
             }
             else logstr+="()\n";
             
+            fputs(logstr.c_str(),logfile);
+            fflush(logfile);
+        } else {
+            string logstr="{"+probid+","+atos(probchr)+","+atos(probbp)+"}\t";
+            logstr+="[]\t";
+            logstr+="<>\t";
+            logstr+="()\n";
             fputs(logstr.c_str(),logfile);
             fflush(logfile);
         }
@@ -2118,15 +2352,15 @@ namespace SMRDATA
             
             probeinfolst prbifo=prbiflst[epi2esd[j]];
             vector<int> slct_idx;
-            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
             stable_sort(slct_idx.begin(),slct_idx.end());
             vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
             vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
             
             for(int l=0;l<slct_idx.size();l++) {
                 _rs[l]=snpinfo[slct_idx[l]].snprs;
-                _a1[l]=snpinfo[slct_idx[l]].a1;
-                _a2[l]=snpinfo[slct_idx[l]].a2;
+                if(fformat!=1) _a1[l]=snpinfo[slct_idx[l]].a1;
+                if(fformat!=1) _a2[l]=snpinfo[slct_idx[l]].a2;
                 _beta[l]=snpinfo[slct_idx[l]].beta;
                 _se[l]=snpinfo[slct_idx[l]].se;
             }
@@ -2152,7 +2386,7 @@ namespace SMRDATA
                   //  rsa_map.insert(pair<string,int>(chckstr,l)); // in slct_sparse_per_prb, ras_map can privent selecting duplicate SNPs and double-slelecting SNPs. so we can move rsa_map here.
                    // if(rsNum<rsa_map.size())
                    // {
-                        if(fformat!=1)
+                        if(fformat!=1) //not for plink format
                         {
                             if(esi_a1[rsid[l]]==_a1[l] && esi_a2[rsid[l]]==_a2[l] ){
                                 val.push_back(_beta[l]);
@@ -2224,6 +2458,13 @@ namespace SMRDATA
             cols[(j<<1)+1]=real_num+cols[j<<1];
             cols[j+1<<1]=(real_num<<1)+cols[j<<1];
             
+            for(int k=0;k<snpinfo.size();k++)
+            {
+                if(fformat!=1) delete(snpinfo[k].a1);
+                if(fformat!=1) delete(snpinfo[k].a2);
+                delete(snpinfo[k].snprs);
+            }
+
         }
         uint64_t valNum=val.size();
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
@@ -2231,12 +2472,7 @@ namespace SMRDATA
         fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
         fwrite (&val[0],sizeof(float), val.size(), smr1);
         fclose (smr1);
-        for(int i=0;i<snpinfo.size();i++)
-        {
-            delete(snpinfo[i].a1);
-            delete(snpinfo[i].a2);
-            delete(snpinfo[i].snprs);
-        }
+        
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
         cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
@@ -2330,7 +2566,7 @@ namespace SMRDATA
         free_snplist(snpinfo);
         
     }
-    
+   
     void make_besd_byQfile(char* qfileName, char* outFileName,bool save_dense_flag,int cis_itvl, int trans_itvl, float transThres, float restThres)
     {
         FILE* qfile=fopen(qfileName, "r");
@@ -2424,26 +2660,51 @@ namespace SMRDATA
                 warningdone=true;
                
             }
-            if((vs_buf[5]=="NA" || vs_buf[5]=="NA" ) && !warningdone1)
+            if((vs_buf[5]=="NA" || vs_buf[5]=="na" ) )
             {
-                printf("WARING: allele frequency of one or more SNPs are missing.\n");
-                warningdone1=true;
-                
+                if(!warningdone1)
+                {
+                    printf("WARING: allele frequency of one or more SNPs are missing.\n");
+                    warningdone1=true;
+                }
+            } else {
+                float fq=atof(vs_buf[5].c_str());
+                if(fq<=1e-8 || fq>=1)
+                {
+                    printf("ERROR: Allele frequency should be between 0 and 1 in row %ld.\n", lineNum+2);
+                    exit(EXIT_FAILURE);
+                }
             }
             int tmpchr;
-            if(vs_buf[1]=="X" || vs_buf[1]=="x") tmpchr=23;
-            else if(vs_buf[1]=="Y" || vs_buf[1]=="y") tmpchr=24;
+            to_upper(vs_buf[1]);
+            //if(vs_buf[1]=="X" ) tmpchr=23;
+            //else if(vs_buf[1]=="Y") tmpchr=24;
+            //else tmpchr=atoi(vs_buf[1].c_str());
+            if(!vs_buf[1].compare("X")) tmpchr=23;
+            else if(!vs_buf[1].compare("Y")) tmpchr=24;
             else tmpchr=atoi(vs_buf[1].c_str());
             to_upper(vs_buf[3]);
             to_upper(vs_buf[4]);
             to_upper(vs_buf[5]);
             to_upper(vs_buf[11]);
             to_upper(vs_buf[12]);
-            if(!vs_buf[11].compare("NA") || !vs_buf[12].compare("NA")) {
+            to_upper(vs_buf[13]);
+            if(!vs_buf[11].compare("NA")) {
                 
-                printf("WARNING: the effect size (or SE) of the SNP is missing (\"NA\"), this row is omitted.\n");
-                printf("%s",buf);
+                printf("WARNING: the effect size of the SNP is missing (\"NA\"), this row is omitted.\n");
+                printf("%s\n",buf);
                 continue;
+            }
+            if(!vs_buf[12].compare("NA") && vs_buf[13]=="NA") {
+                
+                printf("WARNING: both of SE and P are missing (\"NA\"), this row is omitted.\n");
+                printf("%s\n",buf);
+                continue;
+            }
+            if(vs_buf[13]!="NA" && atof(vs_buf[13].c_str())<0) {
+                printf("ERROR: p-value should be positive in row %ld.\n", lineNum+2);
+                printf("%s\n",buf);
+                exit(EXIT_FAILURE);
             }
             string rsprb=vs_buf[0]+":"+vs_buf[6];
             rs_prb_map.insert(pair<string, int>(rsprb.c_str(), lineNum));
@@ -2517,7 +2778,24 @@ namespace SMRDATA
                 }
                 _ttl_rs[idx].push_back(vs_buf[0].c_str());
                 _ttl_beta[idx].push_back(atof(vs_buf[11].c_str()));
-                _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
+                if(vs_buf[13]=="NA") _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
+                else {
+                    double betatmp=atof(vs_buf[11].c_str());
+                    double ptmp=atof(vs_buf[13].c_str());
+                    if(ptmp<0)
+                    {
+                        printf("ERROR: p-value should be positive in row %ld.\n",lineNum+2);
+                        printf("%s\n",buf);
+                        exit(EXIT_FAILURE);
+                    }
+                    if(ptmp==0) {
+                        ptmp=__DBL_MIN__;
+                        printf("WARNING: p-value 0 found in row %ld and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                        printf("%s\n",buf);
+                    }
+                    if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[12]!="NA") _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
+                    else _ttl_se[idx].push_back(adjSE(betatmp, ptmp));
+                }
                 if(!save_dense_flag) {
                     _ttl_a1[idx].push_back(vs_buf[3].c_str());
                     _ttl_a2[idx].push_back(vs_buf[4].c_str());
@@ -2545,7 +2823,24 @@ namespace SMRDATA
                 betatmp.push_back(atof(vs_buf[11].c_str()));
                 _ttl_beta.push_back(betatmp);
                 vector<float> setmp;
-                setmp.push_back(atof(vs_buf[12].c_str()));
+                if(vs_buf[13]=="NA") setmp.push_back(atof(vs_buf[12].c_str()));
+                else {
+                    double betatmp=atof(vs_buf[11].c_str());
+                    double ptmp=atof(vs_buf[13].c_str());
+                    if(ptmp<0)
+                    {
+                        printf("ERROR: p-value should be positive in row %ld.\n",lineNum+2);
+                        printf("%s\n",buf);
+                        exit(EXIT_FAILURE);
+                    }
+                    if(ptmp==0) {
+                        ptmp=__DBL_MIN__;
+                        printf("WARNING: p-value 0 found in row %ld and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
+                        printf("%s\n",buf);
+                    }
+                    if(ptmp<MIN_PVAL_ADJUSTED && vs_buf[12]!="NA") setmp.push_back(atof(vs_buf[12].c_str()));
+                    else setmp.push_back(adjSE(betatmp, ptmp));
+                }
                 _ttl_se.push_back(setmp);
                 if(!save_dense_flag) {
                     vector<string> a1tmp;
@@ -2781,7 +3076,7 @@ namespace SMRDATA
                 
                 probeinfolst prbifo=prbiflst[j];
                 vector<int> slct_idx;
-                slct_sparse_per_prb(slct_idx, &prbifo, snpinfoperprb,  cis_itvl,  trans_itvl, transThres, restThres,logfile); //slct_idx with no order if there are trans-rgeions
+                slct_sparse_per_prb(slct_idx, &prbifo, snpinfoperprb,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
                 stable_sort(slct_idx.begin(),slct_idx.end());
                 vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
                 vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
@@ -3181,6 +3476,7 @@ namespace SMRDATA
                 string gene=vs_buf[16];
                 gene.erase(std::remove(gene.begin(), gene.end(), ' '), gene.end());
                 if(prb_bp<0){
+                    printf("%s\n",tbuf);
                     if(gene=="ENST00000328596") prb_bp=1140488;
                     else if(gene=="ENST00000339368") prb_bp=70638;
                     else if(gene=="ENST00000344450") prb_bp=321706;
@@ -3195,7 +3491,6 @@ namespace SMRDATA
                         printf("ERROR: probename %s, gene %s , bp %d.\n", probename.c_str(),gene.c_str(), prb_bp);
                         exit(EXIT_FAILURE);
                     }
-                    
                 }
                 
                 string spln=probename+'\t'+rs+'\t'+atos(sumn)+'\n';
@@ -3204,7 +3499,7 @@ namespace SMRDATA
                     printf("ERROR: in writing smaple size file %s .\n", "sample_size.txt");
                     exit(EXIT_FAILURE);
                 }
-
+                
                 string Orientation="*";
                 outstr=rs+'\t'+atos(rs_chr)+'\t'+atos(rs_bp)+'\t'+effect_allele+'\t'+alt_allele+'\t'+atos(freq_effect_allele)+'\t'+probename+'\t'+atos(prb_chr)+'\t'+atos(prb_bp)+'\t'+gene+'\t'+Orientation+'\t'+atos(beta)+'\t'+atos(se)+'\t'+dtos(p)+'\n';
                 if(fputs_checked(outstr.c_str(),queryfile))
@@ -3212,7 +3507,7 @@ namespace SMRDATA
                     printf("ERROR: in writing file %s .\n", outFileName);
                     exit(EXIT_FAILURE);
                 }
-
+                
                 lineNum++;
             }
         }
