@@ -119,6 +119,11 @@ namespace SMRDATA
         fread((void*)(&v), sizeof(v), 1, f);
         return v;
     }
+    uint32_t readuint32(FILE *f) {
+        uint32_t v;
+        fread((void*)(&v), sizeof(v), 1, f);
+        return v;
+    }
     uint64_t countNotNullNum(vector<string> &smasNames, int &densefnum, int &sparsefnum)
     {
         uint64_t count=0;
@@ -132,11 +137,11 @@ namespace SMRDATA
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            float filetype=readfloat(fptr);
+            uint32_t filetype=readuint32(fptr);
             uint64_t valnum=0;
-            if((int)filetype==SPARSE_FILE_TYPE_3 || (int)filetype==SPARSE_FILE_TYPE_2) {valnum=readuint64(fptr); sparsefnum++;}
-            if((int)filetype==SPARSE_FILE_TYPE_1) {valnum=(uint64_t)readfloat(fptr);sparsefnum++;}
-            if((int)filetype==DENSE_FILE_TYPE_1) {
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==0x40000000) {valnum=readuint64(fptr); sparsefnum++;}
+            if(filetype==0x3f800000) {valnum=(uint64_t)readfloat(fptr);sparsefnum++;}
+            if(filetype==DENSE_FILE_TYPE_1) {
                 densefnum++;
                 while(!feof(fptr))
                 {
@@ -168,8 +173,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=DENSE_FILE_TYPE_1;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=DENSE_FILE_TYPE_1;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         uint64_t bsize=(uint64_t)esiNum<<1;
         float* buffer=(float*)malloc (sizeof(float)*bsize);
@@ -336,8 +341,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=DENSE_FILE_TYPE_1;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=DENSE_FILE_TYPE_1;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         uint64_t sizeperprb=sizeof(float)*esiNum*2;
         uint64_t bsize=0x7FFFFFC0;
@@ -413,13 +418,13 @@ namespace SMRDATA
                     exit (EXIT_FAILURE);
                 }
                 
-                float filetype=readfloat(fptr);
+                uint32_t filetype=readuint32(fptr);
                
                 uint64_t valNum=0;
                 uint64_t* ptr=NULL;
                 uint64_t rowSTART=0;
                 uint64_t valSTART=0;
-                if((int)filetype==SPARSE_FILE_TYPE_3 ){
+                if(filetype==SPARSE_FILE_TYPE_3F ){
                     uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                     fseek(fptr, 0L, SEEK_END);
                     uint64_t lSize = ftell(fptr);
@@ -481,7 +486,7 @@ namespace SMRDATA
                     }
                     free(colbuf);
                 }
-                else if((int)filetype==DENSE_FILE_TYPE_1){
+                else if(filetype==DENSE_FILE_TYPE_1){
                      for(int m=0;m<f2prb[l].pid.size();m++)
                      {
                          long curPrid=j*prbperloop+f2prb[l].pid[m];
@@ -552,8 +557,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         bool prtscr=false;
       
@@ -577,19 +582,19 @@ namespace SMRDATA
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            float filetype=readfloat(fptr);
+            uint32_t filetype=readuint32(fptr);
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if((int)filetype==SPARSE_FILE_TYPE_3 ){
+            if(filetype==SPARSE_FILE_TYPE_3F ){
                 uint64_t colNum=(etmp._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
                 readfloat(fptr);
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
                 
                 
                 uint64_t colsize=colNum*sizeof(uint64_t);
@@ -602,8 +607,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<etmp._probNum;j++)
                 {
@@ -763,7 +768,7 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if((int)filetype==DENSE_FILE_TYPE_1){
+            else if(filetype==DENSE_FILE_TYPE_1){
                 
                 float* tmpbetase=(float*)malloc(sizeof(float)*etmp._snpNum<<1);
                 if(NULL == tmpbetase)
@@ -1000,8 +1005,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
          bool prtscr=false;
        
@@ -1029,19 +1034,19 @@ namespace SMRDATA
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            float filetype=readfloat(fptr);
+            uint32_t filetype=readuint32(fptr);
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if((int)filetype==SPARSE_FILE_TYPE_3 ){
+            if(filetype==SPARSE_FILE_TYPE_3F ){
                 uint64_t colNum=(etmp._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
                 readfloat(fptr);
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
                 
                 
                 uint64_t colsize=colNum*sizeof(uint64_t);
@@ -1105,7 +1110,7 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if((int)filetype==DENSE_FILE_TYPE_1){
+            else if(filetype==DENSE_FILE_TYPE_1){
                 
                 float* tmpbetase=(float*)malloc(sizeof(float)*etmp._snpNum<<1);
                 if(NULL == tmpbetase)
@@ -1241,8 +1246,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         vector<uint64_t> cols((epiNum<<1)+1);;
         vector<uint32_t> rowids;
@@ -1510,8 +1515,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         bool prtscr=false;
         
@@ -1551,19 +1556,19 @@ namespace SMRDATA
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            float filetype=readfloat(fptr);
+            uint32_t filetype=readuint32(fptr);
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if((int)filetype==SPARSE_FILE_TYPE_3 ){
+            if(filetype==SPARSE_FILE_TYPE_3F ){
                 uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
                 readfloat(fptr);
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
                 
                 
                 uint64_t colsize=colNum*sizeof(uint64_t);
@@ -1870,8 +1875,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
        
         bool prtscr=false;
         
@@ -1911,19 +1916,19 @@ namespace SMRDATA
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            float filetype=readfloat(fptr);
+            uint32_t filetype=readuint32(fptr);
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if((int)filetype==SPARSE_FILE_TYPE_3 ){
+            if(filetype==SPARSE_FILE_TYPE_3F ){
                 uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
                 readfloat(fptr);
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
                 
                 
                 uint64_t colsize=colNum*sizeof(uint64_t);
@@ -1936,8 +1941,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<eqtlinfo._probNum;j++)
                 {
@@ -2065,7 +2070,7 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if((int)filetype==DENSE_FILE_TYPE_1) {
+            else if(filetype==DENSE_FILE_TYPE_1) {
                 
                 float* tmpbetase=(float*)malloc(sizeof(float)*eqtlinfo._snpNum<<1);
                 if(NULL == tmpbetase)
@@ -2299,12 +2304,20 @@ namespace SMRDATA
     {
         return (1.0-2*freq*(1-freq)*beta*beta)/(2*freq*(1-freq)*se*se);
     }
-    void get_snpinfo_cur_prb_sparse(vector<snpinfolst> &snpinfo,FILE* fptr,  uint64_t pid, uint64_t* ptr, uint64_t rowSTART,uint64_t valSTART,eqtlInfo* etmp,map<int, int> &_incld_id_map, bool qcflag)
+    void get_snpinfo_cur_prb_sparse(vector<snpinfolst> &snpinfo,FILE* fptr,  uint64_t pid, uint64_t* ptr, uint64_t rowSTART,uint64_t valSTART,eqtlInfo* etmp,map<int, int> &_incld_id_map, bool qcflag,bool rmTechnicaleQTL,bool &techHit, double pTech, double pinsnp, double pexsnp)
     {
         uint64_t pos=*(ptr+(pid<<1)); //BETA START
         uint64_t pos1=*(ptr+(pid<<1)+1); //SE START
         uint64_t num=pos1-pos;
         uint64_t real_num=0;
+        int probechr= etmp->_epi_chr[pid];
+        int hybridstart=-9;
+        int hybridend=-9;
+        if(rmTechnicaleQTL)
+        {
+             hybridstart=etmp->_epi_start[pid];
+             hybridend=etmp->_epi_end[pid];
+        }
         bool nufreqwarnflg=false;
         char* row_char_ptr;
         row_char_ptr = (char*) malloc (sizeof(char)*2*num*sizeof(uint32_t));
@@ -2330,42 +2343,58 @@ namespace SMRDATA
             iter=_incld_id_map.find(rid);
             if(iter!=_incld_id_map.end())
             {
-                    strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[rid]);
-                    snpinfotmp.snpchr=etmp->_esi_chr[rid];
-                    snpinfotmp.bp=etmp->_esi_bp[rid];
-                    snpinfotmp.gd=etmp->_esi_gd[rid];
-                    strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[rid]);
-                    strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[rid]);
-                    snpinfotmp.freq=etmp->_esi_freq[rid];
-                    snpinfotmp.beta=*(val_ptr+j);
-                    snpinfotmp.se=*(val_ptr+j+num);
-                    if(qcflag){
-                        if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
-                        {
-                            printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
-                            nufreqwarnflg=true;
-                            continue;
-                        }
-                        if(snpinfotmp.freq<1e-8)
-                        {
-                            printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
-                            continue;
-                        }
-                        snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
-                        if(snpinfotmp.estn<0)
-                        {
-                            printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
-                            exit(EXIT_FAILURE);
-                        }
-                        snpinfo.push_back(snpinfotmp);
-                    } else {
-                        snpinfotmp.estn=-9;
-                        snpinfo.push_back(snpinfotmp);
+                strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[rid]);
+                snpinfotmp.snpchr=etmp->_esi_chr[rid];
+                snpinfotmp.bp=etmp->_esi_bp[rid];
+                snpinfotmp.gd=etmp->_esi_gd[rid];
+                strcpy2(&snpinfotmp.a1, etmp->_esi_allele1[rid]);
+                strcpy2(&snpinfotmp.a2, etmp->_esi_allele2[rid]);
+                snpinfotmp.freq=etmp->_esi_freq[rid];
+                snpinfotmp.beta=*(val_ptr+j);
+                snpinfotmp.se=*(val_ptr+j+num);
+                double ztmp=snpinfotmp.beta/snpinfotmp.se;
+                double pval=pchisq(ztmp*ztmp, 1);
+                if(pinsnp>=0) {
+                    if(pval>pinsnp) continue;
+                }
+                if(pexsnp>=0) {
+                    if(pval<pexsnp) continue;
+                }
+                if(rmTechnicaleQTL)
+                {
+                    if(etmp->_esi_chr[rid] == probechr && etmp->_esi_bp[rid] >=hybridstart && etmp->_esi_bp[rid] <= hybridend && pval<=pTech)
+                    {
+                        techHit=true;
                     }
+                }
+                if(qcflag)
+                {
+                    if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
+                    {
+                        printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
+                        nufreqwarnflg=true;
+                        continue;
+                    }
+                    if(snpinfotmp.freq<1e-8)
+                    {
+                        printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
+                        continue;
+                    }
+                    snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
+                    if(snpinfotmp.estn<0)
+                    {
+                        printf("ERROR: Negative estimated sample size found of SNP %s.\n",snpinfotmp.snprs);
+                        exit(EXIT_FAILURE);
+                    }
+                    snpinfo.push_back(snpinfotmp);
+                } else {
+                    snpinfotmp.estn=-9;
+                    snpinfo.push_back(snpinfotmp);
+                }
                     
-                    //int sid=iter->second;
-                    //cout<<rid<<":"<<etmp._esi_include[sid]<<endl; // test passed
-                    real_num++;
+                //int sid=iter->second;
+                //cout<<rid<<":"<<etmp._esi_include[sid]<<endl; // test passed
+                real_num++;
             }
             
         }
@@ -2489,11 +2518,23 @@ namespace SMRDATA
         suminfo.push_back(rmnum);
     }
     
-    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh,bool extract_cis_only,char* prbseqregion)
+    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh,bool extract_cis_only,char* prbseqregion, double ptech, double pinsnp,double pexsnp)
     {
-        
+        if(pinsnp>=0)
+        {
+            printf("Only the significant eQTL that passes a p-value threshold %e would be included.\n",pinsnp);
+        }
+        if(pexsnp>=0)
+        {
+             printf("The significant eQTL that passes a p-value threshold %e would be excluded.\n",pexsnp);
+        }
+        if(pinsnp>=0 && pexsnp>=0 && pinsnp<pexsnp) {
+            printf("The p-value threshold to include eQTL %e should be larger than the p-value threshold to excluded %e.\n",pinsnp, pexsnp);
+            exit(EXIT_FAILURE);
+        }
         eqtlInfo etmp;
         bool rmTechnicaleQTL=false;
+        bool techHit=false;
         if(extract_cis_only) printf("Only cis information would be extracted.\n");
         read_esifile(&etmp, string(eqtlFileName)+".esi");
         esi_man(&etmp, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname);
@@ -2559,8 +2600,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype2write=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype2write,sizeof(float), 1, smr1);
+        uint32_t filetype2write=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype2write,sizeof(uint32_t), 1, smr1);
         
         vector<uint64_t> cols((etmp._include.size()<<1)+1);;
         vector<uint32_t> rowids;
@@ -2585,29 +2626,29 @@ namespace SMRDATA
             size = _incld_id_map.size();
         }
 
-        float filetype=readfloat(fptr);
+        uint32_t filetype=readuint32(fptr);
         char* buffer=NULL;
         uint64_t valNum=0;
         uint64_t* ptr=NULL;
         uint64_t rowSTART=0;
         uint64_t valSTART=0;
-        if((int)filetype==SPARSE_FILE_TYPE_3 ){
+        if(filetype==SPARSE_FILE_TYPE_3F ){
             uint64_t colNum=(etmp._probNum<<1)+1;
             fseek(fptr, 0L, SEEK_END);
             uint64_t lSize = ftell(fptr);
             fseek(fptr, 0L, SEEK_SET);
             readfloat(fptr);
             valNum=readuint64(fptr);
-            if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
             uint64_t colsize=colNum*sizeof(uint64_t);
             buffer = (char*) malloc (sizeof(char)*(colsize));
             if (buffer == NULL) {fputs ("Memory error when reading sparse BESD file.",stderr); exit (1);}
             fread(buffer,colsize,sizeof(char),fptr);
             
             ptr=(uint64_t *)buffer;
-            rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-            valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
-        } else if((int)filetype==DENSE_FILE_TYPE_1){
+            rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+            valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+        } else if(filetype==DENSE_FILE_TYPE_1){
             buffer = (char*) malloc (sizeof(char)*etmp._snpNum<<3);
             if (buffer == NULL) {fputs ("Memory error when reading dense BESD file.",stderr); exit (1);}
         } else {
@@ -2662,6 +2703,7 @@ namespace SMRDATA
         {
             printf("Saving... %3.0f%%\r", 100.0*i/etmp._include.size());
             fflush(stdout);
+            techHit=false;
             bool nufreqwarnflg=false;
             string prbname=etmp._epi_prbID[etmp._include[i]];
             int prbbp=etmp._epi_bp[etmp._include[i]];
@@ -2669,15 +2711,25 @@ namespace SMRDATA
             vector<float> tmpse;
             snpinfo.clear();
             uint64_t pid=etmp._include[i];
-            if((int)filetype==SPARSE_FILE_TYPE_3) get_snpinfo_cur_prb_sparse(snpinfo,fptr, pid, ptr,  rowSTART, valSTART, &etmp,_incld_id_map, qcflag);
+            if(filetype==SPARSE_FILE_TYPE_3F) get_snpinfo_cur_prb_sparse(snpinfo,fptr, pid, ptr,  rowSTART, valSTART, &etmp,_incld_id_map, qcflag, rmTechnicaleQTL,techHit,ptech,pinsnp,pexsnp);
             else {
                 //get_snpinfo_cur_prb_dense(snpinfo,fptr, pid, &buffer ,&etmp);
+                int probechr= etmp._epi_chr[pid];
+                int hybridstart=-9;
+                int hybridend=-9;
+                if(rmTechnicaleQTL)
+                {
+                    hybridstart=etmp._epi_start[pid];
+                    hybridend=etmp._epi_end[pid];
+                }
+
                 fseek(fptr,((pid<<1)*etmp._snpNum+1)<<2, SEEK_SET);
                 memset(buffer,0,sizeof(char)*etmp._snpNum<<3);
                 fread(buffer, sizeof(char),etmp._snpNum<<3,fptr);
                 float* ft=(float *)buffer;
                 float* se_ptr = ft + etmp._snpNum;
-                for (int j = 0; j<etmp._esi_include.size(); j++) {
+                for (int j = 0; j<etmp._esi_include.size(); j++)
+                {
                     float se=*(se_ptr + etmp._esi_include[j]);
                     if(abs(se+9)>1e-6)
                     {
@@ -2691,6 +2743,21 @@ namespace SMRDATA
                         snpinfotmp.freq=etmp._esi_freq[etmp._esi_include[j]];
                         snpinfotmp.beta=*(ft + etmp._esi_include[j]);
                         snpinfotmp.se=se;
+                        double ztmp=snpinfotmp.beta/snpinfotmp.se;
+                        double pval=pchisq(ztmp*ztmp, 1);
+                        if(pinsnp>=0) {
+                            if(pval>pinsnp) continue;
+                        }
+                        if(pexsnp>=0) {
+                            if(pval<pexsnp) continue;
+                        }
+                        if(rmTechnicaleQTL){
+                           
+                            if(etmp._esi_chr[etmp._esi_include[j]] == probechr && etmp._esi_bp[etmp._esi_include[j]] >=hybridstart && etmp._esi_bp[etmp._esi_include[j]] <= hybridend && pval<=ptech) {
+                                techHit=true;
+                            }
+                        }
+
                         if(qcflag) {
                             if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
                             {
@@ -2717,7 +2784,7 @@ namespace SMRDATA
                     }
                 }
             }
-            
+            if(rmTechnicaleQTL && techHit) printf("Proble %s contains technical SNPs. The cis-region of this probe would be removed.\n",prbname.c_str());
             probeinfolst prbifo;
             prbifo.bp=etmp._epi_bp[etmp._include[i]];
             prbifo.probechr=etmp._epi_chr[etmp._include[i]];
@@ -2752,7 +2819,7 @@ namespace SMRDATA
            
             
             vector<int> slct_idx;
-            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,extract_cis_only,rmTechnicaleQTL); //slct_idx with no order if there are trans-rgeions
+            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,extract_cis_only,techHit); //slct_idx with no order if there are trans-rgeions
             stable_sort(slct_idx.begin(),slct_idx.end());
             vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
             vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
@@ -2907,7 +2974,7 @@ namespace SMRDATA
             printf ( "ERROR: Couldn't open file %s\n", besdfile1.c_str());
             exit (EXIT_FAILURE);
         }
-        float filetype1=readfloat(fptr1);
+        uint32_t filetype1=readuint32(fptr1);
         
         string besdfile2 = string(eqtlFileName2)+".besd";
         FILE *fptr2=fopen(besdfile2.c_str(), "rb");
@@ -2916,12 +2983,12 @@ namespace SMRDATA
             printf ( "ERROR: Couldn't open file %s\n", besdfile2.c_str());
             exit (EXIT_FAILURE);
         }
-        float filetype2=readfloat(fptr2);
+        uint32_t filetype2=readuint32(fptr2);
         if(filetype1!=filetype2) {
             printf("different besd file format.\n");
             return;
         }
-        if((int)filetype1==SPARSE_FILE_TYPE_3 ){
+        if(filetype1==SPARSE_FILE_TYPE_3F ){
             
             uint64_t colNum1=(edata1._probNum<<1)+1;
             fseek(fptr1, 0L, SEEK_END);
@@ -2929,14 +2996,14 @@ namespace SMRDATA
             fseek(fptr1, 0L, SEEK_SET);
             readfloat(fptr1);
             uint64_t valNum1=readuint64(fptr1);
-            if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum1*sizeof(uint64_t) + valNum1*sizeof(uint32_t) + valNum1*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
+            if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum1*sizeof(uint64_t) + valNum1*sizeof(uint32_t) + valNum1*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
             uint64_t colNum2=(edata2._probNum<<1)+1;
             fseek(fptr2, 0L, SEEK_END);
             uint64_t lSize2 = ftell(fptr2);
             fseek(fptr2, 0L, SEEK_SET);
             readfloat(fptr2);
             uint64_t valNum2=readuint64(fptr2);
-            if( lSize2 - (sizeof(float) + sizeof(uint64_t) + colNum2*sizeof(uint64_t) + valNum2*sizeof(uint32_t) + valNum2*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
+            if( lSize2 - (sizeof(uint32_t) + sizeof(uint64_t) + colNum2*sizeof(uint64_t) + valNum2*sizeof(uint32_t) + valNum2*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
             
             uint64_t colsize1=colNum1*sizeof(uint64_t);
             uint64_t* colbuf1=(uint64_t*)malloc(colsize1);
@@ -3176,7 +3243,7 @@ namespace SMRDATA
             free(colbuf1);
             free(colbuf2);
         }
-        else if((int)filetype1==DENSE_FILE_TYPE_1)
+        else if(filetype1==DENSE_FILE_TYPE_1)
         {
             fseek(fptr1, 0L, SEEK_END);
             uint64_t lSize = ftell(fptr1);

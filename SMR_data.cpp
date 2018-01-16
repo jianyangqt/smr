@@ -679,10 +679,52 @@ namespace SMRDATA
         if(prtscr)  cout << "Reading eQTL summary data from [" + besdfile + "]." << endl;
         
         besd.read(SIGN, 4);
-        float* flag;
-        flag=(float *)SIGN;
-        if((int)*flag == SPARSE_FILE_TYPE_2){
+        uint32_t* gflag = (uint32_t *)SIGN;
+        /*
+        if(*gflag==4){
+            // clear datastruct for sparse befor read dense
+            eqtlinfo->_cols.clear();
+            eqtlinfo->_rowid.clear();
+            eqtlinfo->_val.clear();
+            eqtlinfo->_valNum = 0;
+            uint64_t memsize2use=eqtlinfo->_include.size()*eqtlinfo->_esi_include.size()*2*sizeof(float);
+            if(memsize2use>0x200000000) printf("WARNING: %llu GB should be allocated for your besd file.\n",memsize2use>>30);
+            eqtlinfo->_bxz.resize(eqtlinfo->_include.size());
+            eqtlinfo->_sexz.resize(eqtlinfo->_include.size());
+            for(unsigned int i=0;i<eqtlinfo->_include.size();i++)
+            {
+                eqtlinfo->_bxz[i].resize(eqtlinfo->_esi_include.size());
+                eqtlinfo->_sexz[i].resize(eqtlinfo->_esi_include.size());
+            }
+            char* buffer;
+            buffer = (char*) malloc (sizeof(char)*eqtlinfo->_snpNum<<3);
+            if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
+            float* ft;
+            float* se_ptr;
+           
+                for(int j=0;j<eqtlinfo->_esi_include.size();j++)
+                {
+                    unsigned long sid=eqtlinfo->_esi_include[j];
+                    besd.seekg(((sid<<1)*eqtlinfo->_probNum+1)<<2);
+                    memset(buffer,0,sizeof(char)*eqtlinfo->_probNum<<3);
+                    besd.read(buffer,eqtlinfo->_probNum<<3);
+                    ft=(float *)buffer;
+                    for (int i = 0; i<eqtlinfo->_include.size(); i++) eqtlinfo->_bxz[i][j] = *(ft + eqtlinfo->_include[i]);
+                    se_ptr = ft + eqtlinfo->_probNum;
+                    for (int i = 0; i<eqtlinfo->_include.size(); i++) eqtlinfo->_sexz[i][j] = *(se_ptr + eqtlinfo->_include[i]);
+                }
+                if(prtscr)  std::cout << "eQTL summary-level statistics of " << eqtlinfo->_include.size() << " Probes and " << eqtlinfo->_esi_include.size() << " SNPs to be included from [" + besdfile + "]." << endl;
+                if(eqtlinfo->_include.size()<eqtlinfo->_probNum ) update_epi(eqtlinfo);
+                if(eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum) update_esi(eqtlinfo);
+            
+                free(buffer);
+
+        }
+         */
+        
+        if(*gflag == 0x40000000){
             // clear datastruct for dense befor read sparse
+            cout<<"This is an old file format. Please use --make-besd to update the file format."<<endl;
             eqtlinfo->_bxz.clear();
             eqtlinfo->_sexz.clear();
             
@@ -776,7 +818,7 @@ namespace SMRDATA
             // terminate
             free (buffer);
         }
-        else if((int)*flag == DENSE_FILE_TYPE_1 )
+        else if(*gflag == DENSE_FILE_TYPE_1 )
         {
             // clear datastruct for sparse befor read dense
             eqtlinfo->_cols.clear();
@@ -944,8 +986,10 @@ namespace SMRDATA
             }
             free(buffer);
         }
-        else if ((int)*flag == SPARSE_FILE_TYPE_1 )
+        
+        else if (*gflag == 0x3f800000 )
         {
+            cout<<"This is an old file format. Please use --make-besd to update the file format."<<endl;
             // clear datastruct for dense befor read sparse
             eqtlinfo->_bxz.clear();
             eqtlinfo->_sexz.clear();
@@ -1032,7 +1076,8 @@ namespace SMRDATA
             // terminate
             free (buffer);
         }
-        else if ((int)*flag == SPARSE_FILE_TYPE_3)
+        
+        else if (*gflag == SPARSE_FILE_TYPE_3F)
         {
             // clear datastruct for dense befor read sparse
             eqtlinfo->_bxz.clear();
@@ -1154,6 +1199,9 @@ namespace SMRDATA
             }
             // terminate
             free (buffer);
+        }
+        else {
+            cout<<"SMR doesn't support this format. Please use OSCA (http://cnsgenomics.com/software/osca) to transform it to SMR format."<<endl;
         }
         besd.close();
         /*
@@ -3494,7 +3542,7 @@ namespace SMRDATA
                 int ge_rowid=esdata->_rowid[beta_start+j];
                 int snpbp=esdata->_esi_bp[ge_rowid];
                 int snpchr=esdata->_esi_chr[ge_rowid];
-                if(snpchr==esdata->_epi_chr[i] && ABS(esdata->_epi_bp[i]-snpbp)<=cis_itvl && gdata->seyz[ge_rowid]+9>1e-6)
+                if(snpchr==esdata->_epi_chr[i] && abs(esdata->_epi_bp[i]-snpbp)<=cis_itvl && gdata->seyz[ge_rowid]+9>1e-6)
                 {
                     if(esdata->_epi_start.size()>0 && esdata->_epi_end.size()>0)
                     {
@@ -3730,6 +3778,7 @@ namespace SMRDATA
 
     }
     void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1) {
+        //approximate maximum independent set
         //Modified version of rm_cor_indi from grm.cpp
         
         int i = 0, j = 0, i_buf = 0;
@@ -3825,7 +3874,7 @@ namespace SMRDATA
         smrwk->allele2.swap(allele2);
         X=_X;
     }
-    double heidi_test_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp )
+    double heidi_test_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double ld_min,int opt_hetero)
     {
         //the new method would calcualte maxid after each filtering
         VectorXd ld_v;
@@ -3843,23 +3892,23 @@ namespace SMRDATA
             return -9;
         }
         printf("%ld SNPs left after filtering.\n",sn_ids.size());
-        update_snidx(smrwk,sn_ids,500,"LD pruning");
+        update_snidx(smrwk,sn_ids,MAX_NUM_LD,"LD pruning");
         
         SMRWK smrwk_heidi;
         extract_smrwk(smrwk,sn_ids,&smrwk_heidi);
         long maxid_heidi=max_abs_id(smrwk_heidi.zxz);
         
         make_XMat(bdata,smrwk_heidi.curId, _X);
-        printf("Removing SNPs with LD r-squared between top-SNP %s > %f ...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top);
+        printf("Removing SNPs with LD r-squared between top-SNP %s > %f or < %f...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top,ld_min);
         ld_calc_o2m(ld_v,maxid_heidi,_X);
-        sn_ids.clear();
-        if(abs(ldr2_top-1)>1e-6) {
-            
+        if(abs(ldr2_top-1)>1e-6 || ld_min>0) {
+            sn_ids.clear();
             for(int i=0;i<smrwk_heidi.zxz.size();i++)
             {
                 if(i!= maxid_heidi)
                 {
-                    if((ld_v(i)*ld_v(i)-ldr2_top)<1e-6) sn_ids.push_back(i);
+                    double ldr2tmp=ld_v(i)*ld_v(i);
+                    if((ldr2tmp<ldr2_top) && (ldr2tmp > ld_min)) sn_ids.push_back(i);
                 }
                 else{
                     sn_ids.push_back(i);
@@ -3892,12 +3941,12 @@ namespace SMRDATA
         for (int i=0 ; i<m ; i++) {
             if (rm_ID1.size() == 0) sn_ids.push_back(i);
             else {
-                if (rm_ID1[qi] == i) qi++; //Skip removed snp
+                if (qi<rm_ID1.size() && rm_ID1[qi] == i) qi++; //Skip removed snp
                 else sn_ids.push_back(i);
             }
         }
         
-        update_snidx(&smrwk_heidi,sn_ids,20,"HEIDI test");
+        update_snidx(&smrwk_heidi,sn_ids,opt_hetero,"HEIDI test");
         if (sn_ids.size() < C.size()) { //Build new matrix
             MatrixXd D(sn_ids.size(),sn_ids.size());
             for (int i = 0 ; i < sn_ids.size() ; i++) {
@@ -3929,7 +3978,7 @@ namespace SMRDATA
         
         return pdev;
     }
-    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt)
+    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt, double ld_min,int opt_hetero)
     {
         
         uint64_t probNum = esdata->_include.size();
@@ -4131,13 +4180,13 @@ namespace SMRDATA
                 double pdev=-9;
                 if(!heidioffFlag) {
                     if(new_heidi_mth){
-                        if(opt) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid );
-                        else pdev= heidi_test_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp );
+                        if(opt) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero);
+                        else pdev= heidi_test_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp, ld_min ,opt_hetero);
                     } else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                 }
                 if(smr)
                 {
-                    outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp) : "NA") + '\n';
+                    outstr+= (pdev >= 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp+1) : "NA") + '\n';
                     if(fputs_checked(outstr.c_str(),smr))
                     {
                         printf("ERROR: in writing file %s .\n", smrfile.c_str());
@@ -4160,9 +4209,12 @@ namespace SMRDATA
         }
         
     }
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth,bool opt,char* prbseqregion)
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth,bool opt,char* prbseqregion, double ld_min)
     {
-        
+        if(ld_min>ld_top) {
+            printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
+            exit(EXIT_FAILURE);
+        }
         setNbThreads(thread_num);
         
         bInfo bdata;
@@ -4214,9 +4266,9 @@ namespace SMRDATA
            exit(EXIT_FAILURE);
        }
        vector<SMRRLT> smrrlts;
-       smr_heidi_func(smrrlts,  outFileName, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt);
+       smr_heidi_func(smrrlts,  outFileName, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt, ld_min,opt_hetero);
     }
-    double heidi_test_ref_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid )
+    double heidi_test_ref_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid , double ld_min, int opt_hetero)
     {
         //refid is the id in smrwk for the target eQTL
         VectorXd ld_v;
@@ -4235,7 +4287,7 @@ namespace SMRDATA
             return -9;
         }
         printf("%ld SNPs left after filtering.\n",sn_ids.size());
-        update_snidx(smrwk,sn_ids,500,"LD pruning");
+        update_snidx(smrwk,sn_ids,MAX_NUM_LD,"LD pruning");
         
         if(find (sn_ids.begin(), sn_ids.end(), refid) == sn_ids.end()) sn_ids.push_back(refid);
         SMRWK smrwk_heidi;
@@ -4243,16 +4295,17 @@ namespace SMRDATA
         long refid_heidi= find (smrwk_heidi.rs.begin(), smrwk_heidi.rs.end(), refrs) - smrwk_heidi.rs.begin();
         
         make_XMat(bdata,smrwk_heidi.curId, _X);
-        printf("Removing SNPs with LD r-squared between target-SNP %s > %f ...\n",smrwk_heidi.rs[refid_heidi].c_str(),ldr2_top);
+        printf("Removing SNPs with LD r-squared between target-SNP %s > %f or < %f...\n",smrwk_heidi.rs[refid_heidi].c_str(),ldr2_top,ld_min);
         ld_calc_o2m(ld_v,refid_heidi,_X);
-        sn_ids.clear();
-        if(abs(ldr2_top-1)>1e-6) {
-            
+        
+        if(abs(ldr2_top-1)>1e-6 || ld_min > 0) {
+            sn_ids.clear();
             for(int i=0;i<smrwk_heidi.zxz.size();i++)
             {
                 if(i!= refid_heidi)
                 {
-                    if((ld_v(i)*ld_v(i)-ldr2_top)<1e-6) sn_ids.push_back(i);
+                    double ldtmp=ld_v(i)*ld_v(i);
+                    if((ldtmp-ldr2_top)<1e-6 && (ldtmp > ld_min)) sn_ids.push_back(i);
                 }
                 else{
                     sn_ids.push_back(i);
@@ -4285,12 +4338,12 @@ namespace SMRDATA
         for (int i=0 ; i<m ; i++) {
             if (rm_ID1.size() == 0) sn_ids.push_back(i);
             else {
-                if (rm_ID1[qi] == i) qi++; //Skip removed snp
+                if (qi<rm_ID1.size() && rm_ID1[qi] == i) qi++; //Skip removed snp
                 else sn_ids.push_back(i);
             }
         }
         
-        update_snidx(&smrwk_heidi,sn_ids,20,"HEIDI test");
+        update_snidx(&smrwk_heidi,sn_ids,opt_hetero,"HEIDI test");
         if(find (sn_ids.begin(), sn_ids.end(), refid_heidi) == sn_ids.end()){
             sn_ids[sn_ids.size()-1]=(int)refid_heidi; //in case of target SNP is not in top 20
         }
@@ -4325,7 +4378,7 @@ namespace SMRDATA
         
         return pdev;
     }
-    void smr_heidi_trans_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth)
+    void smr_heidi_trans_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, double ld_min,int opt_hetero)
     {
         // select trans-eQTL using --peqtl-trans. run SMR analysis using --peqtl-smr.
         uint64_t probNum = esdata->_include.size();
@@ -4529,12 +4582,12 @@ namespace SMRDATA
                     long nsnp=-9;
                     double pdev=-9;
                     if(!heidioffFlag) {
-                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid );
+                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid ,ld_min,opt_hetero);
                         else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                     }
                     if(smr)
                     {
-                        outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp) : "NA") + '\n';
+                        outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp+1) : "NA") + '\n';
                         if(fputs_checked(outstr.c_str(),smr))
                         {
                             printf("ERROR: in writing file %s .\n", smrfile.c_str());
@@ -4559,7 +4612,7 @@ namespace SMRDATA
         
     }
     // test all the meQTL or eQTL <=threshold.
-    void smr_trans(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr)
+    void smr_trans(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr,double ld_min)
     {
         setNbThreads(thread_num);
         
@@ -4611,7 +4664,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> smrrlts;
-        smr_heidi_trans_func(smrrlts, outFileName, &bdata,&gdata,&esdata, cis_itvl, trans_itvl, p_trans, heidioffFlag, refSNP,p_hetero,ld_top,m_hetero , p_smr,threshpsmrest, new_het_mth);
+        smr_heidi_trans_func(smrrlts, outFileName, &bdata,&gdata,&esdata, cis_itvl, trans_itvl, p_trans, heidioffFlag, refSNP,p_hetero,ld_top,m_hetero , p_smr,threshpsmrest, new_het_mth,ld_min,opt_hetero);
         
     }
     void slct_trans_per_prb(vector<int> &slct_idx, vector<int> &regionChr, vector<long> &snpNumPerRegion,vector<long> &leftbound, vector<long> &rightbound, probeinfolst* prbifo, vector<info4trans> &snpinfo, long cis_itvl, long trans_itvl,double transThres)
@@ -4806,7 +4859,7 @@ namespace SMRDATA
     }
     
     
-    void smr_heidi_trans_region_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt)
+    void smr_heidi_trans_region_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt, double ld_min,int opt_hetero)
     {
         // select trans-eQTL using --peqtl-trans. run SMR analysis using --peqtl-smr.
         uint64_t probNum = esdata->_include.size();
@@ -5048,12 +5101,12 @@ namespace SMRDATA
                     long nsnp=-9;
                     double pdev=-9;
                     if(!heidioffFlag) {
-                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid );
+                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero);
                         else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                     }
                     if(smr)
                     {
-                        outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp) : "NA") + '\n';
+                        outstr+= (pdev > 0 ? dtos(pdev) : "NA") + '\t' + (nsnp > 0 ? atos(nsnp+1) : "NA") + '\n';
                         if(fputs_checked(outstr.c_str(),smr))
                         {
                             printf("ERROR: in writing file %s .\n", smrfile.c_str());
@@ -5080,10 +5133,13 @@ namespace SMRDATA
         
     }
 
-    void smr_trans_region(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr, bool opt)
+    void smr_trans_region(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr, bool opt, double ld_min)
     {
         setNbThreads(thread_num);
-        
+        if(ld_min>ld_top) {
+            printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
+            exit(EXIT_FAILURE);
+        }
         bInfo bdata;
         gwasData gdata;
         eqtlInfo esdata;
@@ -5132,7 +5188,7 @@ namespace SMRDATA
             exit(EXIT_FAILURE);
         }
         vector<SMRRLT> smrrlts;
-        smr_heidi_trans_region_func(smrrlts, outFileName, &bdata,&gdata,&esdata, cis_itvl, trans_itvl, p_trans, heidioffFlag, refSNP,p_hetero,ld_top,m_hetero , p_smr,threshpsmrest, new_het_mth,opt);
+        smr_heidi_trans_region_func(smrrlts, outFileName, &bdata,&gdata,&esdata, cis_itvl, trans_itvl, p_trans, heidioffFlag, refSNP,p_hetero,ld_top,m_hetero , p_smr,threshpsmrest, new_het_mth,opt,ld_min,opt_hetero);
         
     }
     
@@ -5164,7 +5220,7 @@ namespace SMRDATA
         else throw ("Error: please input the eQTL summary information for the eQTL data files by the option --beqtl-summary.");
         
       
-                filter_probe_null(&eqtlinfo); // at the same time, reset the vector _include
+                filter_probe_null(&eqtlinfo); // at the same time, reset the vector _include // checked 20171120, filterring probe here is right.
                 //filter_snp_null(&eqtlinfo);
                 //update_besd();
                 cout<<"\nsaving eQTL data..."<<endl;
@@ -5218,8 +5274,8 @@ namespace SMRDATA
                         
                         char* buffer=(char*)malloc (sizeof(char)*bufsize);
                         memset(buffer,0,sizeof(char)*bufsize);
-                        float ftype=SPARSE_FILE_TYPE_3;
-                        memcpy(buffer,&ftype,sizeof(float));
+                        uint32_t ftype=SPARSE_FILE_TYPE_3F;
+                        memcpy(buffer,&ftype,sizeof(uint32_t));
                         char* wptr=buffer+sizeof(float);
                         memcpy(wptr,&valNum,sizeof(uint64_t));
                         wptr+=sizeof(uint64_t);
@@ -5305,8 +5361,9 @@ namespace SMRDATA
         }
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, int opt_hetero,  char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt, double ld_min)
     {
+        //here eqtlFileName is the outcome and eqtlFileName2 is the exposure. in the main we pass the outcome (eqtlFileName2) to eqtlFileName and the exposure (eqtlFileName) to eqtlFileName2
         setNbThreads(thread_num);
         string logstr;
         if(oproblstName!=NULL && oprobe!=NULL)
@@ -5333,7 +5390,10 @@ namespace SMRDATA
             eprobe2rm=NULL;
             fputs(logstr.c_str(), stdout);
         }
-        
+        if(ld_min>ld_top) {
+            printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
+            exit(EXIT_FAILURE);
+        }
         eqtlInfo etrait;
         eqtlInfo esdata;
         bInfo bdata;
@@ -5512,14 +5572,14 @@ namespace SMRDATA
             }
             printf("\n%ld exposure probes are inclued in the cis region [%d, %d] of outcome probe %s.\n", esdata._include.size(),lowerbounder,upperbounder,traitname.c_str());
             vector<SMRRLT> smrrlts;
-            smr_heidi_func(smrrlts,  NULL, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt);
+            smr_heidi_func(smrrlts,  NULL, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt,ld_min,opt_hetero);
             if(smrrlts.size()>0){
                 etraitcount++;
                 itemcount+=smrrlts.size();
             }
             for(int j=0;j<smrrlts.size();j++)
             {
-                outstr=smrrlts[j].ProbeID+'\t'+atos(smrrlts[j].ProbeChr)+'\t'+smrrlts[j].Gene+'\t'+atos(smrrlts[j].Probe_bp)+'\t'+traitname+'\t'+atos(traitchr)+'\t'+traitgene+'\t'+atos(traitbp)+'\t'+smrrlts[j].SNP+'\t'+atos(smrrlts[j].SNP_Chr)+'\t'+atos(smrrlts[j].SNP_bp)+'\t'+smrrlts[j].A1+'\t'+smrrlts[j].A2+'\t'+atos(smrrlts[j].Freq)+'\t'+atos(smrrlts[j].b_GWAS)+'\t'+atos(smrrlts[j].se_GWAS)+'\t'+dtos(smrrlts[j].p_GWAS)+'\t'+atos(smrrlts[j].b_eQTL)+'\t'+atos(smrrlts[j].se_eQTL)+'\t'+dtos(smrrlts[j].p_eQTL)+'\t'+atos(smrrlts[j].b_SMR)+'\t'+atos(smrrlts[j].se_SMR)+'\t'+dtos(smrrlts[j].p_SMR)+'\t'+(smrrlts[j].p_HET > 0 ? dtos(smrrlts[j].p_HET) : "NA") + '\t' + (smrrlts[j].nsnp > 0 ? atos(smrrlts[j].nsnp) : "NA") + '\n';
+                outstr=smrrlts[j].ProbeID+'\t'+atos(smrrlts[j].ProbeChr)+'\t'+smrrlts[j].Gene+'\t'+atos(smrrlts[j].Probe_bp)+'\t'+traitname+'\t'+atos(traitchr)+'\t'+traitgene+'\t'+atos(traitbp)+'\t'+smrrlts[j].SNP+'\t'+atos(smrrlts[j].SNP_Chr)+'\t'+atos(smrrlts[j].SNP_bp)+'\t'+smrrlts[j].A1+'\t'+smrrlts[j].A2+'\t'+atos(smrrlts[j].Freq)+'\t'+atos(smrrlts[j].b_GWAS)+'\t'+atos(smrrlts[j].se_GWAS)+'\t'+dtos(smrrlts[j].p_GWAS)+'\t'+atos(smrrlts[j].b_eQTL)+'\t'+atos(smrrlts[j].se_eQTL)+'\t'+dtos(smrrlts[j].p_eQTL)+'\t'+atos(smrrlts[j].b_SMR)+'\t'+atos(smrrlts[j].se_SMR)+'\t'+dtos(smrrlts[j].p_SMR)+'\t'+(smrrlts[j].p_HET >= 0 ? dtos(smrrlts[j].p_HET) : "NA") + '\t' + (smrrlts[j].nsnp > 0 ? atos(smrrlts[j].nsnp+1) : "NA") + '\n';
                 if(fputs_checked(outstr.c_str(),smr))
                 {
                     printf("ERROR: in writing file %s .\n", smrfile.c_str());
@@ -5673,8 +5733,8 @@ namespace SMRDATA
             
             char* buffer=(char*)malloc (sizeof(char)*bufsize);
             memset(buffer,0,sizeof(char)*bufsize);
-            float ftype=SPARSE_FILE_TYPE_3;
-            memcpy(buffer,&ftype,sizeof(float));
+            uint32_t ftype=SPARSE_FILE_TYPE_3F;
+            memcpy(buffer,&ftype,sizeof(uint32_t));
             char* wptr=buffer+sizeof(float);
             memcpy(wptr,&valNum,sizeof(uint64_t));
             wptr+=sizeof(uint64_t);

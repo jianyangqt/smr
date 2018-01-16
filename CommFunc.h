@@ -18,16 +18,19 @@
 #define MAX_LINE_SIZE 0x80000
 #endif
 
+//#define __DBL_MIN__ 2.225e-308
 #define MAX_LINE_BUF 0x1000000
 
 #define MAXSNPNUMPERPROBEINSPARSE 0x300000
 #define MAX_PROBE_NUM 0xF0000
 #define MAX_SNP_NAME 64
-#define DENSE_FILE_TYPE_1 0  // float + floats
-#define SPARSE_FILE_TYPE_1 1 // float + float + floats + floats +floats
-#define SPARSE_FILE_TYPE_2 2 // float + uint64_t + uint32_ts + uint32_ts + floats
-#define SPARSE_FILE_TYPE_3 3 // float + uint64_t + uint64_ts + uint32_ts + floats
-#define DENSE_FILE_TYPE_2 4
+#define DENSE_FILE_TYPE_1 0  // uint32 + floats
+#define SPARSE_FILE_TYPE_3F 0x40400000 // uint32 + uint64_t + uint64_ts + uint32_ts + floats
+#define SPARSE_FILE_TYPE_3 3 // 10*uint32s + uint64_t + uint64_ts + uint32_ts + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +valnumber+cols+rowids+betases) [default]
+#define DENSE_FILE_TYPE_3 5  // 10*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]
+
+//#define BEST_NUM_HEIDI 41
+#define MAX_NUM_LD 500
 
 #define MIN_PVAL_ADJUSTED 1e-150
 
@@ -44,9 +47,6 @@
 #include <unsupported/Eigen/SparseExtra>
 #include <Eigen/Eigenvalues>
 #include <queue>
-
-typedef unsigned long long         uint64_t;
-typedef unsigned int         uint32_t;
 
 using namespace Eigen;
 using namespace std;

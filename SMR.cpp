@@ -20,9 +20,10 @@ int thread_num;
 int xh=0;
 
 int main(int argc, char** argv) {
+    
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.68"<< endl;
+    cout << "* version 0.702"<< endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -66,7 +67,9 @@ void option(int option_num, char* option_str[])
     double p_hetero=1.5654e-3;
     double p_smr=5.0e-8;
     double ld_prune=0.9;
+    double ld_min=0.05;
     unsigned int m_hetero=3;
+    int opt_hetero=20;
     bool smr_flag=true;
     bool smr_trans_flag=false;
     
@@ -78,6 +81,8 @@ void option(int option_num, char* option_str[])
 	
     char* eFileName=NULL;
     bool eremlFlag=false;
+    double pexsnp = -9;
+    double pinsnp = -9;
     
     // for filtering
     bool cis_flag=false;
@@ -119,7 +124,7 @@ void option(int option_num, char* option_str[])
     char* eqtlsmaslstName = NULL;
     //
     char* gwasFileName2=NULL;
-    char* eqtlFileName2=NULL;
+    char* eqtlFileName2=NULL; // for the outcome trait
     char* traitlstName=NULL;
     //
     bool plotflg=false;
@@ -130,7 +135,9 @@ void option(int option_num, char* option_str[])
     bool gemmaflag=false;
     bool merlinflag=false;
     bool boltflag=false;
-    
+    bool mateqtlflag = false;
+    bool fastqtlnflag = false;
+    bool fastqtlpflag = false;
     bool genouni=false;
     
     
@@ -191,6 +198,10 @@ void option(int option_num, char* option_str[])
     bool extract_cis_only=false;
     bool rm_technical=false;
     char* prbseqregion=NULL;
+    double ptech = 5.0e-8;
+    
+    int addn=-9;
+    bool shownflag=false;
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -260,6 +271,25 @@ void option(int option_num, char* option_str[])
             cout<<"--extract-snp "<<snplstName<<endl;
             CommFunc::FileExist(snplstName);
         }
+        else if(strcmp(option_str[i],"--extract-snp-p")==0){
+            pinsnp=atof(option_str[++i]);
+            cout<<"--extract-snp-p "<<pinsnp<<endl;
+            if(pinsnp<0 || pinsnp>1)
+            {
+                fprintf (stderr, "Error: --extract-snp-p should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--exclude-snp-p")==0){
+            pexsnp=atof(option_str[++i]);
+            cout<<"--exclude-snp-p "<<pexsnp<<endl;
+            if(pexsnp<0 || pexsnp>1)
+            {
+                fprintf (stderr, "Error: --exclude-snp-p should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+
         else if(strcmp(option_str[i],"--extract-probe")==0){
             problstName=option_str[++i];
             FLAG_VALID_CK("--extract-probe", problstName);
@@ -343,9 +373,13 @@ void option(int option_num, char* option_str[])
             }
             
         }
-        else if (0 == strcmp(option_str[i], "--heidi-m")){
+        else if (0 == strcmp(option_str[i], "--heidi-min-m")){
             m_hetero = atoi(option_str[++i]);
-            printf("--heidi-m %d\n", m_hetero);
+            printf("--heidi-min %d\n", m_hetero);
+        }
+        else if (0 == strcmp(option_str[i], "--heidi-max-m")){
+            opt_hetero = atoi(option_str[++i]);
+            printf("--heidi-max %d\n", opt_hetero);
         }
         else if (0 == strcmp(option_str[i], "--heidi-mtd")){
             int mtd=atoi(option_str[++i]);
@@ -357,12 +391,12 @@ void option(int option_num, char* option_str[])
             }
             printf("--heidi-mtd %d\n", mtd);
         }
-        else if (0 == strcmp(option_str[i], "--ld-pruning")){
+        else if (0 == strcmp(option_str[i], "--ld-upper-limit")){
             ld_prune = atof(option_str[++i]);
-            printf("--ld-pruning %f\n", ld_prune);
+            printf("--ld-upper-limit %f\n", ld_prune);
             if(ld_prune<0 || ld_prune>1)
             {
-                fprintf (stderr, "Error: --ld-pruning should be within the range from 0 to 1.\n");
+                fprintf (stderr, "Error: --ld-upper-limit should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
             }
         }
@@ -514,7 +548,22 @@ void option(int option_num, char* option_str[])
         else if (0 == strcmp(option_str[i], "--merlin-fastassoc-format")){
             merlinflag = true;
             gctaflag = false;
-            printf("----merlin-fastassoc-format \n" );
+            printf("--merlin-fastassoc-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--matrix-eqtl-format")){
+            mateqtlflag = true;
+            gctaflag = false;
+            printf("--matrix-eqtl-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--fastqtl-nominal-format")){
+            fastqtlnflag = true;
+            gctaflag = false;
+            printf("--fastqtl-nominal-format \n" );
+        }
+        else if (0 == strcmp(option_str[i], "--fastqtl-permu-format")){
+            fastqtlpflag = true;
+            gctaflag = false;
+            printf("--fastqtl-permu-format \n" );
         }
         else if(strcmp(option_str[i],"--extract-trait")==0){
             traitlstName=option_str[++i];
@@ -526,10 +575,10 @@ void option(int option_num, char* option_str[])
             esdstd=true;
             cout<<"--esd-std "<<endl;
         }
-        else if(strcmp(option_str[i],"--freq")==0){
+        else if(strcmp(option_str[i],"--update-freq")==0){
             freqName=option_str[++i];
-            FLAG_VALID_CK("--freq", freqName);
-            cout<<"--freq "<<freqName<<endl;
+            FLAG_VALID_CK("--update-freq", freqName);
+            cout<<"--update-freq "<<freqName<<endl;
             CommFunc::FileExist(freqName);
         }
         else if(strcmp(option_str[i],"--probe-var")==0){
@@ -816,6 +865,39 @@ void option(int option_num, char* option_str[])
             prbseqregion=option_str[++i];
             printf("--rm-technical %s\n",prbseqregion);
         }
+        else if (0 == strcmp(option_str[i], "--p-technical")){
+            ptech = atof(option_str[++i]);
+            printf("--p-technical %10.2e\n", p_smr);
+            if(ptech<0 || ptech>1)
+            {
+                fprintf (stderr, "Error: --p-technical should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if (0 == strcmp(option_str[i], "--ld-lower-limit")){
+            ld_min = atof(option_str[++i]);
+            printf("--ld-lower-limit %f\n", ld_min);
+            if(ld_min<0 || ld_min>1)
+            {
+                fprintf (stderr, "Error: --ld-lower-limit should be within the range from 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--add-n")==0){
+            addn=atoi(option_str[++i]);
+            printf("--add-n %d\n", addn);
+            if(setWind<0 )
+            {
+                fprintf (stderr, "Error: --add-n should be over 0.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else if(strcmp(option_str[i],"--show-n")==0){
+            shownflag=true;
+            printf("--show-n \n");
+        }
+
+
     }
     
 #ifndef __APPLE__
@@ -839,22 +921,22 @@ void option(int option_num, char* option_str[])
     else if (make_besd_flag && queryfileflg) make_besd_byQfile(queryFileName,outFileName, save_dense_flag, cis_itvl,  trans_itvl,  transThres,  restThres);
     else if (combineFlg) combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl,trans_itvl, transThres, restThres, genouni);
     else if(save_dense_flag) make_esd_file(outFileName, eqtlFileName, snplstName,problstName,bFlag,make_besd_flag, snplst2exclde, problst2exclde,  cis_itvl,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag);
-    else if(make_besd_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, snplstName, problstName,  snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh,extract_cis_only,prbseqregion);
-    else if(plotflg && eqtlFileName2 != NULL) plot_triple( outFileName,  bFileName, gwasFileName,  eqtlFileName,eqtlFileName2, maf, indilstName,  snplstName, p_hetero, ld_prune, m_hetero , indilst2remove,  snplst2exclde,  p_smr,  refSNP,  cis_itvl,  prbname,  prbWind, prbwindFlag,  snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  geneAnnoName,  pthres_me2esmr,threshpsmrest,new_het_mth,threshphet,opt_slct_flag);
-    else if(plotflg) plot_newheidi(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName,threshpsmrest,new_het_mth, threshphet);
+    else if(make_besd_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, snplstName, problstName,  snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh,extract_cis_only,prbseqregion,ptech,pinsnp,pexsnp);
+    else if(plotflg && eqtlFileName2 != NULL) plot_triple( outFileName,  bFileName, gwasFileName,  eqtlFileName2,eqtlFileName, maf, indilstName,  snplstName, p_hetero, ld_prune, m_hetero ,opt_hetero, indilst2remove,  snplst2exclde,  p_smr,  refSNP,  cis_itvl,  prbname,  prbWind, prbwindFlag,  snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  geneAnnoName,  pthres_me2esmr,threshpsmrest,new_het_mth,threshphet,opt_slct_flag,ld_min);
+    else if(plotflg) plot_newheidi(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName,threshpsmrest,new_het_mth, threshphet,ld_min);
     else if(diffflag) diff(eqtlFileName, eqtlFileName2);
-    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm,threshpsmrest,new_het_mth,opt_slct_flag);
+    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName2, eqtlFileName, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm,threshpsmrest,new_het_mth,opt_slct_flag,ld_min);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag,cis_flag, cis_itvl);
     else if(count_cis_flag) count_cis(outFileName,eqtlFileName, p_smr, cis_itvl); //output top-SNP in the cis-regions
     else if(count_trans_flag) count_trans(outFileName,eqtlFileName, p_smr, cis_itvl); // output top-SNP in the trans-regions. trans-region is defined as the region aside of the cis_itvl
     else if (freqName) update_freq(eqtlFileName, freqName);
-    else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
+    else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, opt_hetero,indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
-    else if(ssmrflg)  smr_multipleSNP( outFileName,  bFileName, gwasFileName,  eqtlFileName,  maf,indilstName,  snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero , indilst2remove, snplst2exclde,  problst2exclde, p_smr,  refSNP,  heidioffFlag,  cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr, snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, setlstName,  geneAnnoName,  setWind);
-    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,threshpsmrest,new_het_mth,opt_slct_flag,prbseqregion);
+    else if(ssmrflg)  smr_multipleSNP( outFileName,  bFileName, gwasFileName,  eqtlFileName,  maf,indilstName,  snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero ,opt_hetero, indilst2remove, snplst2exclde,  problst2exclde, p_smr,  refSNP,  heidioffFlag,  cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr, snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, setlstName,  geneAnnoName,  setWind,ld_min);
+    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero,opt_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,threshpsmrest,new_het_mth,opt_slct_flag,prbseqregion,ld_min);
     else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
     else if (metaflg) meta( eqtlsmaslstName ,outFileName,meta_mtd,detailout);
    // else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
-    else if(smr_flag && smr_trans_flag) smr_trans_region(outFileName, bFileName,gwasFileName, eqtlFileName,  maf, indilstName, snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero ,indilst2remove,snplst2exclde, problst2exclde,  transThres, refSNP,  heidioffFlag, cis_itvl, trans_itvl,genelistName,  chr, prbchr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,snpchr,snprs,fromsnprs, tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, threshpsmrest,  new_het_mth, p_smr,opt_slct_flag);
+    else if(smr_flag && smr_trans_flag) smr_trans_region(outFileName, bFileName,gwasFileName, eqtlFileName,  maf, indilstName, snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero ,opt_hetero,indilst2remove,snplst2exclde, problst2exclde,  transThres, refSNP,  heidioffFlag, cis_itvl, trans_itvl,genelistName,  chr, prbchr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,snpchr,snprs,fromsnprs, tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, threshpsmrest,  new_het_mth, p_smr,opt_slct_flag,ld_min);
     
    }

@@ -506,7 +506,7 @@ namespace SMRDATA
         
     }
    
-    double heidi_test_new_plot(bInfo* bdata,SMRWK* smrwk,vector<int> &ldnperprb,vector<string> &ldrs, vector<double> &outld, long maxid,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double threshpheidiest)
+    double heidi_test_new_plot(bInfo* bdata,SMRWK* smrwk,vector<int> &ldnperprb,vector<string> &ldrs, vector<double> &outld, long maxid,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double threshpheidiest,double ld_min,int opt_hetero)
     {
         VectorXd ld_v;
         MatrixXd _X;
@@ -523,23 +523,24 @@ namespace SMRDATA
             return -9;
         }
         printf("%ld SNPs left after filtering.\n",sn_ids.size());
-        update_snidx(smrwk,sn_ids,500,"LD pruning");
+        update_snidx(smrwk,sn_ids,MAX_NUM_LD,"LD pruning");
         
         SMRWK smrwk_heidi;
         extract_smrwk(smrwk,sn_ids,&smrwk_heidi);
         long maxid_heidi=max_abs_id(smrwk_heidi.zxz);
         
         make_XMat(bdata,smrwk_heidi.curId, _X);
-        printf("Removing SNPs with LD r-squared between top-SNP %s > %f ...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top);
+        printf("Removing SNPs with LD r-squared between top-SNP %s > %f or < %f...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top,ld_min);
         ld_calc_o2m(ld_v,maxid_heidi,_X);
-        sn_ids.clear();
-        if(abs(ldr2_top-1)>1e-6) {
-            
+        
+        if(abs(ldr2_top-1)>1e-6 || ld_min>0) {
+            sn_ids.clear();
             for(int i=0;i<smrwk_heidi.zxz.size();i++)
             {
                 if(i!= maxid_heidi)
                 {
-                    if((ld_v(i)*ld_v(i)-ldr2_top)<1e-6) sn_ids.push_back(i);
+                    double ldtmp=ld_v(i)*ld_v(i);
+                    if((ldtmp-ldr2_top)<1e-6 && (ldtmp>ld_min)) sn_ids.push_back(i);
                 }
                 else{
                     sn_ids.push_back(i);
@@ -572,12 +573,12 @@ namespace SMRDATA
         for (int i=0 ; i<m ; i++) {
             if (rm_ID1.size() == 0) sn_ids.push_back(i);
             else {
-                if (rm_ID1[qi] == i) qi++; //Skip removed snp
+                if (qi<rm_ID1.size() && rm_ID1[qi] == i) qi++; //Skip removed snp
                 else sn_ids.push_back(i);
             }
         }
         
-        update_snidx(&smrwk_heidi,sn_ids,20,"HEIDI test");
+        update_snidx(&smrwk_heidi,sn_ids,opt_hetero,"HEIDI test");
         if (sn_ids.size() < C.size()) { //Build new matrix
             MatrixXd D(sn_ids.size(),sn_ids.size());
             for (int i = 0 ; i < sn_ids.size() ; i++) {
@@ -694,7 +695,7 @@ namespace SMRDATA
         return pdev;
     }
     
-    void smr_heidi_plot(vector<SMRRLT> &smrrlts, vector<int> &ldprbid, vector<string> &ldprb, vector<int> &ldnperprb,  vector<string> &ldrs, vector<double> &outld, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, double threshpheidiest, bool new_heidi_mth=true)
+    void smr_heidi_plot(vector<SMRRLT> &smrrlts, vector<int> &ldprbid, vector<string> &ldprb, vector<int> &ldnperprb,  vector<string> &ldrs, vector<double> &outld, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, double threshpheidiest, double ld_min, bool new_heidi_mth,int opt_hetero)
     {
       
         ldnperprb.push_back(0);
@@ -805,7 +806,7 @@ namespace SMRDATA
                 long nsnp=-9;
                 double pdev=-9;
                 if(!heidioffFlag) {
-                    if(new_heidi_mth) pdev= heidi_test_new_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp ,threshpheidiest);
+                    if(new_heidi_mth) pdev= heidi_test_new_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp ,threshpheidiest,ld_min,opt_hetero);
                     else pdev= heidi_test_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp , threshpheidiest);
                     if(pdev>=threshpheidiest)
                     {
@@ -887,7 +888,7 @@ namespace SMRDATA
         }
         gdata->snpNum=gdata->snpName.size();
     }
-    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt)
+    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero ,int opt_hetero ,char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt, double ld_min)
     {        
        
         setNbThreads(thread_num);
@@ -898,7 +899,10 @@ namespace SMRDATA
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data  by the flag --eqtl-summary.");
         if(meqtlFileName==NULL) throw("Error: please input eQTL summary data  by the flag --eqtl-summary.");
         if(geneAnnoName==NULL) throw("Error: please input gene annotation file by the flag --gene-list.");
-        
+        if(ld_min>ld_top) {
+            printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
+            exit(EXIT_FAILURE);
+        }
         vector<int> gene_anno_chr;
         vector<string> gene_anno_genename;
         vector<int> gene_anno_start;
@@ -1014,7 +1018,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> smrrlts;
-        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt);
+        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt,ld_min,opt_hetero);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)
@@ -1054,7 +1058,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> msmrrlts;
-        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt);
+        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt,ld_min,opt_hetero);
         vector<int> mgstart;
         vector<int> mgend;
         for(int i=0;i<msmrrlts.size();i++)
@@ -1115,7 +1119,7 @@ namespace SMRDATA
         vector<string> ldrs;
         vector<double> outld;
         
-        smr_heidi_plot(e2msmrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld,  &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet, new_het_mtd);
+        smr_heidi_plot(e2msmrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld,  &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet, ld_min,new_het_mtd,opt_hetero);
         vector<int> e2mgstart;
         vector<int> e2mgend;
         for(int i=0;i<e2msmrrlts.size();i++)
@@ -1650,7 +1654,7 @@ namespace SMRDATA
         
     }
     
-    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet)
+    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet,double ld_min)
     {
         setNbThreads(thread_num);
         if(prbname==NULL) throw("Error: please input probe to plot by the flag --probe.");
@@ -1659,7 +1663,10 @@ namespace SMRDATA
         if(gwasFileName==NULL) throw("Error: please input GWAS summary data  by the flag --gwas-summary.");
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data  by the flag --eqtl-summary.");
         if(geneAnnoName==NULL) throw("Error: please input gene annotation file by the flag --gene-list.");
-        
+        if(ld_min>ld_top) {
+            printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
+            exit(EXIT_FAILURE);
+        }
         vector<int> gene_anno_chr;
         vector<string> gene_anno_genename;
         vector<int> gene_anno_start;
@@ -1779,7 +1786,7 @@ namespace SMRDATA
         vector<string> ldrs;
         vector<double> outld;
         
-        smr_heidi_plot(smrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet,new_het_mtd);
+        smr_heidi_plot(smrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet,ld_min,new_het_mtd,opt_hetero);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)

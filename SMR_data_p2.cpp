@@ -1750,8 +1750,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=DENSE_FILE_TYPE_1;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=DENSE_FILE_TYPE_1;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         uint64_t bsize=(uint64_t)esiNum<<1;
         float* buffer=(float*)malloc (sizeof(float)*bsize);
@@ -1891,8 +1891,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         vector<uint64_t> cols((epiNum<<1)+1);;
         vector<uint32_t> rowids;
@@ -2047,7 +2047,7 @@ namespace SMRDATA
         cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
     }
 
-    void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile, bool extract_cis_only, bool rmTechnicaleQTL)
+    void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile, bool extract_cis_only, bool techHit)
     {
         // no null se in snpinfo has been guaranteed before here.
         // for log file
@@ -2081,9 +2081,9 @@ namespace SMRDATA
                 
                 if(snpinfo[l].snpchr == probchr && snpinfo[l].bp<=cisuperBounder && snpinfo[l].bp>=cislowerBounder)
                 {
-                    if(rmTechnicaleQTL && snpinfo[l].bp<= prbifo->end && snpinfo[l].bp>=prbifo->start) // no need to check if prbifo->end == -9
+                    if(techHit)
                     {
-                        printf("The following is technical eQTL and excluded.\n");
+                        printf("The following SNP in the cis-region is excluded due to the technical eQTL.\n");
                         double z=(snpinfo[l].beta/snpinfo[l].se);
                         double p=pchisq(z*z, 1);
                         string tmp=atos(snpinfo[l].snprs)+"\t"+ atos(snpinfo[l].snpchr)+"\t"+ atos(snpinfo[l].bp)+"\t"+ atos(snpinfo[l].a1)+"\t"+ atos(snpinfo[l].a2)+"\t"+ atos(snpinfo[l].freq)+"\t"+ atos(prbifo->probeId)+"\t"+ atos(prbifo->probechr)+"\t"+ atos(prbifo->bp)+"\t" + atos(prbifo->genename)+"\t"+ atos(prbifo->orien)+"\t"+ atos(snpinfo[l].beta)+"\t"+ atos(snpinfo[l].se)+"\t"+ dtos(p)+"\n";
@@ -2290,8 +2290,8 @@ namespace SMRDATA
             printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        float filetype=SPARSE_FILE_TYPE_3;
-        fwrite (&filetype,sizeof(float), 1, smr1);
+        uint32_t filetype=SPARSE_FILE_TYPE_3F;
+        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
         
         vector<uint64_t> cols((epiNum<<1)+1);;
         vector<uint32_t> rowids;
@@ -2352,7 +2352,7 @@ namespace SMRDATA
             
             probeinfolst prbifo=prbiflst[epi2esd[j]];
             vector<int> slct_idx;
-            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
+            slct_sparse_per_prb(slct_idx, &prbifo, snpinfo,  cis_itvl, trans_itvl, transThres, restThres,logfile,false); //slct_idx with no order if there are trans-rgeions
             stable_sort(slct_idx.begin(),slct_idx.end());
             vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()),_a2(slct_idx.size());
             vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
@@ -2910,8 +2910,8 @@ namespace SMRDATA
                     printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
                     exit(EXIT_FAILURE);
                 }
-                float filetype=DENSE_FILE_TYPE_1;
-                fwrite (&filetype,sizeof(float), 1, smr1);
+                uint32_t filetype=DENSE_FILE_TYPE_1;
+                fwrite (&filetype,sizeof(uint32_t), 1, smr1);
                 
                 uint64_t bsize=(uint64_t)esiNum<<1;
                 float* buffer=(float*)malloc (sizeof(float)*bsize);
@@ -2960,8 +2960,8 @@ namespace SMRDATA
                     printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
                     exit(EXIT_FAILURE);
                 }
-                float filetype=SPARSE_FILE_TYPE_3;
-                fwrite (&filetype,sizeof(float), 1, smr1);
+                uint32_t filetype=SPARSE_FILE_TYPE_3F;
+                fwrite (&filetype,sizeof(uint32_t), 1, smr1);
                 
                 vector<uint64_t> cols((epiNum<<1)+1);;
                 uint64_t valNum=0;
@@ -3020,8 +3020,8 @@ namespace SMRDATA
                 printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
                 exit(EXIT_FAILURE);
             }
-            float filetype=SPARSE_FILE_TYPE_3;
-            fwrite (&filetype,sizeof(float), 1, smr1);
+            uint32_t filetype=SPARSE_FILE_TYPE_3F;
+            fwrite (&filetype,sizeof(uint32_t), 1, smr1);
             
             vector<uint64_t> cols((epiNum<<1)+1);;
             vector<uint32_t> rowids;
