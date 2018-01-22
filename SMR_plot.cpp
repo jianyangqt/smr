@@ -34,7 +34,7 @@ namespace SMRDATA
         read_besdfile(&etrait, string(eqtlFileName)+".besd");
         if(etrait._rowid.empty() && etrait._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -69,7 +69,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -549,7 +549,7 @@ namespace SMRDATA
         }
         printf("%ld SNPs are removed and %ld SNPs are retained.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
         if(sn_ids.size() < m_hetero) {
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
             return -9;
         }
         update_smrwk_x(&smrwk_heidi,sn_ids,_X);
@@ -564,7 +564,7 @@ namespace SMRDATA
         printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
         if(m-rm_ID1.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
             return -9;
         }
         //Create new index
@@ -651,7 +651,7 @@ namespace SMRDATA
         else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
         if(sn_ids.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
             return -9;
         }
         
@@ -740,12 +740,12 @@ namespace SMRDATA
             
             if(refSNP!=NULL && maxid==-9)
             {
-                printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
+                printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
                 continue;
             }
             if (smrwk.bxz.size() == 0) {
                 
-                printf("WARNING: No SNP fetched in probe %s.\n", probename.c_str());
+                printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                 continue;
             }
             
@@ -757,7 +757,7 @@ namespace SMRDATA
             double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
             
             if(refSNP==NULL && pxz_val>p_smr){
-                printf("WARNING: no SNP passed a p-value threshold %e for the SMR analysis in probe %s.\n", p_smr, probename.c_str());
+                printf("WARNING: no SNP passed the p-value threshold %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
                 continue;
             } else {
                 printf("Analysing probe %s...\n", probename.c_str());
@@ -793,7 +793,7 @@ namespace SMRDATA
             
             if(heidioffFlag || pxy_val>threshpsmrest)
             {
-                printf("INFO: The HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
+                printf("INFO: the HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
                 
                     currlt.p_HET=-9;
                     currlt.nsnp=-9;
@@ -1013,7 +1013,7 @@ namespace SMRDATA
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
         if(edata_clone._rowid.empty() && edata_clone._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -1053,7 +1053,7 @@ namespace SMRDATA
         read_besdfile(&mdata_clone, string(meqtlFileName)+".besd");
         if(mdata_clone._rowid.empty() && mdata_clone._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -1082,7 +1082,7 @@ namespace SMRDATA
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
         if(edata_clone._rowid.empty() && edata_clone._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         int eTraitIdx=0;
@@ -1107,7 +1107,7 @@ namespace SMRDATA
         read_besdfile(&mdata_clone, string(meqtlFileName)+".besd");
         if(mdata_clone._rowid.empty() && mdata_clone._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -1195,7 +1195,7 @@ namespace SMRDATA
         read_besdfile(&mdata, string(meqtlFileName)+".besd");
         if(mdata._rowid.empty() && mdata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         vector<int> out_esi_id_m;
@@ -1361,7 +1361,7 @@ namespace SMRDATA
         read_besdfile(&edata, string(eqtlFileName)+".besd");
         if(edata._rowid.empty() && edata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -1774,7 +1774,7 @@ namespace SMRDATA
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
         if(edata_clone._rowid.empty() && edata_clone._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -1843,7 +1843,7 @@ namespace SMRDATA
         read_besdfile(&edata, string(eqtlFileName)+".besd");
         if(edata._rowid.empty() && edata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         vector<int> out_esi_id;
@@ -2132,7 +2132,7 @@ namespace SMRDATA
             read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             
@@ -2276,7 +2276,7 @@ namespace SMRDATA
             read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             

@@ -425,7 +425,7 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
-                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+2);
+                    printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
                 gdata->snpName.push_back(vs_buf[0]);
@@ -515,7 +515,7 @@ namespace SMRDATA
                 vs_buf.clear();
                 int col_num = split_string(buf, vs_buf, " \t\n");
                 if(col_num!=6 && col_num!=7) {
-                    printf("ERROR: column number is not right in row %d!\n", lineNum+1);
+                    printf("ERROR: the number of columns is incorrect in row %d!\n", lineNum+1);
                     exit(EXIT_FAILURE);
                 }
                 if(vs_buf[0]=="NA" || vs_buf[0]=="na" || vs_buf[0]=="0"){
@@ -528,7 +528,7 @@ namespace SMRDATA
                 else tmpchr=atoi(vs_buf[0].c_str());
                 eqtlinfo->_esi_chr.push_back(tmpchr);
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
-                    printf("ERROR: SNP name is \'NA\' in row %d.\n", lineNum+1);
+                    printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+1);
                     exit(EXIT_FAILURE);
                 }
                 if(eqtlinfo->_snp_name_map.find(vs_buf[1]) != eqtlinfo->_snp_name_map.end()){
@@ -654,7 +654,44 @@ namespace SMRDATA
         
         epi.close();
     }    
-    
+    int shown(string besdfile)
+    {
+        string fname=besdfile+".besd";
+        FILE* besd=fopen(fname.c_str(), "rb");
+        if(!besd)
+        {
+            printf ( "ERROR: Couldn't open file %s\n", fname.c_str());
+            exit (EXIT_FAILURE);
+        }
+
+        printf("Reading sample size from %s \n",fname.c_str());
+        uint32_t indicator;
+        int ss=-9;
+        if(fread(&indicator, sizeof(uint32_t),1, besd)!=1)
+        {
+            printf("ERROR: File %s read failed!\n", fname.c_str());
+            exit (EXIT_FAILURE);
+        }
+        if(indicator==SPARSE_FILE_TYPE_3 || indicator==DENSE_FILE_TYPE_3)
+        {
+            if(fread(&ss, sizeof(int),1, besd)!=1)
+            {
+                printf("ERROR: File %s read failed!\n", fname.c_str());
+                exit (EXIT_FAILURE);
+            }
+            if(ss==-9)
+            {
+                printf("The sample size is missing. You may use --add-n to add it to the BESD file.\n");
+            }
+            else {
+                printf("The sample size is %d\n",ss);
+            }
+        } else {
+            printf("This file is in the old BESD format which doesn't contain the information of sample size.\n");
+        }
+        fclose(besd);
+        return ss;
+    }
     void read_besdfile(eqtlInfo* eqtlinfo, string besdfile, bool prtscr)
     {
         if (eqtlinfo->_include.size() == 0) throw ("Error: No probe is retained for analysis.");
@@ -679,9 +716,9 @@ namespace SMRDATA
         if(prtscr)  cout << "Reading eQTL summary data from [" + besdfile + "]." << endl;
         
         besd.read(SIGN, 4);
-        uint32_t* gflag = (uint32_t *)SIGN;
+        uint32_t gflag = *(uint32_t *)SIGN;
         /*
-        if(*gflag==4){
+        if(gflag==4){
             // clear datastruct for sparse befor read dense
             eqtlinfo->_cols.clear();
             eqtlinfo->_rowid.clear();
@@ -722,7 +759,7 @@ namespace SMRDATA
         }
          */
         
-        if(*gflag == 0x40000000){
+        if(gflag == 0x40000000){
             // clear datastruct for dense befor read sparse
             cout<<"This is an old file format. Please use --make-besd to update the file format."<<endl;
             eqtlinfo->_bxz.clear();
@@ -818,9 +855,34 @@ namespace SMRDATA
             // terminate
             free (buffer);
         }
-        else if(*gflag == DENSE_FILE_TYPE_1 )
+        else if(gflag == DENSE_FILE_TYPE_1 || gflag == DENSE_FILE_TYPE_3)
         {
             // clear datastruct for sparse befor read dense
+            if(gflag==DENSE_FILE_TYPE_3)
+            {
+                int length=(RESERVEDUNITS-1)*sizeof(int);
+                char* indicators=new char[length];
+                besd.read(indicators,length);
+                int* tmp=(int *)indicators;
+                int ss=*tmp++;
+                if(ss!=-9)
+                {
+                    printf("The sample size is %d.\n",ss);
+                }
+                if(*tmp++!=eqtlinfo->_snpNum)
+                {
+                    printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                if(*tmp++!=eqtlinfo->_probNum)
+                {
+                    printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                delete[] indicators;
+            }
+            int infoLen=sizeof(uint32_t);
+            if(gflag==DENSE_FILE_TYPE_3) infoLen=RESERVEDUNITS*sizeof(int);
             eqtlinfo->_cols.clear();
             eqtlinfo->_rowid.clear();
             eqtlinfo->_val.clear();
@@ -844,7 +906,7 @@ namespace SMRDATA
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
                     unsigned long pid=eqtlinfo->_include[i];
-                    besd.seekg(((pid<<1)*eqtlinfo->_snpNum+1)<<2);
+                    besd.seekg(((pid*eqtlinfo->_snpNum)<<3)+infoLen);
                     memset(buffer,0,sizeof(char)*eqtlinfo->_snpNum<<3);
                     besd.read(buffer,eqtlinfo->_snpNum<<3);
                     ft=(float *)buffer;
@@ -977,7 +1039,7 @@ namespace SMRDATA
                         rptr+=perbeta;
                         Bread-=(perbeta<<1);
                     }
-                    printf("Redinging... %3.0f%%\r", 100.0*probcount/eqtlinfo->_probNum);
+                    printf("Reading... %3.0f%%\r", 100.0*probcount/eqtlinfo->_probNum);
                     fflush(stdout);
                 }
                 if(prtscr) cout<<"\neQTL summary data of "<<eqtlinfo->_probNum<<" Probes and "<<eqtlinfo->_snpNum<<" SNPs to be included from [" + besdfile + "]." <<endl;
@@ -987,7 +1049,7 @@ namespace SMRDATA
             free(buffer);
         }
         
-        else if (*gflag == 0x3f800000 )
+        else if (gflag == 0x3f800000 )
         {
             cout<<"This is an old file format. Please use --make-besd to update the file format."<<endl;
             // clear datastruct for dense befor read sparse
@@ -1077,7 +1139,7 @@ namespace SMRDATA
             free (buffer);
         }
         
-        else if (*gflag == SPARSE_FILE_TYPE_3F)
+        else if (gflag == SPARSE_FILE_TYPE_3F || gflag == SPARSE_FILE_TYPE_3)
         {
             // clear datastruct for dense befor read sparse
             eqtlinfo->_bxz.clear();
@@ -1091,10 +1153,48 @@ namespace SMRDATA
             lSize = besd.tellg();
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
+            if(gflag==SPARSE_FILE_TYPE_3)
+            {
+                int length=(RESERVEDUNITS-1)*sizeof(int);
+                char* indicators=new char[length];
+                besd.read(indicators,length);
+                int* tmp=(int *)indicators;
+                int ss=*tmp++;
+                if(ss!=-9)
+                {
+                    printf("The sample size is %d.\n",ss);
+                }
+                if(*tmp++!=eqtlinfo->_snpNum)
+                {
+                    printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                if(*tmp++!=eqtlinfo->_probNum)
+                {
+                    printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                delete[] indicators;
+            }
+
             besd.read(SIGN, sizeof(uint64_t));
             valNum=*(uint64_t *)SIGN;
-            if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
-            
+            if(gflag==SPARSE_FILE_TYPE_3F) {
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                {
+                    printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                    exit (EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                {
+                    printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                    exit (EXIT_FAILURE);
+                }
+                
+            }
             
             if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum)
             {
@@ -1119,8 +1219,16 @@ namespace SMRDATA
                     size = _incld_id_map.size();
                 }
 
-                uint64_t rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                uint64_t valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                uint64_t rowSTART=0;
+                uint64_t valSTART=0;
+                if(gflag==SPARSE_FILE_TYPE_3F)
+                {
+                    rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                    valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                } else {
+                    rowSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                    valSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                }
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
                     uint32_t pid=eqtlinfo->_include[i];
@@ -1181,7 +1289,21 @@ namespace SMRDATA
                 buffer = (char*) malloc (sizeof(char)*(lSize));
                 if (buffer == NULL) {fputs ("Memory error",stderr); exit (1);}
                 besd.read(buffer,lSize);
-                if (besd.gcount()+sizeof(float) + sizeof(uint64_t) != lSize) {fputs ("Reading error",stderr); exit (2);}
+                if(gflag==SPARSE_FILE_TYPE_3F)
+                {
+                    if (besd.gcount()+sizeof(uint32_t) + sizeof(uint64_t) != lSize)
+                    {
+                        printf("ERROR: reading file %s error.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }else {
+                    if (besd.gcount()+RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) != lSize)
+                    {
+                        printf("ERROR: reading file %s error.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }
+                
                 uint64_t* ptr;
                 ptr=(uint64_t *)buffer;
 
@@ -2078,7 +2200,7 @@ namespace SMRDATA
             printf("File %s open failed.\n",prbseqregion);
             exit(EXIT_FAILURE);
         }
-        printf("Reading probe hybridisation region information from %s ...\n", prbseqregion);
+        printf("Reading the information of the probe hybridization region from %s ...\n", prbseqregion);
         vector<string> strlist;
         int  line_idx = 0, hit = 0;
         map<string, int>::iterator iter;
@@ -2087,7 +2209,7 @@ namespace SMRDATA
             split_string(Tbuf, strlist, " \t\n");
              if(strlist.size()<4)
              {
-                 printf("ERROR: Line %u has more than 5 items.\n", line_idx);
+                 printf("ERROR: line %u has more than 5 items.\n", line_idx);
                  exit(EXIT_FAILURE);
              }
             string prbname=strlist[1];
@@ -2116,7 +2238,7 @@ namespace SMRDATA
             }
             line_idx++;
         }
-        printf("%d rows are read from %s and %d are matched with %ld probes.\n", line_idx, prbseqregion, hit, eqtlinfo->_include.size());
+        printf("%d rows are included from %s and %d of them are matched with %ld probes in the .epi file.\n", line_idx, prbseqregion, hit, eqtlinfo->_include.size());
         fclose(epifile);
     }
 
@@ -3502,7 +3624,7 @@ namespace SMRDATA
                                 if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[j]] / 2); //for bdata, _include should be used with j, for others, fine.
                                 else smrwk->freq.push_back(esdata->_esi_freq[j]);
                             } else {
-                                printf("The following is technical eQTL and excluded from SMR analysis.\n");
+                                printf("Shown below is the technical eQTL and will be excluded from the analysis.\n");
                                 double z=(esdata->_bxz[i][j]/esdata->_sexz[i][j]);
                                 double p=pchisq(z*z, 1);
                                 string tmp=atos(esdata->_esi_rs[j])+"\t"+ atos(esdata->_esi_chr[j])+"\t"+ atos(esdata->_esi_bp[j])+"\t"+ atos(esdata->_esi_allele1[j])+"\t"+ atos(esdata->_esi_allele2[j])+"\t"+ atos(esdata->_esi_freq[j])+"\t"+ atos(esdata->_epi_prbID[i])+"\t"+ atos(esdata->_epi_chr[i])+"\t"+ atos(esdata->_epi_bp[i])+"\t" + atos(esdata->_epi_gene[i])+"\t"+ atos(esdata->_epi_orien[i])+"\t"+ atos(esdata->_bxz[i][j])+"\t"+ atos(esdata->_sexz[i][j])+"\t"+ dtos(p)+"\n";
@@ -3564,7 +3686,7 @@ namespace SMRDATA
                             if(!heidioffFlag) smrwk->freq.push_back(bdata->_mu[bdata->_include[ge_rowid]] / 2);
                             else smrwk->freq.push_back(esdata->_esi_freq[ge_rowid]);
                         } else {
-                            printf("The following is technical eQTL and excluded from SMR analysis.\n");
+                            printf("Shown below is the technical eQTL and will be excluded from the analysis.\n");
                             double z=(esdata->_bxz[i][j]/esdata->_sexz[i][j]);
                             double p=pchisq(z*z, 1);
                             string tmp=atos(esdata->_esi_rs[j])+"\t"+ atos(esdata->_esi_chr[j])+"\t"+ atos(esdata->_esi_bp[j])+"\t"+ atos(esdata->_esi_allele1[j])+"\t"+ atos(esdata->_esi_allele2[j])+"\t"+ atos(esdata->_esi_freq[j])+"\t"+ atos(esdata->_epi_prbID[i])+"\t"+ atos(esdata->_epi_chr[i])+"\t"+ atos(esdata->_epi_bp[i])+"\t" + atos(esdata->_epi_gene[i])+"\t"+ atos(esdata->_epi_orien[i])+"\t"+ atos(esdata->_bxz[i][j])+"\t"+ atos(esdata->_sexz[i][j])+"\t"+ dtos(p)+"\n";
@@ -3706,7 +3828,7 @@ namespace SMRDATA
         else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
         if(sn_ids.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is less than a threshold (%d).\n", sn_ids.size(), m_hetero);
             return -9;
         }
         
@@ -3917,7 +4039,7 @@ namespace SMRDATA
         }
         printf("%ld SNPs are removed and %ld SNPs are retained.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
         if(sn_ids.size() < m_hetero) {
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
             return -9;
         }
         update_smrwk_x(&smrwk_heidi,sn_ids,_X);
@@ -3932,7 +4054,7 @@ namespace SMRDATA
         printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
         if(m-rm_ID1.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
             return -9;
         }
         //Create new index
@@ -4038,12 +4160,12 @@ namespace SMRDATA
             
             if(refSNP!=NULL && maxid==-9)
             {
-                printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
+                printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
                 continue;
             }
             if (smrwk.bxz.size() == 0) {
                 
-                printf("WARNING: No SNP fetched in probe %s.\n", probename.c_str());
+                printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                 continue;
             }
             
@@ -4056,13 +4178,13 @@ namespace SMRDATA
                 else maxid=max_abs_id(zsxz);
             }
             if(maxid==-9) {
-                printf("WARNING: no SNP passed a p-value threshold %e for the SMR analysis in probe %s.\n", p_smr, probename.c_str());
+                printf("WARNING: no SNP passed the p-value threshold %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
                 continue;
             }
             double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
             
             if(refSNP==NULL && pxz_val>p_smr){
-                printf("WARNING: no SNP passed a p-value threshold %e for the SMR analysis in probe %s.\n", p_smr, probename.c_str());
+                printf("WARNING: no SNP passed the p-value threshold %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
                 continue;
             } else {
                 printf("Analysing probe %s...\n", probename.c_str());
@@ -4105,7 +4227,7 @@ namespace SMRDATA
             
             if(heidioffFlag || pxy_val>threshpsmrest)
             {
-                printf("INFO: The HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
+                printf("INFO: the HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
                 if(smr)
                 {
                     outstr+= string("NA") + '\t' + string("NA") + '\n';
@@ -4314,7 +4436,7 @@ namespace SMRDATA
         }
         printf("%ld SNPs are removed and %ld SNPs are retained.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
         if(sn_ids.size() < m_hetero) {
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
             return -9;
         }
         update_smrwk_x(&smrwk_heidi,sn_ids,_X);
@@ -4329,7 +4451,7 @@ namespace SMRDATA
         printf("%ld SNPs are removed and %ld SNPs (including the target SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[refid_heidi].c_str());
         if(m-rm_ID1.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped becasuse the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
+            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
             return -9;
         }
         //Create new index
@@ -4499,12 +4621,12 @@ namespace SMRDATA
                 long maxid =fill_trans_smr_wk(bdata, gdata, esdata, &smrwk, topTransRowid, topTransBP,topTransChr,refSNP, cis_itvl,trans_itvl, heidioffFlag,jj);//return refSNP id or this trans-eQTL id
                 if(refSNP!=NULL && maxid==-9)
                 {
-                    printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
+                    printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
                     continue;
                 }
                 if (smrwk.bxz.size() == 0) {
                     
-                    printf("WARNING: No SNP fetched in probe %s.\n", probename.c_str());
+                    printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                     continue;
                 }
                 Map<VectorXd> ei_bxz(&smrwk.bxz[0],smrwk.bxz.size());
@@ -4518,7 +4640,7 @@ namespace SMRDATA
                 double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
                 
                 if(refSNP==NULL && pxz_val>p_smr){
-                    printf("WARNING: current trans-eQTL with p-value %e doen's pass a p-value threshold (--peqtl-smr) %e for the SMR analysis in probe %s.\n", pxz_val, p_smr, probename.c_str());
+                    printf("WARNING: no trans-eQTL passed a p-value threshold (--peqtl-smr) %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
                     continue;
                 } else {
                     printf("Analysing probe %s...\n", probename.c_str());
@@ -4559,7 +4681,7 @@ namespace SMRDATA
                 }
                 if(heidioffFlag || pxy_val>threshpsmrest)
                 {
-                    printf("INFO: The HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
+                    printf("INFO: the HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", probename.c_str(),threshpsmrest);
                     if(smr)
                     {
                         outstr+= string("NA") + '\t' + string("NA") + '\n';
@@ -4659,7 +4781,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -4988,7 +5110,7 @@ namespace SMRDATA
             slct_trans_per_prb(slct_idx,regionChr, snpNumPerRegion,leftbound, rightbound,&prbifo, snpinfo,  cis_itvl,  trans_itvl, p_trans);
             // the output would be a little different from the sparse .summary file. because here the SNPs are the common SNPs of the three datasets. furthermore the trans-eqtl is not in common.
             if(snpNumPerRegion.size()==0) {
-                 printf("WARNING: No trans-region is included with a p-value threshold %e.\n",p_trans);
+                 printf("WARNING: no trans-eQTL for probe %s at the p-value threshold %e.\n",prbifo.probeId,p_trans);
             }
             for(int jj=0;jj<snpNumPerRegion.size();jj++)
             {
@@ -5017,12 +5139,12 @@ namespace SMRDATA
                 
                 if(refSNP!=NULL && maxid==-9)
                 {
-                    printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, prbifo.probeId);
+                    printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, prbifo.probeId);
                     continue;
                 }
                 if (smrwk.bxz.size() == 0) {
                     
-                    printf("WARNING: No SNP fetched in probe %s.\n", prbifo.probeId);
+                    printf("WARNING: no SNP fetched for probe %s.\n", prbifo.probeId);
                     continue;
                 }
                 Map<VectorXd> ei_bxz(&smrwk.bxz[0],smrwk.bxz.size());
@@ -5037,7 +5159,7 @@ namespace SMRDATA
                 double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
                 
                 if(refSNP==NULL && pxz_val>p_smr){
-                    printf("WARNING: current trans-eQTL with p-value %e doen's pass a p-value threshold (--peqtl-smr) %e for the SMR analysis in probe %s.\n", pxz_val, p_smr, prbifo.probeId);
+                    printf("WARNING: current trans-eQTL with p-value %e doen's pass a p-value threshold (--peqtl-smr) %e for the SMR analysis for probe %s.\n", pxz_val, p_smr, prbifo.probeId);
                     continue;
                 } else {
                     printf("Analysing probe %s...\n", prbifo.probeId);
@@ -5078,7 +5200,7 @@ namespace SMRDATA
                 }
                 if(heidioffFlag || pxy_val>threshpsmrest)
                 {
-                    printf("INFO: The HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", prbifo.probeId,threshpsmrest);
+                    printf("INFO: the HEIDI test for probe %s is skipped because HEIDI test is turned off by the --heidi-off option or p_SMR does not pass the %e threshold.\n", prbifo.probeId,threshpsmrest);
                     if(smr)
                     {
                         outstr+= string("NA") + '\t' + string("NA") + '\n';
@@ -5184,7 +5306,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         vector<SMRRLT> smrrlts;
@@ -5192,7 +5314,7 @@ namespace SMRDATA
         
     }
     
-   void make_esd_file(char* outFileName, char* eqtlFileName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag, char* snplst2exclde, char* problst2exclde, int cis_itvl,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag)
+   void make_full_besd(char* outFileName, char* eqtlFileName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag, char* snplst2exclde, char* problst2exclde, int cis_itvl,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, int addn)
     {
         
         eqtlInfo eqtlinfo;
@@ -5212,7 +5334,7 @@ namespace SMRDATA
            read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included under current condition.\n");
+                printf("No data included in the analysis.\n");
                 exit(EXIT_FAILURE);
             }
             
@@ -5242,18 +5364,31 @@ namespace SMRDATA
                 smr.close();
                 cout<<eqtlinfo._include.size()<<" probes have been saved in the file [" + esdfile + "]."<<endl;
             
-                if(make_besd_flag)
-                {
+                //if(make_besd_flag)
+               // {
                     esdfile = string(outFileName)+".besd";
-                    FILE * smr;
-                    smr = fopen (esdfile.c_str(), "wb");
+                    FILE * smr1;
+                    smr1 = fopen (esdfile.c_str(), "wb");
                     if(eqtlinfo._valNum==0)
                     {
-                        uint64_t bsize=(eqtlinfo._include.size()*eqtlinfo._snpNum<<1)+1;
+                        vector<int> ten_ints(RESERVEDUNITS);
+                        ten_ints[0]=DENSE_FILE_TYPE_3;
+                        if(addn!=-9)
+                        {
+                            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+                            ten_ints[1]=addn;
+                        }  else {
+                            ten_ints[1]=-9;
+                        }
+                        ten_ints[2]=(int)eqtlinfo._esi_include.size();
+                        ten_ints[3]=(int)eqtlinfo._include.size();
+                        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+                        fwrite(&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+                        
+                        uint64_t bsize=(eqtlinfo._include.size()*eqtlinfo._snpNum<<1);
                         float* buffer=(float*)malloc (sizeof(float)*bsize);
                         memset(buffer,0,sizeof(float)*bsize);
                         float* ptr=buffer;
-                        *ptr++=0.0;
                         uint64_t pro_num=eqtlinfo._include.size();
                         uint64_t snp_num=eqtlinfo._snpNum;
                         for(int i=0;i<pro_num;i++)
@@ -5261,22 +5396,34 @@ namespace SMRDATA
                             memcpy(ptr+(i<<1)*snp_num,&eqtlinfo._bxz[eqtlinfo._include[i]][0],sizeof(float)*snp_num);
                             memcpy(ptr+((i<<1)+1)*snp_num,&eqtlinfo._sexz[eqtlinfo._include[i]][0],sizeof(float)*snp_num);
                         }
-                        fwrite (buffer,sizeof(float), bsize, smr);
+                        fwrite (buffer,sizeof(float), bsize, smr1);
                         free(buffer);
                     }
                     else
                     {
+                        vector<int> ten_ints(RESERVEDUNITS);
+                        ten_ints[0]=SPARSE_FILE_TYPE_3;
+                        if(addn!=-9)
+                        {
+                            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+                            ten_ints[1]=addn;
+                        }  else {
+                            ten_ints[1]=-9;
+                        }
+                        ten_ints[2]=(int)eqtlinfo._esi_include.size();
+                        ten_ints[3]=(int)eqtlinfo._include.size();
+                        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+                        fwrite(&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+                        
                         uint64_t colSize=sizeof(uint64_t)*((eqtlinfo._include.size()<<1)+1);
                         uint64_t rowSize=sizeof(uint32_t)*eqtlinfo._valNum;
                         uint64_t valSize=sizeof(float)*eqtlinfo._valNum;
                         uint64_t valNum=eqtlinfo._valNum;
-                        uint64_t bufsize=sizeof(float)+sizeof(uint64_t)+colSize+rowSize+valSize;
+                        uint64_t bufsize=sizeof(uint64_t)+colSize+rowSize+valSize;
                         
                         char* buffer=(char*)malloc (sizeof(char)*bufsize);
                         memset(buffer,0,sizeof(char)*bufsize);
-                        uint32_t ftype=SPARSE_FILE_TYPE_3F;
-                        memcpy(buffer,&ftype,sizeof(uint32_t));
-                        char* wptr=buffer+sizeof(float);
+                        char* wptr=buffer;
                         memcpy(wptr,&valNum,sizeof(uint64_t));
                         wptr+=sizeof(uint64_t);
                         uint64_t* uptr=(uint64_t*)wptr; *uptr++=0;
@@ -5289,14 +5436,14 @@ namespace SMRDATA
                         memcpy(wptr,&eqtlinfo._rowid[0],rowSize);
                         wptr+=rowSize;
                         memcpy(wptr,&eqtlinfo._val[0],valSize);
-                        fwrite (buffer,sizeof(char), bufsize, smr);
+                        fwrite (buffer,sizeof(char), bufsize, smr1);
                         free(buffer);
                         
                     }
-                    fclose (smr);
+                    fclose (smr1);
                     
                     cout<<"Effect sizes (beta) and SEfor "<<eqtlinfo._include.size()<<" Probes and "<<eqtlinfo._snpNum<<" SNPs have been saved in the binary file [" + esdfile + "]." <<endl;
-                }
+               // }
     
     }
     
@@ -5403,7 +5550,7 @@ namespace SMRDATA
         if(!heidioffFlag && bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
         if(refSNP!=NULL) heidiFlag=true;
-        if(problstName != NULL) cout<<"WARNING: --extract-probe here presumes the probe list should contain both probes of exposure dataset and probes of outcome dataset.\n If you want to only extract probes from one dataset please include these probles in the file and all the probes of the other dataset as well.\n"<<endl;
+        if(problstName != NULL) cout<<"WARNING: --extract-probe works when the probes are used as either exposures dataset or outcomes.\n"<<endl;
         read_esifile(&etrait, string(eqtlFileName)+".esi");
         if (snplstName != NULL) extract_eqtl_snp(&etrait, snplstName);
         if(snplst2exclde != NULL) exclude_eqtl_snp(&etrait, snplst2exclde);
@@ -5418,7 +5565,7 @@ namespace SMRDATA
         read_besdfile(&etrait, string(eqtlFileName)+".besd");
         if(etrait._rowid.empty() && etrait._bxz.empty())
         {
-            printf("No data included under current condition.\n");
+            printf("No data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
 
@@ -5462,7 +5609,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("ERROR: no data included under current condition.\n");
+            printf("ERROR: no data included in the analysis.\n");
             exit(EXIT_FAILURE);
         }
         
@@ -5570,7 +5717,7 @@ namespace SMRDATA
                 int bptmp=esdata._epi_bp[includebk[j]];
                 if(esdata._epi_chr[includebk[j]]==traitchr && bptmp>=lowerbounder && bptmp<=upperbounder) esdata._include.push_back(includebk[j]);
             }
-            printf("\n%ld exposure probes are inclued in the cis region [%d, %d] of outcome probe %s.\n", esdata._include.size(),lowerbounder,upperbounder,traitname.c_str());
+            printf("\n%ld exposure probes in the cis region [%d, %d] of outcome probe %s are inclued in the analysis.\n", esdata._include.size(),lowerbounder,upperbounder,traitname.c_str());
             vector<SMRRLT> smrrlts;
             smr_heidi_func(smrrlts,  NULL, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt,ld_min,opt_hetero);
             if(smrrlts.size()>0){
@@ -5588,9 +5735,8 @@ namespace SMRDATA
             }
         }
         fclose(smr);
-        printf("SMR and heterogeneity analysis finished.\nSMR and heterogeneity analysis results of %ld exposure probes ( %ld outcome probes) have been saved in the file %s.\n",itemcount,etraitcount,smrfile.c_str());
+        printf("SMR and HEIDI analyses completed.\nSMR and heterogeneity analysis results of %ld exposure probes ( %ld outcome probes) have been saved in the file %s.\n",itemcount,etraitcount,smrfile.c_str());
     }
-    
     void update_freq(char* eqtlFileName, char* frqfile)
     {
         eqtlInfo eqtlinfo;
@@ -5797,13 +5943,13 @@ namespace SMRDATA
         read_besdfile(&etrait, string(eqtlFileName)+".besd");
         if(etrait._rowid.empty() && etrait._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName);
+            printf("No data included from %s in the analysis.\n",eqtlFileName);
             exit(EXIT_FAILURE);
         }
         read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName2);
+            printf("No data included from %s in the analysis.\n",eqtlFileName2);
             exit(EXIT_FAILURE);
         }
         metadata._cols.push_back(0);

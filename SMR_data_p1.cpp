@@ -207,7 +207,7 @@ namespace SMRDATA
                 read_besdfile(&eqtlinfo, smasNames[ii]+".besd");
                 if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
                 {
-                    printf("No data included from %s under current condition.\n",smasNames[ii].c_str());
+                    printf("No data included from %s in the analysis.\n",smasNames[ii].c_str());
                     exit(EXIT_FAILURE);
                 }
                 //get_top_sets(&eqtlinfo,prbIds,beta,se,rs,thres);
@@ -227,7 +227,7 @@ namespace SMRDATA
             read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             //get_top_sets(&eqtlinfo,prbIds,beta,se,rs,thres);
@@ -395,7 +395,7 @@ namespace SMRDATA
         cis_itvl=cis_itvl*1000;
        
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
-        if(problstName != NULL) cout<<"WARNING: --extract-probe here presumes the probe list should contain both probes of exposure dataset and probes of outcome dataset.\n If you want to only extract probes from one dataset please include these probles in the file and all the probes of the other dataset as well.\n"<<endl;
+        if(problstName != NULL) cout<<"WARNING: --extract-probe here presumes the probe list should contain both probes of exposure dataset and probes of outcome dataset.\n If you want to only extract probes from one dataset please include these probes in the file and all the probes of the other dataset as well.\n"<<endl;
         read_esifile(&etrait, string(eqtlFileName)+".esi");
         if (snplstName != NULL) extract_eqtl_snp(&etrait, snplstName);
         if(snplst2exclde != NULL) exclude_eqtl_snp(&etrait, snplst2exclde);
@@ -409,7 +409,7 @@ namespace SMRDATA
         read_besdfile(&etrait, string(eqtlFileName)+".besd");
         if(etrait._rowid.empty() && etrait._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName);
+            printf("No data included from %s in the analysis.\n",eqtlFileName);
             exit(EXIT_FAILURE);
         }
         
@@ -444,7 +444,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName2)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName2);
+            printf("No data included from %s in the analysis.\n",eqtlFileName2);
             exit(EXIT_FAILURE);
         }
         
@@ -814,7 +814,7 @@ namespace SMRDATA
             read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             
@@ -902,7 +902,7 @@ namespace SMRDATA
          read_besdfile(&esdata, string(eqtlFileName)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName);
+            printf("No data included from %s in the analysis.\n",eqtlFileName);
             exit(EXIT_FAILURE);
         }
         
@@ -1021,7 +1021,7 @@ namespace SMRDATA
            read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
             if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
 
@@ -1438,7 +1438,7 @@ namespace SMRDATA
             read_besdfile(&esdata, string(eqtlFileName)+".besd");
             if(esdata._rowid.empty() && esdata._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             
@@ -1767,7 +1767,7 @@ namespace SMRDATA
             read_besdfile(&esdata_, string(eqtlFileName)+".besd");
             if(esdata_._rowid.empty() && esdata_._bxz.empty())
             {
-                printf("No data included from %s under current condition.\n",eqtlFileName);
+                printf("No data included from %s in the analysis.\n",eqtlFileName);
                 exit(EXIT_FAILURE);
             }
             //SNP info, the union of gwas and eqtl
@@ -2284,7 +2284,7 @@ namespace SMRDATA
             }
         }
         int snp_count=(int)Id4smr.size();
-        printf("%ld SNPs are passed the threshold %6.2e and %ld SNPs are excluded.\n",Id4smr.size(), p_smr,slctId.size()-Id4smr.size());
+        printf("%ld SNPs passed the p-value threshold %6.2e and %ld SNPs are excluded.\n",Id4smr.size(), p_smr,slctId.size()-Id4smr.size());
         if(snp_count==0) return -9;
         /* step5: multiple-SNP SMR test */
         
@@ -2295,7 +2295,7 @@ namespace SMRDATA
         make_XMat(bdata,Id4smr, _X); //_X: one row one individual, one column one SNP
         double sbat_ld_cutoff=sqrt(ld_top);
         sbat_calcu_lambda(_X, eigenval, eigenvalxy, snp_count,  sbat_ld_cutoff, sub_indx, zxz4smr, zyz4smr); //the index of slectId, snp_count can chage here
-        printf("%ld SNPs are passed LD-square threshold %6.2f and %ld SNPs are excluded.\n",sub_indx.size(), ld_top,Id4smr.size()-sub_indx.size());
+        printf("%ld SNPs passed LD-square threshold %6.2f and %ld SNPs are excluded.\n",sub_indx.size(), ld_top,Id4smr.size()-sub_indx.size());
         vector<double> zsxysq_slct(sub_indx.size());
         double chisq_zy=0;
         double chisq_zx=0;
@@ -2335,7 +2335,7 @@ namespace SMRDATA
         xh++;
          */
         /* end of saving*/
-        printf("%ld SNPs are included in multi-SNP SMR test.\n",sub_indx.size());
+        printf("%ld SNPs are included in the multi-SNP SMR test.\n",sub_indx.size());
         if(sub_indx.size() == 1)
         {
             set_pval_smr = pchisq(chisq_o, 1.0);
@@ -2393,7 +2393,7 @@ namespace SMRDATA
         read_besdfile(&esdata, string(eqtlFileName)+".besd");
         if(esdata._rowid.empty() && esdata._bxz.empty())
         {
-            printf("No data included from %s under current condition.\n",eqtlFileName);
+            printf("No data included from %s in the analysis.\n",eqtlFileName);
             exit(EXIT_FAILURE);
         }
      
@@ -2407,7 +2407,7 @@ namespace SMRDATA
         unsigned int probNum = esdata._probNum;
         
         
-        cout<<endl<<"Performing Multiple-SNP SMR and heterogeneity analysis..... "<<endl;
+        cout<<endl<<"Performing multi-SNP based SMR analysis..... "<<endl;
         float progr0=0.0 , progr1;
         progress_print(progr0);
 
@@ -2473,7 +2473,7 @@ namespace SMRDATA
                 string probename=set_name[ii];
                 string probegene="";
                 
-                printf("\nInitiate the workspace of probe %s for multi-SNP SMR analysis....\n",set_name[ii].c_str());
+                printf("\nInitiating the workspace of probe %s for multi-SNP SMR analysis....\n",set_name[ii].c_str());
                 init_smr_wk(&smrwk);
                 iter=esdata._probe_name_map.find(set_name[ii]);
                 if(iter==esdata._probe_name_map.end())
@@ -2662,20 +2662,20 @@ namespace SMRDATA
                 init_smr_wk(&smrwk);
                 smrwk.cur_prbidx=i;
                 /* step1: get cis-eQTLs */
-                printf("\nInitiate the workspace of probe %s for multi-SNP SMR analysis....\n",probename.c_str());
+                printf("\nInitiating the workspace of probe %s for multi-SNP SMR analysis....\n",probename.c_str());
                 long maxid =fill_smr_wk(&bdata, &gdata, &esdata, &smrwk, refSNP, cis_itvl, heidioffFlag);
                 if(refSNP!=NULL && maxid==-9) {
-                    printf("WARNING: can't find target SNP %s in probe %s.\n",refSNP, probename.c_str());
+                    printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
                     continue;
                 } //ref heidi SNP is not in selected SNPs
                 if (smrwk.bxz.size() == 0) {
-                    printf("WARNING: No SNP fetched in probe %s.\n", probename.c_str());
+                    printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                     continue;
                 }
-                printf("%ld SNPs are included from the cis-region of probe %s.\n",smrwk.bxz.size(),probename.c_str());
+                printf("%ld SNPs are included from the cis-region of the probe %s.\n",smrwk.bxz.size(),probename.c_str());
                 //now if you sepcify reference SNP, maxid point to this SNP, otherwise maxid is -9
                 /* step2: get top-SNP */
-                printf("Checking the region with the top-SNP....\n");
+                printf("Checking the top-SNP in the region....\n");
                 Map<VectorXd> ei_bxz(&smrwk.bxz[0],smrwk.bxz.size());
                 Map<VectorXd> ei_sexz(&smrwk.sexz[0],smrwk.sexz.size());
                 VectorXd zsxz;
@@ -2693,14 +2693,14 @@ namespace SMRDATA
                 string topsnpname=smrwk.rs[maxid];
                 printf("The top SNP of probe %s is %s with p-value %e.\n", probename.c_str(), topsnpname.c_str(),pxz_val);
                 if(refSNP==NULL && pxz_val>p_smr){
-                    printf("WARNING: no SNP passed a p-value threshold %e for Multiple-SNP SMR analysis in probe %s.\n", p_smr, probename.c_str());
+                    printf("WARNING: no SNP passed the p-value threshold %e for Multiple-SNP SMR analysis for probe %s.\n", p_smr, probename.c_str());
                     continue;
                 } else {
-                    printf("Conducting SMR and HEIDI test for probe %s...\n", probename.c_str());
+                    printf("Conducting multi-SNP SMR and HEIDI test for probe %s...\n", probename.c_str());
                 }
                 //cout<<maxid<<":"<<topsnpname<<":"<<esdata._esi_rs[smrwk.curId[maxid]]<<":"<<bdata._snp_name[bdata._include[smrwk.curId[maxid]]]<<":"<<gdata.snpName[smrwk.curId[maxid]]<<endl;
                 /* step3: extract SNPs around the --set-wind around sig (or ref) SNP */
-                if(expanWind!=-9) printf("Extracting SNPs in the specified set window around top-SNP/ref-SNP....\n");
+                if(expanWind!=-9) printf("Extracting SNPs in a specified window around top-SNP/ref-SNP....\n");
                 else printf("Extracting SNPs in the cis-region....\n");
                 vector<uint32_t> slctId;
                 vector<int> slct_bpsnp,slct_snpchr;
@@ -2850,8 +2850,8 @@ namespace SMRDATA
 
         }
 
-        cout<<"\nMultiple-SNP SMR and heterogeneity analysis finished.\nSMR and heterogeneity analysis results of "<<write_count<<" sets have been saved in the file [" + smrfile + "]."<<endl;
-        cout<<"SNP sets included in Multiple SNPs based SMR test (not HEIDI test) have been saved in the file [" + setlstfile + "]."<<endl;
+        cout<<"\nMultiple-SNP SMR and HEIDI analyses completed.\nSMR and heterogeneity analysis results of "<<write_count<<" sets have been saved in the file [" + smrfile + "]."<<endl;
+        cout<<"SNP sets included in multi-SNP SMR have been saved in the file [" + setlstfile + "]."<<endl;
         fclose(smr);
         fclose(setlst);
         fclose(glst);
@@ -3108,39 +3108,39 @@ namespace SMRDATA
         }
         Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
     }
-    void write_epi(char* outFileName, eqtlInfo* esdata)
+    void write_epi(string outFileName, eqtlInfo* esdata)
     {
-        printf("\nGenerating epi file...\n");
+        printf("\nGenerating the .epi file...\n");
         string epifile = string(outFileName)+string(".epi");
         ofstream epi(epifile.c_str());
         if (!epi) throw ("Error: can not open the EPI file " + epifile + " to save!");
         for (int j = 0;j <esdata->_include.size(); j++) {
-            epi<<esdata->_epi_chr[esdata->_include[j]]<<'\t'<<esdata->_epi_prbID[esdata->_include[j]]<<'\t'<<esdata->_epi_gd[esdata->_include[j]]<<'\t'<<esdata->_epi_bp[esdata->_include[j]]<<'\t'<<esdata->_epi_gene[esdata->_include[j]]<<'\t'<<esdata->_epi_orien[esdata->_include[j]]<<'\n';
+            epi<<((esdata->_epi_chr[esdata->_include[j]]==-9)?"NA":atos(esdata->_epi_chr[esdata->_include[j]]))<<'\t'<<esdata->_epi_prbID[esdata->_include[j]]<<'\t'<<esdata->_epi_gd[esdata->_include[j]]<<'\t'<<((esdata->_epi_bp[esdata->_include[j]]==-9)?"NA":atos(esdata->_epi_bp[esdata->_include[j]]))<<'\t'<<esdata->_epi_gene[esdata->_include[j]]<<'\t'<<((esdata->_epi_orien[esdata->_include[j]]=='N')?"NA":atos(esdata->_epi_orien[esdata->_include[j]]))<<'\n';
         }
         epi.close();
         printf("%ld probes have been saved in the file %s.\n",esdata->_include.size(),epifile.c_str());
         
     }
-    void write_esi(char* outFileName, eqtlInfo* esdata)
+    void write_esi(string outFileName, eqtlInfo* esdata)
     {
-        printf("\nGenerating esi file...\n");
+        printf("\nGenerating the .esi file...\n");
         string esifile =  string(outFileName)+string(".esi");
         ofstream esi(esifile.c_str());
         if (!esi) throw ("Error: can not open the ESI file to save!");
         for (int j = 0;j <esdata->_esi_include.size(); j++) {
-            esi<<esdata->_esi_chr[esdata->_esi_include[j]] <<'\t'<<esdata->_esi_rs[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_gd[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_bp[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_allele1[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_allele2[esdata->_esi_include[j]]<<'\t'<<(esdata->_esi_freq[esdata->_esi_include[j]]+9>1e-6?atos(esdata->_esi_freq[esdata->_esi_include[j]]):"NA")<<'\n';
+            esi<<((esdata->_esi_chr[esdata->_esi_include[j]]==-9)?"NA":atos(esdata->_esi_chr[esdata->_esi_include[j]])) <<'\t'<<esdata->_esi_rs[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_gd[esdata->_esi_include[j]]<<'\t'<<((esdata->_esi_bp[esdata->_esi_include[j]]==-9)?"NA":atos(esdata->_esi_bp[esdata->_esi_include[j]]))<<'\t'<<esdata->_esi_allele1[esdata->_esi_include[j]]<<'\t'<<esdata->_esi_allele2[esdata->_esi_include[j]]<<'\t'<<(esdata->_esi_freq[esdata->_esi_include[j]]+9>1e-6?atos(esdata->_esi_freq[esdata->_esi_include[j]]):"NA")<<'\n';
         }
         esi.close();
         printf("%ld SNPs have been saved in the file %s.\n",esdata->_esi_include.size(),esifile.c_str());
     }
     void write_sbesd3(char* outFileName,vector<uint64_t> &cols, vector<uint32_t> &rowids, vector<float> &val)
     {
-        printf("\nGenerating besd file...\n");
+        printf("\nGenerating the .besd file...\n");
         string esdfile=string(outFileName)+string(".besd");
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
         uint32_t filetype=SPARSE_FILE_TYPE_3F;
@@ -3363,6 +3363,345 @@ namespace SMRDATA
         write_esi(outFileName, &eqtls[0]);
         write_sbesd3(outFileName, cols, rowids, val);
         
+    }
+    void read_epi4u(eqtlInfo* eqtlinfo, string epifile)
+    {
+        ifstream epi(epifile.c_str());
+        if (!epi) throw ("ERROR: can not open the file [" + epifile + "] to read.");
+        cout << "Reading eQTL probe information from [" + epifile + "]." << endl;
+        eqtlinfo->_epi_chr.clear();
+        eqtlinfo->_epi_prbID.clear();
+        eqtlinfo->_epi_gd.clear();
+        eqtlinfo->_epi_bp.clear();
+        eqtlinfo->_epi_gene.clear();
+        eqtlinfo->_epi_orien.clear();
+        eqtlinfo->_include.clear();
+        eqtlinfo->_probe_name_map.clear();
+        
+        char buf[MAX_LINE_SIZE];
+        int lineNum(0);
+        while(!epi.eof())
+        {
+            epi.getline(buf,MAX_LINE_SIZE);
+            lineNum++;
+        }
+        if(buf[0]=='\0') lineNum--;
+        eqtlinfo->_probNum=lineNum;
+        cout << eqtlinfo->_probNum << " Probes to be included from [" + epifile + "]." << endl;
+        
+        eqtlinfo->_epi_chr.resize(lineNum);
+        eqtlinfo->_epi_prbID.resize(lineNum);
+        eqtlinfo->_epi_gd.resize(lineNum);
+        eqtlinfo->_epi_bp.resize(lineNum);
+        eqtlinfo->_epi_gene.resize(lineNum);
+        eqtlinfo->_epi_orien.resize(lineNum);
+        eqtlinfo->_include.resize(lineNum);
+        epi.clear(ios::goodbit);
+        epi.seekg (0, ios::beg);
+        for(int i=0;i<lineNum;i++)
+        {
+            string tmpStr;
+            epi.getline(buf,MAX_LINE_SIZE);
+            istringstream iss(buf);
+            iss>>tmpStr;
+            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="-9") {
+                printf("chromosome is \"NA\" in row %d.\n", i+1);
+                eqtlinfo->_epi_chr[i]=-9;
+            } else {
+                int tmpchr;
+                if(tmpStr=="X" || tmpStr=="x") tmpchr=23;
+                else if(tmpStr=="Y" || tmpStr=="y") tmpchr=24;
+                else tmpchr=atoi(tmpStr.c_str());
+                eqtlinfo->_epi_chr[i]=tmpchr;
+            }
+            iss>>tmpStr;
+            eqtlinfo->_include[i]=i;
+            if(eqtlinfo->_probe_name_map.find(tmpStr) != eqtlinfo->_probe_name_map.end()){
+                cout << "Warning: Duplicated probe ID \"" + tmpStr + "\" ";
+                stringstream ss;
+                ss << tmpStr << "_" << i + 1;
+                tmpStr = ss.str();
+                cout<<"has been changed to \"" + tmpStr + "\".\n";
+            }
+            eqtlinfo->_probe_name_map.insert(pair<string, int>(tmpStr, i));
+            
+            
+            eqtlinfo->_epi_prbID[i]=tmpStr;
+            iss>>tmpStr;
+            eqtlinfo->_epi_gd[i]=atoi(tmpStr.c_str());
+            iss>>tmpStr;
+            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="0") {
+                printf("probe BP is \"NA\" in row %d.\n", i+1);
+                eqtlinfo->_epi_bp[i]=-9;
+            }
+            else {
+                eqtlinfo->_epi_bp[i]=atoi(tmpStr.c_str());
+            }
+            iss>>tmpStr;
+            eqtlinfo->_epi_gene[i]=tmpStr.c_str();
+            iss>>tmpStr;
+            eqtlinfo->_epi_orien[i]=tmpStr.c_str()[0];
+        }
+        
+        epi.close();
+    }    
+    void read_esi4u(eqtlInfo* eqtlinfo, string esifile)
+    {
+        ifstream esi(esifile.c_str());
+        if (!esi) throw ("ERROR: can not open the file [" + esifile + "] to read.");
+        cout << "Reading eQTL SNP information from [" + esifile + "]." << endl;
+        eqtlinfo->_esi_chr.clear();
+        eqtlinfo->_esi_rs.clear();
+        eqtlinfo->_esi_gd.clear();
+        eqtlinfo->_esi_bp.clear();
+        eqtlinfo->_esi_allele1.clear();
+        eqtlinfo->_esi_allele2.clear();
+        eqtlinfo->_esi_include.clear();
+        eqtlinfo->_snp_name_map.clear();
+        eqtlinfo->_esi_freq.clear();
+        
+        char buf[MAX_LINE_SIZE];
+        vector<string> vs_buf;
+        int lineNum(0);
+        bool ptrnullfrq=false;
+        while(!esi.eof())
+        {
+            esi.getline(buf,MAX_LINE_SIZE);
+            if(buf[0]!='\0'){
+                vs_buf.clear();
+                int col_num = split_string(buf, vs_buf, " \t\n");
+                if(col_num!=6 && col_num!=7) {
+                    printf("ERROR: the number of columns is incorrect in row %d!\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(vs_buf[0]=="NA" || vs_buf[0]=="na" || vs_buf[0]=="0"){
+                    printf(" chromosome is \"NA\" in row %d.\n",lineNum+1);
+                    eqtlinfo->_esi_chr.push_back(-9);
+                } else {
+                    int tmpchr;
+                    if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpchr=23;
+                    else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpchr=24;
+                    else tmpchr=atoi(vs_buf[0].c_str());
+                    eqtlinfo->_esi_chr.push_back(tmpchr);
+                }
+                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                    printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+1);
+                    exit(EXIT_FAILURE);
+                }
+                if(eqtlinfo->_snp_name_map.find(vs_buf[1]) != eqtlinfo->_snp_name_map.end())
+                {
+                    cout << "WARNING: Duplicated SNP ID \"" + vs_buf[1] + "\" ";
+                    stringstream ss;
+                    ss << vs_buf[1] << "_" << lineNum + 1;
+                    vs_buf[1] = ss.str();
+                    cout<<"has been changed to \"" + vs_buf[1] + "\".\n";
+                }
+                eqtlinfo->_snp_name_map.insert(pair<string, int>(vs_buf[1], lineNum));
+                eqtlinfo->_esi_rs.push_back(vs_buf[1]);
+                eqtlinfo->_esi_gd.push_back(atoi(vs_buf[2].c_str()));
+                if(vs_buf[3]=="NA" || vs_buf[3]=="na"){
+                    printf("SNP BP is \'NA\' in row %d.\n", lineNum+1);
+                    eqtlinfo->_esi_bp.push_back(-9);
+                } else {
+                    eqtlinfo->_esi_bp.push_back(atoi(vs_buf[3].c_str()));
+                }
+                
+                if(vs_buf[4]=="NA" || vs_buf[4]=="na") printf("WARNING: allele1 is \"NA\" in row %d.\n", lineNum+1);
+                to_upper(vs_buf[4]);
+                eqtlinfo->_esi_allele1.push_back(vs_buf[4]);
+                if(vs_buf[5]=="NA" || vs_buf[5]=="na") printf("WARNING: allele2 is \"NA\" in row %d.\n", lineNum+1);
+                to_upper(vs_buf[5]);
+                eqtlinfo->_esi_allele2.push_back(vs_buf[5]);
+                if(col_num==7)
+                {
+                    if(vs_buf[6]=="NA" || vs_buf[6]=="na"){
+                        if(!ptrnullfrq){
+                            printf("WARNING: frequency is \"NA\" in one or more rows.\n");
+                            ptrnullfrq=true;
+                        }
+                        eqtlinfo->_esi_freq.push_back(-9);
+                    } else {
+                        eqtlinfo->_esi_freq.push_back(atof(vs_buf[6].c_str()));
+                    }
+                } else {
+                    eqtlinfo->_esi_freq.push_back(-9);
+                }
+                eqtlinfo->_esi_include.push_back(lineNum);
+                lineNum++;
+            }
+        }
+        eqtlinfo->_snpNum=lineNum;
+        cout << eqtlinfo->_snpNum << " SNPs to be included from [" + esifile + "]." << endl;
+        esi.close();
+    }
+    void update_epifile(char* eqtlFileName,char* s_epiFileName)
+    {
+        eqtlInfo eqtlinfo;
+        if(eqtlFileName==NULL)
+        {
+            printf("Error: please input the BESD file by the option --beqtl-summary.\n");
+            exit(EXIT_FAILURE);
+        }
+        if(s_epiFileName==NULL)
+        {
+            printf("Error: please input the probe information file by the option --update-epi.\n");
+            exit(EXIT_FAILURE);
+        }
+        string fname=string(eqtlFileName)+".epi";
+        read_epi4u(&eqtlinfo,fname);
+        fname=string(eqtlFileName)+".bak";
+        write_epi(fname, &eqtlinfo);
+        
+        FILE* epifile=fopen(s_epiFileName,"r");
+        if (!(epifile)) {
+            printf("Open error %s\n", s_epiFileName);
+            exit(EXIT_FAILURE);
+        }
+        char Tbuf[MAX_LINE_SIZE];
+        map<string, int>::iterator iter;
+        vector<string> strlist;
+        uint32_t line_idx = 0;
+        int hit =0;
+        while(fgets(Tbuf, MAX_LINE_SIZE, epifile))
+        {
+            split_string(Tbuf, strlist, " \t\n");
+            if(strlist.size()>6)
+            {
+                printf("WARNING: line %u has more than 6 items.\n", line_idx);
+            }
+            if(strlist.size()<6)
+            {
+                printf("ERROR: line %u has less than 6 items.\n", line_idx);
+                exit(EXIT_FAILURE);
+            }
+            iter=eqtlinfo._probe_name_map.find(strlist[1]);
+            if(iter!=eqtlinfo._probe_name_map.end())
+            {
+                int probeidx=iter->second;
+                if(strlist[0]=="X" || strlist[0]=="x") eqtlinfo._epi_chr[probeidx]=23;
+                else if(strlist[0]=="Y" || strlist[0]=="y") eqtlinfo._epi_chr[probeidx]=24;
+                else if (atoi(strlist[0].c_str())==0 ) {
+                    printf("ERROR: unrecongized chromomose found:\n");
+                    printf("%s\n",Tbuf);
+                    printf("ERROR: please use a different number to keep this probe:\n");
+                    exit(EXIT_FAILURE);
+                } else if (atoi(strlist[0].c_str())>24) {
+                    printf("WARNING: abnormal chromomose found:\n");
+                    printf("%s\n",Tbuf);
+                    eqtlinfo._epi_chr[probeidx]=atoi(strlist[0].c_str());
+                } else eqtlinfo._epi_chr[probeidx]=atoi(strlist[0].c_str());
+                if(strlist[3]=="NA" | strlist[3]=="na") {
+                    printf("ERROR: probe BP is missing:\n");
+                    printf("%s\n",Tbuf);
+                    exit(EXIT_FAILURE);
+                }
+                eqtlinfo._epi_bp[probeidx]=atoi(strlist[3].c_str());
+                if(strlist[4]=="NA" | strlist[4]=="na") {
+                    printf("WARNING: Gene id is missing:\n");
+                    printf("%s\n",Tbuf);
+                }
+                eqtlinfo._epi_gene[probeidx]=strlist[4].c_str();
+                if(strlist[5]=="NA" | strlist[5]=="na") {
+                    printf("WARNING: Gene strand is missing:\n");
+                    printf("%s\n",Tbuf);
+                    eqtlinfo._epi_orien[probeidx]='*';
+                } else eqtlinfo._epi_orien[probeidx]=strlist[5][0];
+                hit++;
+            }
+            
+            line_idx++;
+        }
+        fclose(epifile);
+        write_epi(string(eqtlFileName),&eqtlinfo);
+        printf("%d of %llu probes are updated.\n",hit, eqtlinfo._probNum);
+    }
+    void update_esifile(char* eqtlFileName,char* s_esiFileName)
+    {
+        eqtlInfo eqtlinfo;
+        if(eqtlFileName==NULL)
+        {
+            printf("Error: please input the BESD file by the option --beqtl-summary.\n");
+            exit(EXIT_FAILURE);
+        }
+        if(s_esiFileName==NULL)
+        {
+            printf("Error: please input the probe information file by the option --update-epi.\n");
+            exit(EXIT_FAILURE);
+        }
+        string fname=string(eqtlFileName)+".esi";
+        read_esi4u(&eqtlinfo,fname);
+        fname=string(eqtlFileName)+".bak";
+        write_esi(fname, &eqtlinfo);
+        
+        FILE* esifile=fopen(s_esiFileName,"r");
+        if (!(esifile)) {
+            printf("Open error %s\n", s_esiFileName);
+            exit(EXIT_FAILURE);
+        }
+        char Tbuf[MAX_LINE_SIZE];
+        map<string, int>::iterator iter;
+        vector<string> strlist;
+        uint32_t line_idx = 0;
+        int hit =0;
+        while(fgets(Tbuf, MAX_LINE_SIZE, esifile))
+        {
+            split_string(Tbuf, strlist, " \t\n");
+            if(strlist.size()>7)
+            {
+                printf("WARNING: line %u has more than 7 items.\n", line_idx);
+            }
+            if(strlist.size()<6)
+            {
+                printf("ERROR: line %u has less than 6 items.\n", line_idx);
+                exit(EXIT_FAILURE);
+            }
+            iter=eqtlinfo._snp_name_map.find(strlist[1]);
+            if(iter!=eqtlinfo._snp_name_map.end())
+            {
+                int snpidx=iter->second;
+                if(strlist[0]=="X" || strlist[0]=="x") eqtlinfo._esi_chr[snpidx]=23;
+                else if(strlist[0]=="Y" || strlist[0]=="y") eqtlinfo._esi_chr[snpidx]=24;
+                else if (atoi(strlist[0].c_str())==0 ) {
+                    printf("ERROR: unrecongized chromomose found:\n");
+                    printf("%s\n",Tbuf);
+                    printf("ERROR: please use a different number to keep this SNP:\n");
+                    exit(EXIT_FAILURE);
+                } else if (atoi(strlist[0].c_str())>24) {
+                    printf("WARNING: abnormal chromomose found:\n");
+                    printf("%s\n",Tbuf);
+                    eqtlinfo._esi_chr[snpidx]=atoi(strlist[0].c_str());
+                } else eqtlinfo._esi_chr[snpidx]=atoi(strlist[0].c_str());
+                if(strlist[3]=="NA" | strlist[3]=="na") {
+                    printf("ERROR: SNP BP is missing:\n");
+                    printf("%s\n",Tbuf);
+                    exit(EXIT_FAILURE);
+                }
+                eqtlinfo._esi_bp[snpidx]=atoi(strlist[3].c_str());
+                if(strlist[4]=="NA" | strlist[4]=="na") {
+                    printf("WARNING: the effect allele is missing:\n");
+                    printf("%s\n",Tbuf);
+                }
+                eqtlinfo._esi_allele1[snpidx]=strlist[4].c_str();
+                if(strlist[5]=="NA" | strlist[5]=="na") {
+                    printf("WARNING: the other allele is missing:\n");
+                    printf("%s\n",Tbuf);
+                }
+                eqtlinfo._esi_allele2[snpidx]=strlist[5].c_str();
+                if(strlist.size()==7)
+                {
+                    if(strlist[6]=="NA" || strlist[6]=="na"){
+                        printf("WARNING: frequency is \"NA\" in one or more rows.\n");
+                    } else {
+                        eqtlinfo._esi_freq[snpidx]=atof(strlist[6].c_str());
+                    }
+                }
+                hit++;
+            }
+            line_idx++;
+        }
+        fclose(esifile);
+        write_esi(string(eqtlFileName),&eqtlinfo);
+        printf("%d of %llu SNPs are updated.\n",hit, eqtlinfo._snpNum);
     }
 
     

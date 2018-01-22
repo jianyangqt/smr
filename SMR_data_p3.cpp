@@ -124,6 +124,11 @@ namespace SMRDATA
         fread((void*)(&v), sizeof(v), 1, f);
         return v;
     }
+    int readint(FILE *f) {
+        int v;
+        fread((void*)(&v), sizeof(v), 1, f);
+        return v;
+    }
     uint64_t countNotNullNum(vector<string> &smasNames, int &densefnum, int &sparsefnum)
     {
         uint64_t count=0;
@@ -140,6 +145,11 @@ namespace SMRDATA
             uint32_t filetype=readuint32(fptr);
             uint64_t valnum=0;
             if(filetype==SPARSE_FILE_TYPE_3F || filetype==0x40000000) {valnum=readuint64(fptr); sparsefnum++;}
+            if(filetype==SPARSE_FILE_TYPE_3) {
+                for(int j=1;j<RESERVEDUNITS;j++) readint(fptr);
+                valnum=readuint64(fptr);
+                sparsefnum++;
+            }
             if(filetype==0x3f800000) {valnum=(uint64_t)readfloat(fptr);sparsefnum++;}
             if(filetype==DENSE_FILE_TYPE_1) {
                 densefnum++;
@@ -149,13 +159,26 @@ namespace SMRDATA
                     if(abs(tmpfloat+9)>1e-6) valnum++;
                 }
             }
+            if(filetype==DENSE_FILE_TYPE_3) {
+                readint(fptr);
+                long esinum=readint(fptr);
+                long epinum=readint(fptr);
+                if(esinum==-9 || epinum==-9)
+                {
+                    printf ( "ERROR: File is ruined %s\n", besdfile.c_str());
+                    exit (EXIT_FAILURE);
+
+                }
+                valnum=esinum*epinum;
+                densefnum++;
+            }
            fclose(fptr);
            count+=(valnum>>1);
         }
         
         return count;
     }
-    void save_besds_dbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2)
+    void save_besds_dbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2, int addn)
     {
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -170,12 +193,10 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=DENSE_FILE_TYPE_1;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
-        
+        uint32_t ft2save=DENSE_FILE_TYPE_3;
         uint64_t bsize=(uint64_t)esiNum<<1;
         float* buffer=(float*)malloc (sizeof(float)*bsize);
         if (NULL == buffer) {
@@ -185,6 +206,7 @@ namespace SMRDATA
         bool prtscr=false;
         map<string, int>::iterator iter;
         eqtlInfo eqtlinfo;
+        int ssck=-9;
         for(int j=0;j<epiNum;j++)
         {
             printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
@@ -206,6 +228,22 @@ namespace SMRDATA
                     read_epifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".epi", prtscr);
                     extract_eqtl_single_probe(&eqtlinfo, prbname, prtscr);
                     read_esifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".esi", prtscr);
+                int tmp=shown(string(probeinfo[j].besdpath[k]));
+                if(tmp!=-9)
+                {
+                    printf("The sample size is %d.\n",tmp);
+                    if(ssck!=-9) {
+                        ssck=tmp;
+                    }
+                    else
+                    {
+                        if(ssck!=tmp)
+                        {
+                            printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                }
                     read_besdfile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".besd", prtscr);
                 
                 
@@ -320,15 +358,34 @@ namespace SMRDATA
                     }
                 }
             }
+            if(j==0)
+            {
+                vector<int> ten_ints(RESERVEDUNITS);
+                ten_ints[0]=ft2save;
+                if(addn!=-9)
+                {
+                    printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+                    ten_ints[1]=addn;
+                } else if(ssck!=-9){
+                    printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+                    ten_ints[1]=ssck;
+                } else {
+                    ten_ints[1]=-9;
+                }
+                ten_ints[2]=(int)esiNum;
+                ten_ints[3]=(int)epiNum;
+                for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+                fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+            }
             fwrite (buffer,sizeof(float), bsize, smr1);
         }
         fclose (smr1);
         free(buffer);
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
         
     }
 
-    void save_besds_dbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo)
+    void save_besds_dbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, int addn)
     {
         //because read only once .esi file. so the alleles of each SNP in every .esi should be the same and in the same alignment.
          // get esd info
@@ -338,11 +395,10 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=DENSE_FILE_TYPE_1;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
+        uint32_t ft2save=DENSE_FILE_TYPE_3;
         
         uint64_t sizeperprb=sizeof(float)*esiNum*2;
         uint64_t bsize=0x7FFFFFC0;
@@ -368,6 +424,7 @@ namespace SMRDATA
            exit(EXIT_FAILURE);
        }
         int loops=ceil(1.0*epiNum/prbperloop);
+        int ssck=-9;
         for(int j=0;j<loops;j++)
         {
             printf("Saving... %3.0f%%\r", 100.0*j/loops);
@@ -419,20 +476,69 @@ namespace SMRDATA
                 }
                 
                 uint32_t filetype=readuint32(fptr);
-               
+                int descriptive=1;
+                if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
                 uint64_t valNum=0;
                 uint64_t* ptr=NULL;
                 uint64_t rowSTART=0;
                 uint64_t valSTART=0;
-                if(filetype==SPARSE_FILE_TYPE_3F ){
+                if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3)
+                {
                     uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                     fseek(fptr, 0L, SEEK_END);
                     uint64_t lSize = ftell(fptr);
                     fseek(fptr, 0L, SEEK_SET);
-                    readfloat(fptr);
+                    readuint32(fptr);
+                    if(filetype==SPARSE_FILE_TYPE_3)
+                    {
+                        int tmp=readint(fptr);
+                        if(tmp!=-9)
+                        {
+                            printf("The sample size is %d.\n",tmp);
+                            if(ssck!=-9) {
+                                ssck=tmp;
+                            }
+                            else
+                            {
+                                if(ssck!=tmp)
+                                {
+                                    printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                        }
+                        tmp=readint(fptr);
+                        if(tmp!=eqtlinfo._snpNum)
+                        {
+                            printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                            exit(EXIT_FAILURE);
+                        }
+                        tmp=readint(fptr);
+                        if(tmp!=eqtlinfo._probNum)
+                        {
+                            printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                            exit(EXIT_FAILURE);
+                        }
+                        for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                    }
+
                     valNum=readuint64(fptr);
-                    if( lSize - (sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
-                    
+                    if(filetype==SPARSE_FILE_TYPE_3F) {
+                        if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                        {
+                            printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                            exit (EXIT_FAILURE);
+                        }
+                    }
+                    else
+                    {
+                        if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                        {
+                            printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                            exit (EXIT_FAILURE);
+                        }
+                        
+                    }
                     
                     uint64_t colsize=colNum*sizeof(uint64_t);
                     uint64_t* colbuf=(uint64_t*)malloc(colsize);
@@ -444,8 +550,8 @@ namespace SMRDATA
                     fread(colbuf,colNum,sizeof(uint64_t),fptr);
                     
                     ptr=colbuf;
-                    rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                    valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                    rowSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                    valSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                     
                     for(int m=0;m<f2prb[l].pid.size();m++)
                     {
@@ -486,7 +592,40 @@ namespace SMRDATA
                     }
                     free(colbuf);
                 }
-                else if(filetype==DENSE_FILE_TYPE_1){
+                else if(filetype==DENSE_FILE_TYPE_1 || filetype==DENSE_FILE_TYPE_3){
+                    if(filetype==DENSE_FILE_TYPE_3)
+                    {
+                        int tmp=readint(fptr);
+                        if(tmp!=-9)
+                        {
+                            printf("The sample size is %d.\n",tmp);
+                            if(ssck!=-9) {
+                                ssck=tmp;
+                            }
+                            else
+                            {
+                                if(ssck!=tmp)
+                                {
+                                    printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                        }
+                        tmp=readint(fptr);
+                        if(tmp!=eqtlinfo._snpNum)
+                        {
+                            printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                            exit(EXIT_FAILURE);
+                        }
+                        tmp=readint(fptr);
+                        if(tmp!=eqtlinfo._probNum)
+                        {
+                            printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                            exit(EXIT_FAILURE);
+                        }
+                        for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                    }
+
                      for(int m=0;m<f2prb[l].pid.size();m++)
                      {
                          long curPrid=j*prbperloop+f2prb[l].pid[m];
@@ -495,7 +634,7 @@ namespace SMRDATA
                          if(iter!=eqtlinfo._probe_name_map.end())
                          {
                              uint64_t pid=iter->second;
-                             fseek(fptr,((pid<<1)*eqtlinfo._snpNum+1)<<2, SEEK_SET);
+                             fseek(fptr,((pid<<1)*eqtlinfo._snpNum+descriptive)<<2, SEEK_SET);
                              float* wptr=buffer+f2prb[l].pid[m]*esiNum*2;
                              fread(wptr, sizeof(char),eqtlinfo._snpNum<<3,fptr);
                          }
@@ -507,15 +646,34 @@ namespace SMRDATA
                 }
                 fclose(fptr);
             }
+            if(j==0)
+            {
+                vector<int> ten_ints(RESERVEDUNITS);
+                ten_ints[0]=ft2save;
+                if(addn!=-9)
+                {
+                    printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+                    ten_ints[1]=addn;
+                } else if(ssck!=-9){
+                    printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+                    ten_ints[1]=ssck;
+                } else {
+                    ten_ints[1]=-9;
+                }
+                ten_ints[2]=(int)esiNum;
+                ten_ints[3]=(int)epiNum;
+                for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+                fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+            }
             fwrite (buffer,sizeof(float), vnum, smr1);
         }
         fclose (smr1);
         free(buffer);
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
         
     }
     
-    void save_besds_sbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,vector<string> &smasNames)
+    void save_besds_sbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,vector<string> &smasNames, int addn)
     {
         //double init
         /*
@@ -554,16 +712,15 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
-        
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
         bool prtscr=false;
       
         eqtlInfo etmp;
         printf("Reading besd files....\n");
+        int ssck=-9;
         for (int i = 0; i < smasNames.size(); i++)
         {
             printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
@@ -583,20 +740,69 @@ namespace SMRDATA
                 exit (EXIT_FAILURE);
             }
             uint32_t filetype=readuint32(fptr);
+            int descriptive=1;
+            if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if(filetype==SPARSE_FILE_TYPE_3F ){
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3){
                 uint64_t colNum=(etmp._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
-                readfloat(fptr);
+                readuint32(fptr);
+                if(filetype==SPARSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
+
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
-                
-                
+                if(filetype==SPARSE_FILE_TYPE_3F) {
+                    if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }
+                else
+                {
+                    if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                    
+                }
+
                 uint64_t colsize=colNum*sizeof(uint64_t);
                 uint64_t* colbuf=(uint64_t*)malloc(colsize);
                 if(NULL == colbuf)
@@ -607,8 +813,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=descriptive*sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=descriptive*sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<etmp._probNum;j++)
                 {
@@ -768,7 +974,40 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if(filetype==DENSE_FILE_TYPE_1){
+            else if(filetype==DENSE_FILE_TYPE_1 || filetype==DENSE_FILE_TYPE_3){
+                
+                if(filetype==DENSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
                 
                 float* tmpbetase=(float*)malloc(sizeof(float)*etmp._snpNum<<1);
                 if(NULL == tmpbetase)
@@ -789,7 +1028,7 @@ namespace SMRDATA
                         printf("Reading summary data of the probe %s from %ld BESD files(%s).\n",curprb.c_str(),probeinfo[prbindx].besdpath.size(),bpaths.c_str());
                     }
                     memset(tmpbetase,0,sizeof(float)*etmp._snpNum<<1);
-                    fseek(fptr,((j<<1)*etmp._snpNum+1)<<2, SEEK_SET);
+                    fseek(fptr,((j<<1)*etmp._snpNum+descriptive)<<2, SEEK_SET);
                     fread(tmpbetase, sizeof(float),etmp._snpNum<<1,fptr);
                     uint64_t realnum=0;
                     for(int k=0;k<etmp._snpNum;k++) if(tmpbetase[etmp._snpNum+k]+9>1e-6) realnum++;
@@ -961,7 +1200,23 @@ namespace SMRDATA
             cols[j+1<<1]=(real_num<<1)+cols[j<<1];
             valNum+=real_num*2;
         }
-        
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)esiNum;
+        ten_ints[3]=(int)epiNum;
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
         
@@ -985,9 +1240,9 @@ namespace SMRDATA
             free(probeinfo[j].rowid);
             probeinfo[j].rowid=NULL;
         }
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
     }
-    void save_besds_sbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo ,vector<string> &smasNames)
+    void save_besds_sbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo ,vector<string> &smasNames, int addn)
     {
         map<string, int> epi_map;
         map<string,int>::iterator iter;
@@ -1002,13 +1257,11 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
-        
-         bool prtscr=false;
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
+        bool prtscr=false;
        
         eqtlInfo etmp;
         read_esifile(&etmp, string(probeinfo[0].besdpath[0])+".esi", prtscr);
@@ -1018,7 +1271,8 @@ namespace SMRDATA
             exit(EXIT_FAILURE);
         }
         printf("Reading besd files....\n");
-
+        
+        int ssck=-9;
         for (int i = 0; i < smasNames.size(); i++)
         {
             printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
@@ -1035,19 +1289,68 @@ namespace SMRDATA
                 exit (EXIT_FAILURE);
             }
             uint32_t filetype=readuint32(fptr);
+            int descriptive=1;
+            if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if(filetype==SPARSE_FILE_TYPE_3F ){
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3)
+            {
                 uint64_t colNum=(etmp._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
-                readfloat(fptr);
+                readuint32(fptr);
+                if(filetype==SPARSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
-                
+                if(filetype==SPARSE_FILE_TYPE_3F) {
+                    if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }
+                else
+                {
+                    if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                    
+                }
                 
                 uint64_t colsize=colNum*sizeof(uint64_t);
                 uint64_t* colbuf=(uint64_t*)malloc(colsize);
@@ -1059,8 +1362,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<etmp._probNum;j++)
                 {
@@ -1110,8 +1413,42 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if(filetype==DENSE_FILE_TYPE_1){
+            else if(filetype==DENSE_FILE_TYPE_1 || filetype==DENSE_FILE_TYPE_3)
+            {
                 
+                if(filetype==DENSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=etmp._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
+
                 float* tmpbetase=(float*)malloc(sizeof(float)*etmp._snpNum<<1);
                 if(NULL == tmpbetase)
                 {
@@ -1135,7 +1472,7 @@ namespace SMRDATA
                         exit(EXIT_FAILURE);
                     }
                     memset(tmpbetase,0,sizeof(float)*etmp._snpNum<<1);
-                    fseek(fptr,((j<<1)*etmp._snpNum+1)<<2, SEEK_SET);
+                    fseek(fptr,((j<<1)*etmp._snpNum+descriptive)<<2, SEEK_SET);
                     fread(tmpbetase, sizeof(float),etmp._snpNum<<1,fptr);
                     uint64_t realnum=0;
                     for(int k=0;k<etmp._snpNum;k++) if(tmpbetase[etmp._snpNum+k]+9>1e-6) realnum++;
@@ -1197,6 +1534,23 @@ namespace SMRDATA
             valNum+=real_num*2;
         }
         
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)esiNum;
+        ten_ints[3]=(int)epiNum;
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+        
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
         
@@ -1220,10 +1574,10 @@ namespace SMRDATA
             free(probeinfo[j].rowid);
             probeinfo[j].rowid=NULL;
         }
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" Probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
     }
     
-    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames)
+    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
     {
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -1243,11 +1597,10 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
         
         vector<uint64_t> cols((epiNum<<1)+1);;
         vector<uint32_t> rowids;
@@ -1274,6 +1627,7 @@ namespace SMRDATA
         trans_itvl=trans_itvl*1000;
         vector<snpinfolst> snpinfo;
         eqtlInfo eqtlinfo;
+        int ssck=-9;
         for(int j=0;j<epiNum;j++)
         {
             printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
@@ -1291,6 +1645,23 @@ namespace SMRDATA
                     read_epifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".epi", prtscr);
                     extract_eqtl_single_probe(&eqtlinfo, prbname, prtscr);
                     read_esifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".esi", prtscr);
+                int tmp=shown(string(probeinfo[j].besdpath[k]));
+                if(tmp!=-9)
+                {
+                    printf("The sample size is %d.\n",tmp);
+                    if(ssck!=-9) {
+                        ssck=tmp;
+                    }
+                    else
+                    {
+                        if(ssck!=tmp)
+                        {
+                            printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                }
+
                     read_besdfile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".besd", prtscr);
                 
                 if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
@@ -1482,6 +1853,23 @@ namespace SMRDATA
             }
             free_snplist(snpinfo);
         }
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)esi_rs.size();
+        ten_ints[3]=(int)epiNum;
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+        
         uint64_t valNum=val.size();
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
@@ -1493,7 +1881,7 @@ namespace SMRDATA
         fclose(logfile);
 
     }
-    void save_slct_sparses_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames)
+    void save_slct_sparses_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
     {
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -1512,11 +1900,10 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
         
         bool prtscr=false;
         
@@ -1539,6 +1926,7 @@ namespace SMRDATA
        
         eqtlInfo eqtlinfo;
         printf("Reading besd files....\n");
+        int ssck=-9;
         for (int i = 0; i < smasNames.size(); i++)
         {
             printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
@@ -1557,20 +1945,69 @@ namespace SMRDATA
                 exit (EXIT_FAILURE);
             }
             uint32_t filetype=readuint32(fptr);
+            int descriptive=1;
+            if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if(filetype==SPARSE_FILE_TYPE_3F ){
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3){
                 uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
-                readfloat(fptr);
+                readuint32(fptr);
+                if(filetype==SPARSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
+
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
-                
-                
+                if(filetype==SPARSE_FILE_TYPE_3F) {
+                    if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }
+                else
+                {
+                    if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                    
+                }
+
                 uint64_t colsize=colNum*sizeof(uint64_t);
                 uint64_t* colbuf=(uint64_t*)malloc(colsize);
                 if(NULL == colbuf)
@@ -1581,8 +2018,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(float) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<eqtlinfo._probNum;j++)
                 {
@@ -1828,7 +2265,23 @@ namespace SMRDATA
             cols[j+1<<1]=(real_num<<1)+cols[j<<1];
             valNum+=real_num*2;
         }
-        
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)esi_rs.size();
+        ten_ints[3]=(int)epiNum;
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
         
@@ -1857,7 +2310,7 @@ namespace SMRDATA
         fclose(logfile);
         
     }
-    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames)
+    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
     {
        
         map<string, int> epi_map;
@@ -1872,11 +2325,10 @@ namespace SMRDATA
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype,sizeof(uint32_t), 1, smr1);
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
        
         bool prtscr=false;
         
@@ -1900,7 +2352,7 @@ namespace SMRDATA
         eqtlInfo eqtlinfo;
        
         read_esifile(&eqtlinfo, string(probeinfo[0].besdpath[0])+".esi", prtscr);
-        
+        int ssck=-9;
         for (int i = 0; i < smasNames.size(); i++)
         {
             printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
@@ -1917,20 +2369,69 @@ namespace SMRDATA
                 exit (EXIT_FAILURE);
             }
             uint32_t filetype=readuint32(fptr);
+            int descriptive=1;
+            if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
             uint64_t valNum=0;
             uint64_t* ptr=NULL;
             uint64_t rowSTART=0;
             uint64_t valSTART=0;
-            if(filetype==SPARSE_FILE_TYPE_3F ){
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3){
                 uint64_t colNum=(eqtlinfo._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
                 uint64_t lSize = ftell(fptr);
                 fseek(fptr, 0L, SEEK_SET);
-                readfloat(fptr);
+                readuint32(fptr);
+                if(filetype==SPARSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
+
                 valNum=readuint64(fptr);
-                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
-                
-                
+                if(filetype==SPARSE_FILE_TYPE_3F) {
+                    if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                }
+                else
+                {
+                    if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                    {
+                        printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                    
+                }
+
                 uint64_t colsize=colNum*sizeof(uint64_t);
                 uint64_t* colbuf=(uint64_t*)malloc(colsize);
                 if(NULL == colbuf)
@@ -1941,8 +2442,8 @@ namespace SMRDATA
                 fread(colbuf,colNum,sizeof(uint64_t),fptr);
                 
                 ptr=colbuf;
-                rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-                valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                rowSTART=descriptive*sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=descriptive*sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
                 
                 for( int j=0;j<eqtlinfo._probNum;j++)
                 {
@@ -2070,8 +2571,41 @@ namespace SMRDATA
                 
                 free(colbuf);
             }
-            else if(filetype==DENSE_FILE_TYPE_1) {
+            else if(filetype==DENSE_FILE_TYPE_1 || filetype==DENSE_FILE_TYPE_3) {
                 
+                if(filetype==DENSE_FILE_TYPE_3)
+                {
+                    int tmp=readint(fptr);
+                    if(tmp!=-9)
+                    {
+                        printf("The sample size is %d.\n",tmp);
+                        if(ssck!=-9) {
+                            ssck=tmp;
+                        }
+                        else
+                        {
+                            if(ssck!=tmp)
+                            {
+                                printf("ERROR: You are trying merge BESD files with different sample sizes.\n");
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._snpNum)
+                    {
+                        printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    tmp=readint(fptr);
+                    if(tmp!=eqtlinfo._probNum)
+                    {
+                        printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                        exit(EXIT_FAILURE);
+                    }
+                    for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+                }
+
                 float* tmpbetase=(float*)malloc(sizeof(float)*eqtlinfo._snpNum<<1);
                 if(NULL == tmpbetase)
                 {
@@ -2092,7 +2626,7 @@ namespace SMRDATA
                         exit(EXIT_FAILURE);
                     }
                     memset(tmpbetase,0,sizeof(float)*eqtlinfo._snpNum<<1);
-                    fseek(fptr,((j<<1)*eqtlinfo._snpNum+1)<<2, SEEK_SET);
+                    fseek(fptr,((j<<1)*eqtlinfo._snpNum+descriptive)<<2, SEEK_SET);
                     fread(tmpbetase, sizeof(float),eqtlinfo._snpNum<<1,fptr);
                     for(uint32_t jj=0;jj<eqtlinfo._snpNum;jj++)
                     {
@@ -2182,6 +2716,23 @@ namespace SMRDATA
             valNum+=real_num*2;
         }
         
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)eqtlinfo._snpNum;
+        ten_ints[3]=(int)epiNum;
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
         
@@ -2210,7 +2761,7 @@ namespace SMRDATA
         fclose(logfile);
         
     }
-    void combineBesd(char* eqtlsmaslstName, char* outFileName,bool save_dense_flag, int cis_itvl, int trans_itvl, float transThres, float restThres, bool genouni)
+    void combineBesd(char* eqtlsmaslstName, char* outFileName,bool save_dense_flag, int cis_itvl, int trans_itvl, float transThres, float restThres, bool genouni, int addn)
     {
         vector<string> smasNames;
         vector<snpinfolst> snpinfo;
@@ -2237,7 +2788,7 @@ namespace SMRDATA
         probeinfolst2* epiptr=&probeinfo[0];
         qsort(epiptr,probeinfo.size(),sizeof(probeinfolst2),comp2);
         
-        printf("\nGenerating epi file...\n");       
+        printf("\nGenerating the .epi file...\n");       
         string epifile = string(outFileName)+string(".epi");
         ofstream epi(epifile.c_str());
         if (!epi) throw ("Error: can not open the EPI file " + epifile + " to save!");
@@ -2247,7 +2798,7 @@ namespace SMRDATA
         epi.close();
         printf("%ld probes have been saved in the file %s.\n",probeinfo.size(),epifile.c_str());
         
-        printf("\nGenerating esi file...\n");
+        printf("\nGenerating the .esi file...\n");
         vector<string> esi_rs,esi_a1,esi_a2;
         if(!genouni)
         {
@@ -2272,29 +2823,30 @@ namespace SMRDATA
         printf("%ld SNPs have been saved in the file %s.\n",snpinfo.size(),esifile.c_str());
         int densefnum=0;
         int sparsefnum=0;
-        printf("\nGenerating besd file...\n");
+        printf("\nGenerating the .besd file...\n");
+        uint64_t valnum=countNotNullNum(smasNames,densefnum,sparsefnum);
         if(save_dense_flag)
         {
-            uint64_t valnum=countNotNullNum(smasNames,densefnum,sparsefnum);
             double sparsity=1.0*valnum/(probeinfo.size()*snpinfo.size());
             if(sparsity>=0.4)
             {
                 printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
-                if(genouni) save_besds_dbesd(outFileName, snpinfo, probeinfo);
-                else save_besds_dbesd(outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2);
+                if(genouni) save_besds_dbesd(outFileName, snpinfo, probeinfo, addn);
+                else save_besds_dbesd(outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2, addn);
                 
             } else {
                 printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
-                if(genouni) save_besds_sbesd( outFileName, snpinfo, probeinfo,smasNames);
-                else save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames);
+                if(genouni) save_besds_sbesd( outFileName, snpinfo, probeinfo,smasNames, addn);
+                else save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
             }
-        } else
+        }
+        else
         {
             long esiNum=snpinfo.size();
-            if(genouni) save_slct_besds_sbesd(outFileName, probeinfo, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames);
+            if(genouni) save_slct_besds_sbesd(outFileName, probeinfo, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames, addn);
             else {
-                if(sparsefnum==smasNames.size()) save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames);
-                else save_slct_besds_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames);
+                if(sparsefnum==smasNames.size()) save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
+                else save_slct_besds_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
             }
         }
         free_snplist(snpinfo);
@@ -2518,7 +3070,7 @@ namespace SMRDATA
         suminfo.push_back(rmnum);
     }
     
-    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh,bool extract_cis_only,char* prbseqregion, double ptech, double pinsnp,double pexsnp)
+    void make_sparse_besd(char* eqtlFileName, char* outFileName, int cis_itvl, int trans_itvl, float transThres, float restThres,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* snplstName,char* problstName, char* snplst2exclde, char* problst2exclde, bool qcflag, int qc_mtd, int z_thresh,bool extract_cis_only,char* prbseqregion, double ptech, double pinsnp,double pexsnp, int addn)
     {
         if(pinsnp>=0)
         {
@@ -2564,7 +3116,7 @@ namespace SMRDATA
         if(problst2exclde != NULL) exclude_prob(&etmp, problst2exclde);
         
 
-        printf("\nGenerating epi file...\n");
+        printf("\nGenerating the .epi file...\n");
         string epifile = string(outFileName)+string(".epi");
         ofstream epi(epifile.c_str());
         if (!epi) throw ("Error: can not open the EPI file " + epifile + " to save!");
@@ -2574,7 +3126,7 @@ namespace SMRDATA
         epi.close();
         printf("%ld probes have been saved in the file %s.\n",etmp._include.size(),epifile.c_str());
         
-        printf("\nGenerating esi file...\n");
+        printf("\nGenerating the .esi file...\n");
         map<string, int> esi_map;
         vector<string> esi_rs(etmp._esi_include.size());
         vector<string> esi_a1(etmp._esi_include.size());
@@ -2592,16 +3144,16 @@ namespace SMRDATA
         esi.close();
         printf("%ld SNPs have been saved in the file %s.\n",etmp._esi_include.size(),esifile.c_str());
         
-        printf("\nGenerating besd file...\n");
+        printf("\nGenerating the .besd file...\n");
         string esdfile=string(outFileName)+string(".besd");
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
         if (!(smr1)) {
-            printf("ERROR: Failed to open file %s.\n",esdfile.c_str());
+            printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t filetype2write=SPARSE_FILE_TYPE_3F;
-        fwrite (&filetype2write,sizeof(uint32_t), 1, smr1);
+        uint32_t ft2save=SPARSE_FILE_TYPE_3;
+        int ssck=-9;
         
         vector<uint64_t> cols((etmp._include.size()<<1)+1);;
         vector<uint32_t> rowids;
@@ -2627,31 +3179,110 @@ namespace SMRDATA
         }
 
         uint32_t filetype=readuint32(fptr);
+        int descriptive=1;
+        if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;
         char* buffer=NULL;
         uint64_t valNum=0;
         uint64_t* ptr=NULL;
         uint64_t rowSTART=0;
         uint64_t valSTART=0;
-        if(filetype==SPARSE_FILE_TYPE_3F ){
+        if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3){
             uint64_t colNum=(etmp._probNum<<1)+1;
             fseek(fptr, 0L, SEEK_END);
             uint64_t lSize = ftell(fptr);
             fseek(fptr, 0L, SEEK_SET);
-            readfloat(fptr);
+            readuint32(fptr);
+            if(filetype==SPARSE_FILE_TYPE_3)
+            {
+                ssck=readint(fptr);
+                if(ssck!=-9)
+                {
+                    printf("The sample size is %d.\n",ssck);
+                }
+                int tmp=readint(fptr);
+                if(tmp!=etmp._snpNum)
+                {
+                    printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                tmp=readint(fptr);
+                if(tmp!=etmp._probNum)
+                {
+                    printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+            }
+
             valNum=readuint64(fptr);
-            if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0) {fputs ("wrong element number",stderr); exit (3);}
+            if(filetype==SPARSE_FILE_TYPE_3F) {
+                if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                {
+                    printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                    exit (EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                if( lSize - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valNum*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+                {
+                    printf("ERROR: wrong value number. File %s is ruined.\n", besdfile.c_str());
+                    exit (EXIT_FAILURE);
+                }
+                
+            }
             uint64_t colsize=colNum*sizeof(uint64_t);
             buffer = (char*) malloc (sizeof(char)*(colsize));
             if (buffer == NULL) {fputs ("Memory error when reading sparse BESD file.",stderr); exit (1);}
             fread(buffer,colsize,sizeof(char),fptr);
             
             ptr=(uint64_t *)buffer;
-            rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
-            valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
-        } else if(filetype==DENSE_FILE_TYPE_1){
+            if(filetype==SPARSE_FILE_TYPE_3F)
+            {
+                rowSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=sizeof(uint32_t) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+            }
+            else
+            {
+                rowSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                valSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+
+            }
+            
+        }
+        else if(filetype==DENSE_FILE_TYPE_1 || filetype==DENSE_FILE_TYPE_3)
+        {
+            if(filetype==DENSE_FILE_TYPE_3)
+            {
+                int tmp=readint(fptr);
+                if(tmp!=-9)
+                {
+                    printf("The sample size is %d.\n",tmp);
+                }
+                tmp=readint(fptr);
+                if(tmp!=etmp._snpNum)
+                {
+                    printf("ERROR: The SNPs in your .esi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                tmp=readint(fptr);
+                if(tmp!=etmp._probNum)
+                {
+                    printf("ERROR: The probes in your .epi file are not in consistency with the one in .besd file %s.\n", besdfile.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                for(int k=4;k<RESERVEDUNITS;k++) readint(fptr);
+            }
+
             buffer = (char*) malloc (sizeof(char)*etmp._snpNum<<3);
-            if (buffer == NULL) {fputs ("Memory error when reading dense BESD file.",stderr); exit (1);}
-        } else {
+            if (buffer == NULL)
+            {
+                printf("Memory error when reading dense BESD file.\n");
+                exit (EXIT_FAILURE);
+            }
+        }
+        else
+        {
             printf("Your file is in the old sparse format. please first re-make it by --beqtl-summary and --make-besd.\n");
             exit(EXIT_FAILURE);
         }
@@ -2711,7 +3342,7 @@ namespace SMRDATA
             vector<float> tmpse;
             snpinfo.clear();
             uint64_t pid=etmp._include[i];
-            if(filetype==SPARSE_FILE_TYPE_3F) get_snpinfo_cur_prb_sparse(snpinfo,fptr, pid, ptr,  rowSTART, valSTART, &etmp,_incld_id_map, qcflag, rmTechnicaleQTL,techHit,ptech,pinsnp,pexsnp);
+            if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3) get_snpinfo_cur_prb_sparse(snpinfo,fptr, pid, ptr,  rowSTART, valSTART, &etmp,_incld_id_map, qcflag, rmTechnicaleQTL,techHit,ptech,pinsnp,pexsnp);
             else {
                 //get_snpinfo_cur_prb_dense(snpinfo,fptr, pid, &buffer ,&etmp);
                 int probechr= etmp._epi_chr[pid];
@@ -2723,7 +3354,7 @@ namespace SMRDATA
                     hybridend=etmp._epi_end[pid];
                 }
 
-                fseek(fptr,((pid<<1)*etmp._snpNum+1)<<2, SEEK_SET);
+                fseek(fptr,((pid<<1)*etmp._snpNum+descriptive)<<2, SEEK_SET);
                 memset(buffer,0,sizeof(char)*etmp._snpNum<<3);
                 fread(buffer, sizeof(char),etmp._snpNum<<3,fptr);
                 float* ft=(float *)buffer;
@@ -2784,7 +3415,7 @@ namespace SMRDATA
                     }
                 }
             }
-            if(rmTechnicaleQTL && techHit) printf("Proble %s contains technical SNPs. The cis-region of this probe would be removed.\n",prbname.c_str());
+            if(rmTechnicaleQTL && techHit) printf("Probe %s contains technical SNPs. The cis-region of this probe would be removed.\n",prbname.c_str());
             probeinfolst prbifo;
             prbifo.bp=etmp._epi_bp[etmp._include[i]];
             prbifo.probechr=etmp._epi_chr[etmp._include[i]];
@@ -2923,6 +3554,23 @@ namespace SMRDATA
             
         }
         
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=ft2save;
+        if(addn!=-9)
+        {
+            printf("Adding the sample size  %d to the file %s.\n", addn, esdfile.c_str());
+            ten_ints[1]=addn;
+        } else if(ssck!=-9){
+            printf("Saving the sample size %d to the file %s.\n", ssck, esdfile.c_str());
+            ten_ints[1]=ssck;
+        } else {
+            ten_ints[1]=-9;
+        }
+        ten_ints[2]=(int)etmp._esi_include.size();
+        ten_ints[3]=(int)etmp._include.size();
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
+
         uint64_t valNum2write=val.size();
         fwrite (&valNum2write,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
@@ -3048,7 +3696,7 @@ namespace SMRDATA
                     if(num>0)
                     {
                         diff=true;
-                        logstr="Failed: no consistence in probe "+ prbname+".\n";
+                        logstr="Failed: no consistence for probe "+ prbname+".\n";
                         fputs(logstr.c_str(),logfile);
                         fflush(logfile);
                         printf("%s",logstr.c_str());
@@ -3064,7 +3712,7 @@ namespace SMRDATA
                     {
                         if(!(*(ptr2+(idx<<1)+1)-*(ptr2+(idx<<1)))){
                             diff=true;
-                            logstr="Failed: no consistence in probe "+ edata2._epi_prbID[idx]+".\n";
+                            logstr="Failed: no consistence for probe "+ edata2._epi_prbID[idx]+".\n";
                             fputs(logstr.c_str(),logfile);
                             fflush(logfile);
                             printf("%s",logstr.c_str());
@@ -3082,7 +3730,7 @@ namespace SMRDATA
                         uint64_t _num=_pos1-_pos;
                         if(num!=_num){
                             diff=true;
-                            logstr="Failed: no consistence in probe "+ prbname+".\n";
+                            logstr="Failed: no consistence for probe "+ prbname+".\n";
                             fputs(logstr.c_str(),logfile);
                             fflush(logfile);
                             printf("%s",logstr.c_str());
@@ -3176,7 +3824,7 @@ namespace SMRDATA
                         {
                             if(indx[jj]==-9){
                                 diff=true;
-                                logstr="Failed: no consistence in probe "+ edata1._epi_prbID[j]+".\n";
+                                logstr="Failed: no consistence for probe "+ edata1._epi_prbID[j]+".\n";
                                 fputs(logstr.c_str(),logfile);
                                 fflush(logfile);
                                 printf("%s",logstr.c_str());
@@ -3202,7 +3850,7 @@ namespace SMRDATA
                     else {
                         if(!(*(ptr2+(curj<<1)+1)-*(ptr2+(curj<<1)))){
                             diff=true;
-                            logstr="Failed: no consistence in probe "+ edata2._epi_prbID[curj]+".\n";
+                            logstr="Failed: no consistence for probe "+ edata2._epi_prbID[curj]+".\n";
                             fputs(logstr.c_str(),logfile);
                             fflush(logfile);
                             printf("%s",logstr.c_str());
@@ -3220,7 +3868,7 @@ namespace SMRDATA
                 {
                     if(!(*(ptr2+(idx<<1)+1)-*(ptr2+(idx<<1)))){
                         diff=true;
-                        logstr="Failed: no consistence in probe "+ edata2._epi_prbID[idx]+".\n";
+                        logstr="Failed: no consistence for probe "+ edata2._epi_prbID[idx]+".\n";
                         fputs(logstr.c_str(),logfile);
                         fflush(logfile);
                         printf("%s",logstr.c_str());

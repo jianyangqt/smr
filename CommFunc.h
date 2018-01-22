@@ -28,6 +28,7 @@
 #define SPARSE_FILE_TYPE_3F 0x40400000 // uint32 + uint64_t + uint64_ts + uint32_ts + floats
 #define SPARSE_FILE_TYPE_3 3 // 10*uint32s + uint64_t + uint64_ts + uint32_ts + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +valnumber+cols+rowids+betases) [default]
 #define DENSE_FILE_TYPE_3 5  // 10*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]
+#define RESERVEDUNITS 16
 
 //#define BEST_NUM_HEIDI 41
 #define MAX_NUM_LD 500
