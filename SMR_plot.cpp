@@ -506,7 +506,7 @@ namespace SMRDATA
         
     }
    
-    double heidi_test_new_plot(bInfo* bdata,SMRWK* smrwk,vector<int> &ldnperprb,vector<string> &ldrs, vector<double> &outld, long maxid,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double threshpheidiest,double ld_min,int opt_hetero)
+    double heidi_test_new_plot(bInfo* bdata,SMRWK* smrwk,vector<int> &ldnperprb,vector<string> &ldrs, vector<double> &outld, long maxid,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double threshpheidiest,double ld_min,int opt_hetero, bool sampleoverlap, double theta)
     {
         VectorXd ld_v;
         MatrixXd _X;
@@ -620,7 +620,9 @@ namespace SMRDATA
         }
         
         nsnp = sn_ids.size();
-        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
+        double pdev=-9;
+        if(sampleoverlap) pdev=bxy_mltheter_so(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp, theta);
+        else pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
         
         if(pdev>=threshpheidiest)
         {
@@ -695,21 +697,18 @@ namespace SMRDATA
         return pdev;
     }
     
-    void smr_heidi_plot(vector<SMRRLT> &smrrlts, vector<int> &ldprbid, vector<string> &ldprb, vector<int> &ldnperprb,  vector<string> &ldrs, vector<double> &outld, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, double threshpheidiest, double ld_min, bool new_heidi_mth,int opt_hetero)
+    void smr_heidi_plot(vector<SMRRLT> &smrrlts, vector<int> &ldprbid, vector<string> &ldprb, vector<int> &ldnperprb,  vector<string> &ldrs, vector<double> &outld, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, double threshpheidiest, double ld_min, bool new_heidi_mth,int opt_hetero,bool sampleoverlap, double pmecs, int minCor)
     {
       
         ldnperprb.push_back(0);
         
         uint64_t probNum = esdata->_include.size();
-        double thresh_heidi= chi_val(1,p_hetero);
+        double thresh_heidi= chi_val(1,p_hetero),theta=0;
         VectorXd _byz,_seyz,_bxz,_sexz,_zsxz,ld_v,zsxz;
         MatrixXd _X,_LD,_LD_heidi,_X_heidi;
         
        
-            smrrlts.clear();
-        
-        
-        
+        smrrlts.clear();
         SMRWK smrwk;
         cout<<endl<<"Performing SMR analysis (SMR and HEIDI tests)..... "<<endl;
         float progr0=0.0 , progr1;
@@ -762,8 +761,45 @@ namespace SMRDATA
             } else {
                 printf("Analysing probe %s...\n", probename.c_str());
             }
-            double bxy_val = smrwk.byz[maxid] / smrwk.bxz[maxid];
-            double sexy_val = sqrt((smrwk.seyz[maxid] * smrwk.seyz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] + smrwk.sexz[maxid] * smrwk.sexz[maxid] * smrwk.byz[maxid] * smrwk.byz[maxid]) / (smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid]));
+            if(sampleoverlap)
+            {
+                printf("Estimating the correlation ...\n");
+                double z2mecs=qchisq(pmecs,1);
+                double zmecs=sqrt(z2mecs);
+                vector<double> zxz, zyz;
+                for(int k=0;k<smrwk.bxz.size();k++)
+                {
+                    double z1=smrwk.bxz[k]/smrwk.sexz[k];
+                    double z2=smrwk.byz[k]/smrwk.seyz[k];
+                    if(abs(z1)<zmecs && abs(z2)<zmecs )
+                    {
+                        zxz.push_back(z1);
+                        zyz.push_back(z2);
+                    }
+                    
+                }
+                if(zxz.size()< minCor){
+                    printf("WARNING: less than %d common SNPs obtained from the cis-region of probe %s at a p-value threshold %5.2e.\n ", minCor,probename.c_str(), pmecs);
+                    printf("probe %s is skipped.\n ", probename.c_str());
+                    continue;
+                }
+                else
+                {
+                    theta=cor(zxz,zyz);
+                    printf("The estimated correlation is %f.\n",theta);
+                }
+            }
+
+            double byzt=smrwk.byz[maxid], bxzt=smrwk.bxz[maxid], seyzt=smrwk.seyz[maxid], sexzt=smrwk.sexz[maxid];
+            double bxy_val = byzt / bxzt;
+            double sexy_val = -9;
+            if(sampleoverlap)
+            {
+                sexy_val = sqrt(seyzt* seyzt/(bxzt*bxzt) + sexzt*sexzt*byzt*byzt/(bxzt*bxzt*bxzt*bxzt) - 2*theta*seyzt*sexzt*byzt/(bxzt*bxzt*bxzt));
+            } else {
+                sexy_val = sqrt((seyzt * seyzt * bxzt * bxzt + sexzt * sexzt * byzt * byzt) / (bxzt * bxzt * bxzt * bxzt));
+            }
+
             double chisqxy = bxy_val*bxy_val / (sexy_val*sexy_val);
             double pxy_val = pchisq(chisqxy, 1);  //   double pxy=chi_prob(1,chisqxy); //works
             
@@ -806,7 +842,7 @@ namespace SMRDATA
                 long nsnp=-9;
                 double pdev=-9;
                 if(!heidioffFlag) {
-                    if(new_heidi_mth) pdev= heidi_test_new_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp ,threshpheidiest,ld_min,opt_hetero);
+                    if(new_heidi_mth) pdev= heidi_test_new_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp ,threshpheidiest,ld_min,opt_hetero,sampleoverlap,theta);
                     else pdev= heidi_test_plot(bdata,&smrwk, ldnperprb,ldrs,outld,maxid, ld_top,  thresh_heidi,  m_hetero, nsnp , threshpheidiest);
                     if(pdev>=threshpheidiest)
                     {
@@ -888,7 +924,7 @@ namespace SMRDATA
         }
         gdata->snpNum=gdata->snpName.size();
     }
-    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero ,int opt_hetero ,char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt, double ld_min)
+    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero ,int opt_hetero ,char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt, double ld_min, bool sampleoverlap, double pmecs, int minCor)
     {        
        
         setNbThreads(thread_num);
@@ -1018,7 +1054,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> smrrlts;
-        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt,ld_min,opt_hetero);
+        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)
@@ -1058,7 +1094,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> msmrrlts;
-        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt,ld_min,opt_hetero);
+        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor);
         vector<int> mgstart;
         vector<int> mgend;
         for(int i=0;i<msmrrlts.size();i++)
@@ -1119,7 +1155,7 @@ namespace SMRDATA
         vector<string> ldrs;
         vector<double> outld;
         
-        smr_heidi_plot(e2msmrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld,  &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet, ld_min,new_het_mtd,opt_hetero);
+        smr_heidi_plot(e2msmrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld,  &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet, ld_min,new_het_mtd,opt_hetero, sampleoverlap, pmecs, minCor);
         vector<int> e2mgstart;
         vector<int> e2mgend;
         for(int i=0;i<e2msmrrlts.size();i++)
@@ -1306,9 +1342,6 @@ namespace SMRDATA
             for(int j=0;j<idx.size();j++) out_esi_ld_m[stend_m[mpid]+idx[j]]=outld[ldnperprb[ii]+j];
         }
         cout<<"Total "<<out_esi_id_m.size()<<" eQTLs for "<<ldprbid.size()<<" probes are extracted."<<endl;
-        
-
-        
         
         //gwas info
         printf("\nRetrieving GWAS summary information from plot region...\n");
@@ -1654,7 +1687,7 @@ namespace SMRDATA
         
     }
     
-    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet,double ld_min)
+    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet,double ld_min,bool sampleoverlap, double pmecs, int minCor)
     {
         setNbThreads(thread_num);
         if(prbname==NULL) throw("Error: please input probe to plot by the flag --probe.");
@@ -1752,7 +1785,7 @@ namespace SMRDATA
         update_gwas(&gdata);
         
         // eSMR begins
-        printf("\nPerforming eSMR test the and HEIDI test ...\n");
+        printf("\nPerforming SMR test the and HEIDI test ...\n");
         eqtlInfo edata_clone;
         eqtlInfo mdata_clone;
         bInfo bdata_clone;
@@ -1786,7 +1819,7 @@ namespace SMRDATA
         vector<string> ldrs;
         vector<double> outld;
         
-        smr_heidi_plot(smrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet,ld_min,new_het_mtd,opt_hetero);
+        smr_heidi_plot(smrrlts, ldprbid, ldprb,ldnperprb,ldrs,outld, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,threshphet,ld_min,new_het_mtd,opt_hetero, sampleoverlap, pmecs, minCor);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)

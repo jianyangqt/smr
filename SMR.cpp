@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 0.703"<< endl;
+    cout << "* version 0.707"<< endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -192,8 +192,9 @@ void option(int option_num, char* option_str[])
     // for pick up instrument.
     bool opt_slct_flag = false;
     
-    int meta_mtd = 1; //1 for new 0 for old
-    bool detailout=false;
+    int meta_mtd = 0; //0 for meta, 1 for mecs
+    double pmecs = 0.01;
+    
     
     bool extract_cis_only=false;
     bool rm_technical=false;
@@ -205,6 +206,12 @@ void option(int option_num, char* option_str[])
     
     char* refepiName = NULL;
     char* refesiName = NULL;
+    
+    //for molecular trait
+    bool cis2all = false;
+    
+     bool sampleoverlap = false;
+    int minsnpcor = 2;
     for(int i=0;i<option_num;i++)
     {
         // Plink files for LD from a reference sample
@@ -378,11 +385,11 @@ void option(int option_num, char* option_str[])
         }
         else if (0 == strcmp(option_str[i], "--heidi-min-m")){
             m_hetero = atoi(option_str[++i]);
-            printf("--heidi-min %d\n", m_hetero);
+            printf("--heidi-min-m %d\n", m_hetero);
         }
         else if (0 == strcmp(option_str[i], "--heidi-max-m")){
             opt_hetero = atoi(option_str[++i]);
-            printf("--heidi-max %d\n", opt_hetero);
+            printf("--heidi-max-m %d\n", opt_hetero);
         }
         else if (0 == strcmp(option_str[i], "--heidi-mtd")){
             int mtd=atoi(option_str[++i]);
@@ -595,6 +602,19 @@ void option(int option_num, char* option_str[])
             combineFlg=false;
             smr_flag=false;
             cout<<"--meta "<<endl;
+        }
+        else if(0==strcmp(option_str[i],"--mecs")){
+            metaflg=true;
+            meta_mtd=1;
+            printf("--mecs\n");
+        }
+        else if(0==strcmp(option_str[i],"--pmecs")){
+            pmecs=atof(option_str[++i]);
+            if (pmecs < 0 || pmecs > 1) {
+                printf("\nError: --pmecs should be between 0 to 1.\n");
+                exit (EXIT_FAILURE);
+            }
+            printf("--pmecs %0.2e\n", pmecs);
         }
         else if(strcmp(option_str[i],"--smr-wind")==0){
             outcomePrbWind=atoi(option_str[++i]);
@@ -846,19 +866,6 @@ void option(int option_num, char* option_str[])
             opt_slct_flag=true;
             printf("--opt-selection\n");
         }
-        else if(0==strcmp(option_str[i],"--meta-mtd")){
-            meta_mtd=atoi(option_str[++i]);
-            if(meta_mtd!=0 && meta_mtd!=1)
-            {
-                fprintf (stderr, "Error: --meta-mtd should be 0 or 1.\n"); // 0 for old, 1 for new
-                exit (EXIT_FAILURE);
-            }
-            cout<<"--meta-mtd "<<meta_mtd<<endl;
-        }
-        else if (0 == strcmp(option_str[i], "--detail-out")){
-            detailout=true;
-            printf("--detail-out \n");
-        }
         else if (0 == strcmp(option_str[i], "--extract-cis")){
             extract_cis_only=true;
             printf("--extract-cis \n");
@@ -911,8 +918,18 @@ void option(int option_num, char* option_str[])
             cout<<"--update-epi "<<refepiName<<endl;
             FileExist(refepiName);
         }
-
-
+        else if(strcmp(option_str[i],"--cis-to-all")==0){
+            cis2all=true;
+            printf("--cis-to-all \n");
+        }
+        else if(0==strcmp(option_str[i],"--sample-overlap")){
+            sampleoverlap=true;
+            printf("--sample-overlap \n");
+        }
+        else if(0==strcmp(option_str[i],"--mmecs")){
+            minsnpcor=atoi(option_str[++i]);
+            printf("--mmecs \n");
+        }
     }
     
 #ifndef __APPLE__
@@ -936,13 +953,14 @@ void option(int option_num, char* option_str[])
     else if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || boltflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag,boltflag,save_dense_flag, cis_itvl,  trans_itvl,  transThres, restThres,genouni,addn); // from text to besd
     else if(make_query) make_qfile(outFileName,  f1FileName,  f2FileName);
     else if (make_besd_flag && queryfileflg) make_besd_byQfile(queryFileName,outFileName, save_dense_flag, cis_itvl,  trans_itvl,  transThres,  restThres,addn);
-    else if (combineFlg) combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl,trans_itvl, transThres, restThres, genouni,addn);
+    else if (metaflg) meta( eqtlsmaslstName ,outFileName,meta_mtd,pmecs, cis_flag,  cis_itvl);
+    else if (combineFlg && !metaflg) combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl,trans_itvl, transThres, restThres, genouni,addn);
     else if(save_dense_flag) make_full_besd(outFileName, eqtlFileName, snplstName,problstName,bFlag,make_besd_flag, snplst2exclde, problst2exclde,  cis_itvl,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,addn);
     else if(make_besd_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, snplstName, problstName,  snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh,extract_cis_only,prbseqregion,ptech,pinsnp,pexsnp,addn);
-    else if(plotflg && eqtlFileName2 != NULL) plot_triple( outFileName,  bFileName, gwasFileName,  eqtlFileName2,eqtlFileName, maf, indilstName,  snplstName, p_hetero, ld_prune, m_hetero ,opt_hetero, indilst2remove,  snplst2exclde,  p_smr,  refSNP,  cis_itvl,  prbname,  prbWind, prbwindFlag,  snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  geneAnnoName,  pthres_me2esmr,threshpsmrest,new_het_mth,threshphet,opt_slct_flag,ld_min);
-    else if(plotflg) plot_newheidi(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName,threshpsmrest,new_het_mth, threshphet,ld_min);
+    else if(plotflg && eqtlFileName2 != NULL) plot_triple( outFileName,  bFileName, gwasFileName,  eqtlFileName2,eqtlFileName, maf, indilstName,  snplstName, p_hetero, ld_prune, m_hetero ,opt_hetero, indilst2remove,  snplst2exclde,  p_smr,  refSNP,  cis_itvl,  prbname,  prbWind, prbwindFlag,  snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  geneAnnoName,  pthres_me2esmr,threshpsmrest,new_het_mth,threshphet,opt_slct_flag,ld_min,sampleoverlap,pmecs,minsnpcor);
+    else if(plotflg) plot_newheidi(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,geneAnnoName,threshpsmrest,new_het_mth, threshphet,ld_min,sampleoverlap,pmecs,minsnpcor);
     else if(diffflag) diff(eqtlFileName, eqtlFileName2);
-    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName2, eqtlFileName, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm,threshpsmrest,new_het_mth,opt_slct_flag,ld_min);
+    else if(!interanlflg && eqtlFileName2 != NULL) smr_e2e(outFileName, bFileName,eqtlFileName2, eqtlFileName, maf,indilstName, snplstName,problstName,oproblstName,eproblstName,bFlag,p_hetero,ld_prune,m_hetero, opt_hetero,indilst2remove, snplst2exclde, problst2exclde,oproblst2exclde,eproblst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl,traitlstName,outcomePrbWind,oprobe, eprobe, oprobe2rm, eprobe2rm,threshpsmrest,new_het_mth,opt_slct_flag,ld_min,cis2all,sampleoverlap,pmecs,minsnpcor);
     else if(lookup_flag) lookup(outFileName,eqtlFileName, snplstName, problstName, genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,snpWind,prbWind,genename,fromsnpkb,tosnpkb,fromprbkb, toprbkb, snpwindFlag, prbwindFlag,cis_flag, cis_itvl);
     else if(count_cis_flag) count_cis(outFileName,eqtlFileName, p_smr, cis_itvl); //output top-SNP in the cis-regions
     else if(count_trans_flag) count_trans(outFileName,eqtlFileName, p_smr, cis_itvl); // output top-SNP in the trans-regions. trans-region is defined as the region aside of the cis_itvl
@@ -954,10 +972,8 @@ void option(int option_num, char* option_str[])
     else if (interanlflg) iternal_test(outFileName, bFileName, eqtlFileName, eqtlFileName2, maf,indilstName, snplstName,problstName, oproblstName,eproblstName, bFlag, p_hetero, ld_prune, m_hetero, opt_hetero,indilst2remove, snplst2exclde,  problst2exclde, oproblst2exclde,eproblst2exclde,p_smr,cis_itvl, smrRltFileName);
     else if(recodeflg) make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde,  problstName,  problst2exclde,  genelistName, bFlag);
     else if(ssmrflg)  smr_multipleSNP( outFileName,  bFileName, gwasFileName,  eqtlFileName,  maf,indilstName,  snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero ,opt_hetero, indilst2remove, snplst2exclde,  problst2exclde, p_smr,  refSNP,  heidioffFlag,  cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr, snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, setlstName,  geneAnnoName,  setWind,ld_min);
-    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero,opt_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,threshpsmrest,new_het_mth,opt_slct_flag,prbseqregion,ld_min);
+    else if(smr_flag && !smr_trans_flag) smr(outFileName, bFileName,gwasFileName, eqtlFileName, maf,indilstName, snplstName,problstName,bFlag,p_hetero,ld_prune,m_hetero,opt_hetero, indilst2remove, snplst2exclde, problst2exclde,p_smr,refSNP, heidioffFlag,cis_itvl, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,threshpsmrest,new_het_mth,opt_slct_flag,prbseqregion,ld_min,sampleoverlap,pmecs,minsnpcor);
     else if (est_effe_spl_size_flg) est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
-    else if (metaflg) meta( eqtlsmaslstName ,outFileName,meta_mtd,detailout);
-   // else if (esdstd) standardization(outFileName, eqtlFileName,bFlag,freqName, vpFileName);
     else if(smr_flag && smr_trans_flag) smr_trans_region(outFileName, bFileName,gwasFileName, eqtlFileName,  maf, indilstName, snplstName,problstName, bFlag, p_hetero, ld_prune, m_hetero ,opt_hetero,indilst2remove,snplst2exclde, problst2exclde,  transThres, refSNP,  heidioffFlag, cis_itvl, trans_itvl,genelistName,  chr, prbchr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,snpchr,snprs,fromsnprs, tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, threshpsmrest,  new_het_mth, p_smr,opt_slct_flag,ld_min);
     
    }

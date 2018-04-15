@@ -109,26 +109,6 @@ namespace SMRDATA
         printf("Total %ld probes to be included from %ld epi files.\n",probeinfo.size(),smasNames.size());
     }
     
-    float readfloat(FILE *f) {
-        float v;
-        fread((void*)(&v), sizeof(v), 1, f);
-        return v;
-    }
-    uint64_t readuint64(FILE *f) {
-        uint64_t v;
-        fread((void*)(&v), sizeof(v), 1, f);
-        return v;
-    }
-    uint32_t readuint32(FILE *f) {
-        uint32_t v;
-        fread((void*)(&v), sizeof(v), 1, f);
-        return v;
-    }
-    int readint(FILE *f) {
-        int v;
-        fread((void*)(&v), sizeof(v), 1, f);
-        return v;
-    }
     uint64_t countNotNullNum(vector<string> &smasNames, int &densefnum, int &sparsefnum)
     {
         uint64_t count=0;
@@ -381,7 +361,7 @@ namespace SMRDATA
         }
         fclose (smr1);
         free(buffer);
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
         
     }
 
@@ -669,7 +649,7 @@ namespace SMRDATA
         }
         fclose (smr1);
         free(buffer);
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the dense binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
         
     }
     
@@ -1240,7 +1220,7 @@ namespace SMRDATA
             free(probeinfo[j].rowid);
             probeinfo[j].rowid=NULL;
         }
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
     }
     void save_besds_sbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo ,vector<string> &smasNames, int addn)
     {
@@ -1574,7 +1554,7 @@ namespace SMRDATA
             free(probeinfo[j].rowid);
             probeinfo[j].rowid=NULL;
         }
-        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a file [" + esdfile + "]." <<endl;
     }
     
     void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
@@ -1877,7 +1857,7 @@ namespace SMRDATA
         fwrite (&val[0],sizeof(float), val.size(), smr1);
         fclose (smr1);
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
-        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in a binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
 
     }
@@ -1963,7 +1943,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -2072,7 +2052,7 @@ namespace SMRDATA
                             {
                                 float beta=betasebuff[jj];
                                 float se=betasebuff[jj+num];
-                                if(ABS(se+9)<1e-6) continue;
+                                if(abs(se+9)<1e-6) continue;
                                 int rowid=ridbuff[jj];
                                 
                                 tmpsinfo[jj].beta=beta;
@@ -2306,7 +2286,7 @@ namespace SMRDATA
             probeinfo[j].rowid=NULL;
         }
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
-        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in a binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
         
     }
@@ -2757,7 +2737,7 @@ namespace SMRDATA
             probeinfo[j].rowid=NULL;
         }
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
-        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in a binary file [" + esdfile + "]." <<endl;
         fclose(logfile);
         
     }
@@ -2830,12 +2810,12 @@ namespace SMRDATA
             double sparsity=1.0*valnum/(probeinfo.size()*snpinfo.size());
             if(sparsity>=0.4)
             {
-                printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
+                //printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
                 if(genouni) save_besds_dbesd(outFileName, snpinfo, probeinfo, addn);
                 else save_besds_dbesd(outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2, addn);
                 
             } else {
-                printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
+                //printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
                 if(genouni) save_besds_sbesd( outFileName, snpinfo, probeinfo,smasNames, addn);
                 else save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
             }
@@ -3579,7 +3559,7 @@ namespace SMRDATA
         fclose (smr1);
         
         printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
-        cout<<"\nEffect sizes (beta) and SE for "<<etmp._include.size()<<" Probes have been saved in the sparse binary file [" + esdfile + "]." <<endl;
+        cout<<"\nEffect sizes (beta) and SE for "<<etmp._include.size()<<" Probes have been saved in a binary file [" + esdfile + "]." <<endl;
        
 
         if(buffer) free(buffer);

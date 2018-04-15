@@ -1529,7 +1529,24 @@ namespace SMRDATA
              
         }
     }
-
+    void est_cov_bxy_so(MatrixXd &covbxy,VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz,VectorXd &_sexz, MatrixXd &_LD_heidi, double theta)
+    {
+        long nsnp =_byz.size();
+        if(nsnp>1)
+        {
+            VectorXd ivect = VectorXd::Ones(nsnp);
+            MatrixXd bexpo=_bxz*_bxz.transpose();
+            MatrixXd seexpo=_sexz*_sexz.transpose();
+            MatrixXd boutco=_byz*_byz.transpose();
+            MatrixXd seoutco=_seyz*_seyz.transpose();
+            VectorXd _bxz2=_bxz.array()*_bxz.array();
+            MatrixXd cov1 = _LD_heidi.array()*(seoutco.array()/bexpo.array()) + _LD_heidi.array()*seexpo.array()*boutco.array()/(bexpo.array()*bexpo.array());
+            MatrixXd cov2 = -2 * theta*_LD_heidi.array()*(_seyz*_sexz.transpose()).array()*(_byz*ivect.transpose()).array()/(_bxz2*_bxz.transpose()).array();
+        
+            covbxy= cov1 + cov2;
+            
+        }
+    }
   
    float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num)
     {
@@ -1557,7 +1574,8 @@ namespace SMRDATA
             for(int j=maxid+1;j<nsnp;j++) dev[j-1]=_bxy[maxid]-_bxy[j];			
 
             est_cov_bxy(covbxy, _zsxz,_bxy,_seyz,_bxz,_LD_heidi);            
-                       
+            
+            
             double tmp1=covbxy(maxid,maxid);           
             tmp3.resize(nsnp-1);
             for(int i=0; i<maxid; i++) tmp3[i]=covbxy(maxid,i);
@@ -1585,12 +1603,11 @@ namespace SMRDATA
             
             double sumChisq_dev=0.0;
             for(int i=0;i<nsnp-1;i++)sumChisq_dev+=dev[i];
-			
+           
             //using covbxy to store corr_dev
 			covbxy.resize(nsnp - 1, nsnp - 1);
 			covbxy = vdev.array() / sqrt((vdev.diagonal()*vdev.diagonal().transpose()).array());
            
-			
             // using Eigen Library
             
 			SelfAdjointEigenSolver<MatrixXd> es(covbxy);			
@@ -1616,6 +1633,89 @@ namespace SMRDATA
         return(pdev);
     }
     
+    float bxy_mltheter_so(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num, double theta)
+    {
+        VectorXd _bxy;
+        VectorXd _sexy;
+        VectorXd dev;
+        VectorXd tmp3;
+        long nsnp=*snp_num;
+        int maxid;
+        float pdev=-1.0;
+        MatrixXd covbxy(nsnp,nsnp);
+        MatrixXd vdev(nsnp-1,nsnp-1);
+        
+        VectorXd bxz2;
+        dev.resize(nsnp-1);
+        if(nsnp>1)
+        {
+            _bxy=_byz.array()/_bxz.array();
+            bxz2=_bxz.array()*_bxz.array();
+            _sexy=(_seyz.array()*_seyz.array()*bxz2.array()+_sexz.array()*_sexz.array()*_byz.array()*_byz.array())/(bxz2.array()*bxz2.array()).sqrt();
+            
+            maxid=max_abs_id(_zsxz);
+            
+            for(int j=0;j<maxid;j++) dev[j]=_bxy[maxid]-_bxy[j];
+            for(int j=maxid+1;j<nsnp;j++) dev[j-1]=_bxy[maxid]-_bxy[j];
+            
+            est_cov_bxy_so(covbxy, _byz,_bxz,_seyz,_sexz,_LD_heidi,theta);
+            
+            double tmp1=covbxy(maxid,maxid);
+            tmp3.resize(nsnp-1);
+            for(int i=0; i<maxid; i++) tmp3[i]=covbxy(maxid,i);
+            for(int i=maxid+1; i<nsnp; i++) tmp3[i-1]=covbxy(maxid,i);
+            // vdev as tmp2
+            vdev.block(0, 0, maxid, maxid) = covbxy.block(0, 0, maxid, maxid);
+            vdev.block(0, maxid, maxid, nsnp - maxid - 1) = covbxy.block(0, maxid + 1, maxid, nsnp - maxid - 1);
+            vdev.block(maxid, 0, nsnp - maxid - 1, maxid) = covbxy.block(maxid + 1, 0, nsnp - maxid - 1, maxid);
+            vdev.block(maxid, maxid, nsnp - maxid - 1, nsnp - maxid - 1) = covbxy.block(maxid + 1, maxid + 1, nsnp - maxid - 1, nsnp - maxid - 1);
+            
+            // get vdev
+            VectorXd v1 = VectorXd::Zero(nsnp - 1);
+            v1 = v1.array() + 1.0;
+            
+            vdev = tmp1 + vdev.array() - (v1*tmp3.transpose()).array() - (tmp3*v1.transpose()).array();
+            for (int i = 0; i<nsnp - 1; i++)  vdev(i,i) += 1e-8; // in R code
+            
+            //tmp3 as vardev
+            for(int i=0; i<maxid; i++) tmp3[i]=tmp1+covbxy(i,i)-2*tmp3[i]+ 1e-8;
+            for(int i=maxid+1; i<nsnp; i++) tmp3[i-1]=tmp1+covbxy(i,i)-2*tmp3[i-1]+ 1e-8;
+           
+            //dev as chisq_dev
+            
+            for(int i=0;i<nsnp-1;i++) dev[i]=dev[i]*dev[i]/tmp3[i];
+           
+            double sumChisq_dev=0.0;
+            for(int i=0;i<nsnp-1;i++)sumChisq_dev+=dev[i];
+            
+            //using covbxy to store corr_dev
+            covbxy.resize(nsnp - 1, nsnp - 1);
+            covbxy = vdev.array() / sqrt((vdev.diagonal()*vdev.diagonal().transpose()).array());
+            covbxy.triangularView<Lower>() = covbxy.transpose(); // they make the matrix symmetrical in the Rscript
+           
+            // using Eigen Library
+            SelfAdjointEigenSolver<MatrixXd> es(covbxy);
+            VectorXd lambda;
+            lambda=es.eigenvalues();
+            
+            /*
+             EigenSolver<MatrixXd> es(A);
+             cout << "The eigenvalues of A are:" << endl << es.eigenvalues() << endl;
+             cout<< es.eigenvalues().transpose()<<endl;
+             */
+            
+            /*
+             MatrixXd D = es.pseudoEigenvalueMatrix();
+             cout << "The pseudo-eigenvalue matrix D is:" << endl << D << endl;
+             */
+            
+            pdev= pchisqsum(sumChisq_dev,lambda);
+            *snp_num=lambda.size();
+            
+        }else *snp_num=-9;      
+        
+        return(pdev);
+    }
 
     string dtos(double value)
     {
@@ -3596,7 +3696,7 @@ namespace SMRDATA
         long maxid =-9;
         if(esdata->_rowid.empty())
         {
-            for (int j = 0; j<bdata->_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
+            for (int j = 0; j<esdata->_esi_include.size() ; j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
             {
                 if (abs(esdata->_bxz[i][j] + 9) > 1e-6)
                 {
@@ -3906,12 +4006,12 @@ namespace SMRDATA
         int i = 0, j = 0, i_buf = 0;
         vector<int> rm_ID2;
         
-        //float tmpr = 0;
+        //float tmpr = 0; //rm_ID1 is the same as indx1 in ld_prune of R Script
         for (i = 0; i < m; i++) {
             for (j = 0; j < i; j++) {
                 if (fabs(R(i,j)) > R_cutoff ) {
-                    rm_ID1.push_back(i);
-                    rm_ID2.push_back(j);
+                    rm_ID1.push_back(j);
+                    rm_ID2.push_back(i);
                 }
             }
         }
@@ -3932,7 +4032,8 @@ namespace SMRDATA
         for (i = 0; i < rm_ID1.size(); i++) {
             iter1 = rm_uni_ID_count.find(rm_ID1[i]);
             iter2 = rm_uni_ID_count.find(rm_ID2[i]);
-            if (iter1->second < iter2->second) {
+            int c1=iter1->second , c2=iter2->second;
+            if ( c1<c2 ) {
                 i_buf = rm_ID1[i];
                 rm_ID1[i] = rm_ID2[i];
                 rm_ID2[i] = i_buf;
@@ -3996,7 +4097,7 @@ namespace SMRDATA
         smrwk->allele2.swap(allele2);
         X=_X;
     }
-    double heidi_test_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double ld_min,int opt_hetero)
+    double heidi_test_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp ,double ld_min,int opt_hetero, bool sampleoverlap, double theta)
     {
         //the new method would calcualte maxid after each filtering
         VectorXd ld_v;
@@ -4044,11 +4145,13 @@ namespace SMRDATA
         }
         update_smrwk_x(&smrwk_heidi,sn_ids,_X);
         maxid_heidi=max_abs_id(smrwk_heidi.zxz);
+        
         printf("Removing one of each pair of remaining SNPs with LD r-squared > %f...\n",ldr2_top);
         int m = (int)smrwk_heidi.bxz.size();
         vector<int> rm_ID1;
         MatrixXd C;
         cor_calc(C, _X);
+       
         double ld_top=sqrt(ldr2_top);
         if (ld_top < 1) rm_cor_sbat(C, ld_top, m, rm_ID1);
         printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
@@ -4094,17 +4197,19 @@ namespace SMRDATA
             _sexz[j]=smrwk_heidi.sexz[sn_ids[j]];
             _zsxz[j]=smrwk_heidi.zxz[sn_ids[j]];
         }
-       
         nsnp = sn_ids.size();
-        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
+        double pdev=-9;
+        if(sampleoverlap) pdev=bxy_mltheter_so(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp, theta);
+        else pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
         
+        printf("pHeidi is %e with %ld SNPs including in the HEIDI test.\n",pdev,nsnp);
         return pdev;
     }
-    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt, double ld_min,int opt_hetero)
+    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt, double ld_min,int opt_hetero, bool sampleoverlap, double pmecs, int minCor)
     {
         
         uint64_t probNum = esdata->_include.size();
-        double thresh_heidi= chi_val(1,p_hetero);
+        double thresh_heidi= chi_val(1,p_hetero),theta=0;
         VectorXd _byz,_seyz,_bxz,_sexz,_zsxz,ld_v,zsxz;
         MatrixXd _X,_LD,_LD_heidi,_X_heidi;
         
@@ -4168,11 +4273,39 @@ namespace SMRDATA
                 printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                 continue;
             }
-            
+           
             Map<VectorXd> ei_bxz(&smrwk.bxz[0],smrwk.bxz.size());
             Map<VectorXd> ei_sexz(&smrwk.sexz[0],smrwk.sexz.size());
-            
+            if(sampleoverlap)
+            {
+                printf("Estimating the correlation ...\n");
+                double z2mecs=qchisq(pmecs,1);
+                double zmecs=sqrt(z2mecs);
+                vector<double> zxz, zyz;
+                for(int k=0;k<smrwk.bxz.size();k++)
+                {
+                    double z1=smrwk.bxz[k]/smrwk.sexz[k];
+                    double z2=smrwk.byz[k]/smrwk.seyz[k];
+                    if(abs(z1)<zmecs && abs(z2)<zmecs )
+                    {
+                        zxz.push_back(z1);
+                        zyz.push_back(z2);
+                    }
+                   
+                }
+                if(zxz.size()< minCor){
+                    printf("WARNING: less than %d common SNPs obtained from the cis-region of probe %s at a p-value threshold %5.2e.\n ", minCor,probename.c_str(), pmecs);
+                    printf("probe %s is skipped.\n ", probename.c_str());
+                    continue;
+                }
+                else
+                {
+                    theta=cor(zxz,zyz);
+                    printf("The estimated correlation is %f.\n",theta);
+                }
+            }
             zsxz=ei_bxz.array()/ei_sexz.array();
+            
             if(refSNP==NULL) {
                 if(opt) maxid=max_zsmr_id(&smrwk, p_smr);
                 else maxid=max_abs_id(zsxz);
@@ -4189,8 +4322,55 @@ namespace SMRDATA
             } else {
                 printf("Analysing probe %s...\n", probename.c_str());
             }
-            double bxy_val = smrwk.byz[maxid] / smrwk.bxz[maxid];
-            double sexy_val = sqrt((smrwk.seyz[maxid] * smrwk.seyz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] + smrwk.sexz[maxid] * smrwk.sexz[maxid] * smrwk.byz[maxid] * smrwk.byz[maxid]) / (smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid] * smrwk.bxz[maxid]));
+            
+            /*****test***/
+//            string failName= probename+".expo";
+//            FILE* failfptr=fopen(failName.c_str(),"w");
+//            if(failfptr==NULL)
+//            {
+//                printf("ERROR: failed in open file %s.\n",failName.c_str()) ;
+//                exit(EXIT_FAILURE);
+//            }
+//            for(int k=0; k<smrwk.bxz.size();k++)
+//            {
+//                string snpstr=smrwk.rs[k] + '\t' + atos(smrwk.bxz[k]) + '\t' + atos(smrwk.sexz[k]) + '\n';
+//                if(fputs_checked(snpstr.c_str(),failfptr))
+//                {
+//                    printf("ERROR: in writing file %s .\n", failName.c_str());
+//                    exit(EXIT_FAILURE);
+//                }
+//                
+//            }
+//            fclose(failfptr);
+//            failName= probename+".outo";
+//            failfptr=fopen(failName.c_str(),"w");
+//            if(failfptr==NULL)
+//            {
+//                printf("ERROR: failed in open file %s.\n",failName.c_str()) ;
+//                exit(EXIT_FAILURE);
+//            }
+//            for(int k=0; k<smrwk.byz.size();k++)
+//            {
+//                string snpstr=smrwk.rs[k] + '\t' + atos(smrwk.byz[k]) + '\t' + atos(smrwk.seyz[k]) + '\n';
+//                if(fputs_checked(snpstr.c_str(),failfptr))
+//                {
+//                    printf("ERROR: in writing file %s .\n", failName.c_str());
+//                    exit(EXIT_FAILURE);
+//                }
+//            }
+//            fclose(failfptr);
+            
+            /******/
+
+            double byzt=smrwk.byz[maxid], bxzt=smrwk.bxz[maxid], seyzt=smrwk.seyz[maxid], sexzt=smrwk.sexz[maxid];
+            double bxy_val = byzt / bxzt;
+            double sexy_val = -9;
+            if(sampleoverlap)
+            {
+                sexy_val = sqrt(seyzt* seyzt/(bxzt*bxzt) + sexzt*sexzt*byzt*byzt/(bxzt*bxzt*bxzt*bxzt) - 2*theta*seyzt*sexzt*byzt/(bxzt*bxzt*bxzt));
+            } else {
+                sexy_val = sqrt((seyzt * seyzt * bxzt * bxzt + sexzt * sexzt * byzt * byzt) / (bxzt * bxzt * bxzt * bxzt));
+            }
             double chisqxy = bxy_val*bxy_val / (sexy_val*sexy_val);
             double pxy_val = pchisq(chisqxy, 1);  //   double pxy=chi_prob(1,chisqxy); //works
             
@@ -4302,8 +4482,8 @@ namespace SMRDATA
                 double pdev=-9;
                 if(!heidioffFlag) {
                     if(new_heidi_mth){
-                        if(opt) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero);
-                        else pdev= heidi_test_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp, ld_min ,opt_hetero);
+                        if(refSNP!=NULL) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero,sampleoverlap, theta);
+                        else pdev= heidi_test_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp, ld_min ,opt_hetero,sampleoverlap, theta);
                     } else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                 }
                 if(smr)
@@ -4331,7 +4511,7 @@ namespace SMRDATA
         }
         
     }
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth,bool opt,char* prbseqregion, double ld_min)
+    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth,bool opt,char* prbseqregion, double ld_min, bool sampleoverlap, double pmecs, int minCor)
     {
         if(ld_min>ld_top) {
             printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
@@ -4388,9 +4568,9 @@ namespace SMRDATA
            exit(EXIT_FAILURE);
        }
        vector<SMRRLT> smrrlts;
-       smr_heidi_func(smrrlts,  outFileName, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt, ld_min,opt_hetero);
+       smr_heidi_func(smrrlts,  outFileName, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt, ld_min,opt_hetero, sampleoverlap,pmecs, minCor);
     }
-    double heidi_test_ref_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid , double ld_min, int opt_hetero)
+    double heidi_test_ref_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid , double ld_min, int opt_hetero , bool sampleoverlap, double theta)
     {
         //refid is the id in smrwk for the target eQTL
         VectorXd ld_v;
@@ -4496,12 +4676,15 @@ namespace SMRDATA
         }
         
         nsnp = sn_ids.size();
-        double pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
+        double pdev=-9;
+        if(sampleoverlap) pdev=bxy_mltheter_so(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp, theta);
+        else pdev=bxy_hetero3(_byz,  _bxz, _seyz, _sexz, _zsxz, C, &nsnp);
         
         return pdev;
     }
     void smr_heidi_trans_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, double ld_min,int opt_hetero)
     {
+        bool sampleoverlap=false; double theta =0;
         // select trans-eQTL using --peqtl-trans. run SMR analysis using --peqtl-smr.
         uint64_t probNum = esdata->_include.size();
         double thresh_heidi= chi_val(1,p_hetero);
@@ -4704,7 +4887,7 @@ namespace SMRDATA
                     long nsnp=-9;
                     double pdev=-9;
                     if(!heidioffFlag) {
-                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid ,ld_min,opt_hetero);
+                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid ,ld_min,opt_hetero,sampleoverlap, theta);
                         else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                     }
                     if(smr)
@@ -4983,6 +5166,7 @@ namespace SMRDATA
     
     void smr_heidi_trans_region_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, int trans_itvl, double p_trans, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_heidi_mth, bool opt, double ld_min,int opt_hetero)
     {
+         bool sampleoverlap=false; double theta=0;
         // select trans-eQTL using --peqtl-trans. run SMR analysis using --peqtl-smr.
         uint64_t probNum = esdata->_include.size();
         double thresh_heidi= chi_val(1,p_hetero);
@@ -5223,7 +5407,7 @@ namespace SMRDATA
                     long nsnp=-9;
                     double pdev=-9;
                     if(!heidioffFlag) {
-                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero);
+                        if(new_heidi_mth) pdev= heidi_test_ref_new(bdata,&smrwk, ld_top,  thresh_heidi,  m_hetero, nsnp,(int)maxid, ld_min,opt_hetero,sampleoverlap, theta);
                         else pdev= heidi_test(bdata,&smrwk, maxid, ld_top,  thresh_heidi,  m_hetero, nsnp );
                     }
                     if(smr)
@@ -5508,7 +5692,7 @@ namespace SMRDATA
         }
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, int opt_hetero,  char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt, double ld_min)
+     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, int opt_hetero,  char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt, double ld_min,bool cis2all, bool sampleoverlap, double pmecs, int minCor)
     {
         //here eqtlFileName is the outcome and eqtlFileName2 is the exposure. in the main we pass the outcome (eqtlFileName2) to eqtlFileName and the exposure (eqtlFileName) to eqtlFileName2
         setNbThreads(thread_num);
@@ -5545,7 +5729,6 @@ namespace SMRDATA
         eqtlInfo esdata;
         bInfo bdata;
         bool heidiFlag=false;
-        cis_itvl=cis_itvl*1000;
         
         if(!heidioffFlag && bFileName == NULL ) throw("Error: please input Plink file for SMR analysis by the flag --bfile.");
         if(eqtlFileName==NULL) throw("Error: please input eQTL summary data for SMR analysis by the flag --eqtl-summary.");
@@ -5708,18 +5891,24 @@ namespace SMRDATA
             }
             gdata.snpNum=gdata.snpName.size();
             cout<<gdata.snpNum<<" common SNPs are included from eTrait [ "+traitname+" ] summary."<<endl;
-           
-            int lowerbounder=(traitbp-outcome_probe_wind)>0?(traitbp-outcome_probe_wind):0;
-            int upperbounder=traitbp+outcome_probe_wind;
-            esdata._include.clear();
-            for(int j=0;j<includebk.size();j++)
-            {
-                int bptmp=esdata._epi_bp[includebk[j]];
-                if(esdata._epi_chr[includebk[j]]==traitchr && bptmp>=lowerbounder && bptmp<=upperbounder) esdata._include.push_back(includebk[j]);
-            }
-            printf("\n%ld exposure probes in the cis region [%d, %d] of outcome probe %s are inclued in the analysis.\n", esdata._include.size(),lowerbounder,upperbounder,traitname.c_str());
+           if(cis2all)
+           {
+               printf("\n%ld exposure probes are inclued in the analysis with the outcome probe %s.\n", esdata._include.size(),traitname.c_str());
+               
+           } else
+           {
+               int lowerbounder=(traitbp-outcome_probe_wind)>0?(traitbp-outcome_probe_wind):0;
+               int upperbounder=traitbp+outcome_probe_wind;
+               esdata._include.clear();
+               for(int j=0;j<includebk.size();j++)
+               {
+                   int bptmp=esdata._epi_bp[includebk[j]];
+                   if(esdata._epi_chr[includebk[j]]==traitchr && bptmp>=lowerbounder && bptmp<=upperbounder) esdata._include.push_back(includebk[j]);
+               }
+               printf("\n%ld exposure probes in the cis region [%d, %d] of outcome probe %s are inclued in the analysis.\n", esdata._include.size(),lowerbounder,upperbounder,traitname.c_str());
+           }
             vector<SMRRLT> smrrlts;
-            smr_heidi_func(smrrlts,  NULL, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt,ld_min,opt_hetero);
+            smr_heidi_func(smrrlts,  NULL, &bdata,&gdata,&esdata,  cis_itvl,  heidioffFlag, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mth,opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor);
             if(smrrlts.size()>0){
                 etraitcount++;
                 itemcount+=smrrlts.size();

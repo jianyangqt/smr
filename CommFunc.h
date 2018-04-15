@@ -29,11 +29,14 @@
 #define SPARSE_FILE_TYPE_3 3 // 10*uint32s + uint64_t + uint64_ts + uint32_ts + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +valnumber+cols+rowids+betases) [default]
 #define DENSE_FILE_TYPE_3 5  // 10*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]
 #define RESERVEDUNITS 16
+#define FNAMESIZE 4096
 
 //#define BEST_NUM_HEIDI 41
 #define MAX_NUM_LD 500
 
 #define MIN_PVAL_ADJUSTED 1e-150
+typedef unsigned long long         uint64_t;
+typedef unsigned int         uint32_t;
 
 #include <limits>
 #include <complex>
@@ -60,7 +63,23 @@ namespace CommFunc
     {
        return (T{} < a) ? a : -a;
     }
-
+    template <typename T>
+    extern void free2(T** to)
+    {
+        if(*to)
+        {
+            delete(*to);
+            *to=NULL;
+        }
+    }
+    template <typename T>
+    extern inline string atosm (T const& a)
+    {
+        if(a==-9) return("NA");
+        stringstream ss;
+        ss << a;
+        return(ss.str());
+    }
 	double Abs(const double &x);
 	double sum(const vector<double> &x);
     double mean(const vector<double> &x);
@@ -77,7 +96,6 @@ namespace CommFunc
     void FileExist(string filename);  
     int max_abs_id(VectorXd &zsxz);
     int max_abs_id(vector<double> &zsxz);
-    int fopen_checked(FILE** in_file, const char* filename, const char* flag);
     void getRank(vector<double> &a, vector<int> &b);
     void getRank(vector<int> &a, vector<int> &b);
     void getRank_norep(vector<int> &a, vector<int> &b);
@@ -88,7 +106,11 @@ namespace CommFunc
         return ferror(outfile);
     }
     void strcpy2(char** to, string from);
-    void free2(char** to);
+    float readfloat(FILE *f);
+    uint64_t readuint64(FILE *f);
+    uint32_t readuint32(FILE *f);
+    int readint(FILE *f);
+    double cor(vector<double> &y, vector<double> &x);
 }
 
 #endif

@@ -2352,7 +2352,7 @@ namespace SMRDATA
     }
     void smr_multipleSNP(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,char* setlstName, char* geneAnnoFileName, int expanWind, double ld_min)
     {
-        
+        bool sampleoverlap=false; double theta=0;
         setNbThreads(thread_num);
         
         bInfo bdata;
@@ -2623,7 +2623,7 @@ namespace SMRDATA
                 
                 if(!heidioffFlag) {
                     printf("Conducting HEIDI test...\n");
-                    pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp,ld_min,opt_hetero);
+                    pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp,ld_min,opt_hetero,sampleoverlap, theta);
                 }
                 
                 
@@ -2826,7 +2826,7 @@ namespace SMRDATA
                 
                 if(!heidioffFlag) {
                     printf("Conducting HEIDI test...\n");
-                    pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp,ld_min,opt_hetero);
+                    pdev= heidi_test_new(&bdata,&smrwk, ld_top,  threshold,  m_hetero, nsnp,ld_min,opt_hetero,sampleoverlap, theta);
                     printf("HEIDI test complete.\n");
                 }
                 
@@ -3224,104 +3224,849 @@ namespace SMRDATA
          }
         
     }
-
-    void meta(char* besdlistFileName, char* outFileName, int meta_mth, bool detailout)
+    void combine_epi(vector<smr_probeinfo> &probeinfo, vector<string> &besds, vector<uint64_t> &nprb)
     {
-        printf("\nNOTE: This version has no memroy optimization. All the BESD files included in this analysis should be loaded into memory.\n");
-        vector<string> besds;
-        vector<eqtlInfo> eqtls;
-    
-        read_smaslist(besds, string(besdlistFileName));
-        if(besds.size()<=1) throw("Less than 2 BESD files list in [ "+ string(besdlistFileName)  +" ]");
-        
-        eqtlInfo eMeta;
-    
-        getMetaEsi(eqtls, besds);
-        printf("\nRead eQTL summary data....\n");
-        for(int i=0;i<besds.size();i++)
+        long counter = 0;
+        map<string, int> prb_map;
+        map<string, int> prbbp_map;
+        map<string, int>::iterator iter;
+        nprb.clear();
+        char inputname[FNAMESIZE];
+        for (int i = 0; i < besds.size(); i++)
         {
-            string besdfile = besds[i]+".besd";
-            read_besdfile(&eqtls[i], besdfile);
-        }
-        //now all the BESDs are aligned
-        
-        vector<uint64_t> cols((eqtls[0]._include.size()<<1)+1);
-        vector<uint32_t> rowids;
-        vector<float> val;
-        cols[0]=0;
-        vector<string> noninvtb_prbs;
-        vector<string> nega_prbs;
-        printf("\nPerforming meta analysis....\n");
-        for(int i=0;i<eqtls[0]._include.size();i++) {
-            printf("%3.0f%%\r", 100.0*i/(eqtls[0]._include.size()));
-            fflush(stdout);
-            printf("processing with probe %s...\n",eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
-            vector< vector<double> > slct_beta; // row(1st dimension) is tissue, column(2nd dimension) is snp
-            vector< vector<double> > slct_se;
-            vector<int> slct_idx;
-            getCommonPerProbe(eqtls,i,slct_beta,slct_se,slct_idx);
-            if(slct_idx.size()==0) {
-                printf("NO common SNPs found!\n");
-                uint64_t real_num=slct_idx.size();
-                cols[(i<<1)+1]=real_num+cols[i<<1];
-                cols[i+1<<1]=(real_num<<1)+cols[i<<1];
-                continue;
-            }
-            uint64_t real_num=slct_idx.size();
-            cols[(i<<1)+1]=real_num+cols[i<<1];
-            cols[i+1<<1]=(real_num<<1)+cols[i<<1];
-            
-            if(detailout){
-                /****test**/
-                string filename=eqtls[0]._epi_prbID[eqtls[0]._include[i]]+".txt";
-                FILE* tmpfile=fopen(filename.c_str(),"w");
-                if(!tmpfile)
+            eqtlInfo etmp;
+            memcpy(inputname,besds[i].c_str(),besds[i].length()+1);
+            char* suffix=inputname+besds[i].length();
+            memcpy(suffix,".epi",5);
+            read_epifile(&etmp, inputname);
+            nprb.push_back(etmp._probNum);
+            for (int j = 0; j<etmp._probNum; j++)
+            {
+                string crsbpstr=etmp._epi_prbID[j]+":"+atos(etmp._epi_bp[j]);
+                prb_map.insert(pair<string, int>(etmp._epi_prbID[j].c_str(), counter));
+                prbbp_map.insert(pair<string, int>(crsbpstr.c_str(), counter));
+                if(prb_map.size() != prbbp_map.size())
                 {
-                    printf("error open file.\n");
+                    printf("ERROR: inconsistent position for the probe %s  in different .epi files. Please check.\n", etmp._epi_prbID[j].c_str()) ;
                     exit(EXIT_FAILURE);
                 }
-                for(int t=0;t<slct_idx.size();t++)
+                
+                if (counter < prb_map.size())
                 {
-                    string str=atos(eqtls[0]._esi_rs[slct_idx[t]])+'\t'+atos(eqtls[0]._esi_allele1[slct_idx[t]]);
-                    for(int tt=0;tt<slct_beta.size();tt++)
-                    {
-                        str+='\t'+atos(slct_beta[tt][t])+'\t'+atos(slct_se[tt][t]);
+                    smr_probeinfo probinfotmp;
+                    counter=prb_map.size();
+                    probinfotmp.probechr=etmp._epi_chr[j];
+                    strcpy2(&probinfotmp.probeId, etmp._epi_prbID[j]);
+                    probinfotmp.bp=etmp._epi_bp[j];
+                    probinfotmp.gd=etmp._epi_gd[j];
+                    strcpy2(&probinfotmp.genename, etmp._epi_gene[j]);
+                    probinfotmp.orien=etmp._epi_orien[j];
+                    probinfotmp.bfilepath=NULL;
+                    probinfotmp.esdpath=NULL;
+                    probinfotmp.ptr=new int[besds.size()];
+                    for(int k=0;k<besds.size();k++){
+                        if(i==k){
+                            probinfotmp.ptr[k]=j;
+                        } else {
+                            probinfotmp.ptr[k]=-9;
+                        }
                     }
-                    str+='\n';
-                    fputs(str.c_str(),tmpfile);
+                    probeinfo.push_back(probinfotmp);
+                    
+                } else {
+                    iter=prb_map.find(etmp._epi_prbID[j]);
+                    if(iter!=prb_map.end())
+                    {
+                        probeinfo[iter->second].ptr[i]=j; //probeinfo with prb_map
+                    }
+                    else
+                    {
+                        printf("ERROR: This would never happen. please help to report this bug.\n") ;
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+        }
+        printf("Total %ld probes to be included from %ld epi files.\n",probeinfo.size(),besds.size());
+    }
+    void combine_esi(vector<smr_snpinfo> &snpinfo, vector<string> &besds, vector<uint64_t> &nsnp)
+    {
+        long ex_counter = 0;
+        snpinfo.clear();
+        vector<string> ex_snp;
+        map<string, int> in_map;
+        map<string, int> ex_map;
+        map<string, int>::iterator iter;
+        nsnp.clear();
+        char inputname[FNAMESIZE];
+        printf("\nPerforming Allele checking. This step could be a little long....\n");
+        for (int i = 0; i < besds.size(); i++)
+        {
+            eqtlInfo etmp;
+            memcpy(inputname,besds[i].c_str(),besds[i].length()+1);
+            char* suffix=inputname+besds[i].length();
+            memcpy(suffix,".esi",5);
+            read_esifile(&etmp, inputname);
+            nsnp.push_back(etmp._snpNum);
+            for (int j = 0; j<etmp._snpNum; j++)
+            {
+                if(ex_map.size()>0) {
+                    iter=ex_map.find(etmp._esi_rs[j]);
+                    if(iter!=ex_map.end()) continue;
                 }
                 
-                fclose(tmpfile);
-
-                /***end test**/
+                iter=in_map.find(etmp._esi_rs[j]);
+                if(iter==in_map.end())
+                {
+                    in_map.insert(pair<string, int>(etmp._esi_rs[j].c_str(), snpinfo.size()));//the second is snpinfo id
+                    
+                    smr_snpinfo snpinfotmp;
+                    snpinfotmp.snpchr=etmp._esi_chr[j];
+                    strcpy2(&snpinfotmp.snprs, etmp._esi_rs[j]);
+                    snpinfotmp.bp=etmp._esi_bp[j];
+                    snpinfotmp.gd=etmp._esi_gd[j];
+                    strcpy2(&snpinfotmp.a1, etmp._esi_allele1[j]);
+                    strcpy2(&snpinfotmp.a2, etmp._esi_allele2[j]);
+                    snpinfotmp.freq=etmp._esi_freq[j];
+                    
+                    snpinfotmp.rstr=new int[besds.size()];
+                    snpinfotmp.revs=new bool[besds.size()];
+                    for(int k=0;k<besds.size();k++){
+                        if(i==k){
+                            snpinfotmp.rstr[k]=j;
+                            snpinfotmp.revs[k]=false;
+                        } else {
+                            snpinfotmp.rstr[k]=-9;
+                            snpinfotmp.revs[k]=false;
+                        }
+                    }
+                    snpinfo.push_back(snpinfotmp);
+                } else {
+                    
+                    if((snpinfo[iter->second].snpchr != etmp._esi_chr[j]) ||(snpinfo[iter->second].bp != etmp._esi_bp[j]))
+                    {
+                        // SNP in one esi file has BP1 but in another esi file has BP2
+                        printf("ERROR: inconsistent chromosome or position for the SNP %s in different .epi files. Please check.\n", etmp._esi_rs[j].c_str()) ;
+                        exit(EXIT_FAILURE);
+                    }
+                    string a1=etmp._esi_allele1[j];
+                    string a2=etmp._esi_allele2[j];
+                    string a3=snpinfo[iter->second].a1;
+                    string a4=snpinfo[iter->second].a2;
+                    if(a1==a3 && a2==a4) {
+                        snpinfo[iter->second].rstr[i]=j;
+                    }
+                    else if(a1==a4 && a2==a3 ){
+                        snpinfo[iter->second].rstr[i]=j;
+                        snpinfo[iter->second].revs[i]=true;
+                    }
+                    else {
+                        //allele check failed. the SNP would be removed
+                        ex_snp.push_back(etmp._esi_rs[j]);
+                        ex_map.insert(pair<string,int>(etmp._esi_rs[j],ex_counter));
+                        ex_counter=ex_map.size();
+                        in_map.erase(iter->first);
+                    }
+                }
             }
-           
-            printf("%ld common SNPs of probe %s are extracted from %ld datasets.\n",slct_idx.size(), eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str(), eqtls.size());
-            vector<int> noninvertible, negativedeno;
-            if(meta_mth==0) meta_nooverlap_func(slct_beta,slct_se,slct_idx);
-            else meta_overlap_func(slct_beta,slct_se,slct_idx,detailout,noninvertible,negativedeno);
-            if(noninvertible.size()>0) {
-                noninvtb_prbs.push_back(eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
+        }
+        //do not use multiple .erase() on vector, shuffle costs O(n*m), n is the vector size, m is the size of elememts to remove
+        if(in_map.size() + ex_map.size() != snpinfo.size()){
+            printf("ERROR: bugs found in allele check. please report.\n") ;
+            exit(EXIT_FAILURE);
+        }
+        long ttl_snp_common=snpinfo.size();
+        string failName="failed.snp.list";
+        FILE* failfptr=fopen(failName.c_str(),"w");
+        if(failfptr==NULL)
+        {
+            printf("ERROR: failed in open file %s.\n",failName.c_str()) ;
+            exit(EXIT_FAILURE);
+        }
+        vector<smr_snpinfo> snpinfo_adj;
+        snpinfo_adj.resize(in_map.size());
+        int ids=0;
+        for(int i=0; i<snpinfo.size();i++)
+        {
+            iter=in_map.find(snpinfo[i].snprs);
+            if(iter!=in_map.end()) {
+                snpinfo_adj[ids++] = snpinfo[i];
+            } else {
+                string snpstr=string(snpinfo[i].snprs) + '\n';
+                if(fputs_checked(snpstr.c_str(),failfptr))
+                {
+                    printf("ERROR: in writing file %s .\n", failName.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                //free the space of SNPs failed in allele check.
+                if(snpinfo[i].a1) free2(&snpinfo[i].a1);
+                if(snpinfo[i].a2) free2(&snpinfo[i].a2);
+                if(snpinfo[i].snprs) free2(&snpinfo[i].snprs);
+                if(snpinfo[i].rstr) free2(&snpinfo[i].rstr);
+                if(snpinfo[i].revs) free2(&snpinfo[i].revs);
             }
-            if(negativedeno.size()>0) {
-                nega_prbs.push_back(eqtls[0]._epi_prbID[eqtls[0]._include[i]].c_str());
-            }
-            for(int j=0;j<slct_idx.size();j++)
+        }
+        snpinfo.swap(snpinfo_adj);
+        snpinfo_adj.clear();
+        fclose(failfptr);
+        
+        printf("Total %ld SNPs to be included from %ld esi files. %ld SNPs failed in allele check. %ld SNPs included in analysis.\n",ttl_snp_common,besds.size(),ex_snp.size(),in_map.size());
+        printf("%ld SNPs that failed in allele check were saved in file %s.\n",ex_snp.size(),failName.c_str());
+    }
+    int comp_epi(const void *a,const void *b){ return (((*(smr_probeinfo *)a).probechr>(*(smr_probeinfo *)b).probechr) || ( ((*(smr_probeinfo *)a).probechr ==(*(smr_probeinfo *)b).probechr) && ((*(smr_probeinfo *)a).bp > (*(smr_probeinfo *)b).bp) ))?1:-1; }
+    void get_BesdHeaders(char* besdFileName, vector<int> &headers)//
+    {
+        headers.resize(RESERVEDUNITS);
+        FILE* besd=fopen(besdFileName,"rb");
+        if(besd==NULL) {
+            exit(EXIT_FAILURE);
+        }
+        printf("Reading eQTL summary data from %s. \n",besdFileName);
+        if(fread(&headers[0], sizeof(int),RESERVEDUNITS, besd)<1)
+        {
+            printf("ERROR: File %s read failed!\n", besdFileName);
+            exit(EXIT_FAILURE);
+        }
+        fclose(besd);
+    }
+    void check_besds_format( vector<string> &besds, vector<int> &format, vector<int> &smpsize) {
+        
+        char inputname[FNAMESIZE];
+        format.clear();
+        smpsize.clear();
+        vector<int> headers;
+        for(int i=0;i<besds.size();i++)
+        {
+            string tmpstr=besds[i]+".besd";
+            memcpy(inputname,tmpstr.c_str(),tmpstr.length()+1);
+            get_BesdHeaders(inputname, headers);
+            format.push_back(headers[0]);
+            if(headers[0]==DENSE_FILE_TYPE_1 || headers[0]==SPARSE_FILE_TYPE_3F) smpsize.push_back(-9);
+            else smpsize.push_back(headers[1]);
+        }
+    }
+    void extract_prb_sparse(FILE* fptr, uint64_t pid, uint64_t probnum,vector<uint32_t> &row_ids, vector<float> &betases)
+    {
+        if(pid>probnum) {
+            printf("ERROR: probe index %llu is larger than the totoal probe number %llu.\n", pid, probnum);
+            exit(EXIT_FAILURE);
+        }
+        row_ids.clear();
+        betases.clear();
+        fseek(fptr,0L,SEEK_SET);
+        uint32_t indicator=readuint32(fptr);
+        if(indicator==SPARSE_FILE_TYPE_3F || indicator==SPARSE_FILE_TYPE_3)
+        {
+            int infoLen=sizeof(uint32_t);
+            if(indicator==SPARSE_FILE_TYPE_3)
             {
-                val.push_back((float)(slct_beta[0][j]));
-                rowids.push_back((uint32_t)slct_idx[j]);
-            }
-            for(int j=0;j<slct_idx.size();j++)
-            {
-                val.push_back((float)(slct_se[0][j]));
-                rowids.push_back((uint32_t)slct_idx[j]);
+                infoLen=RESERVEDUNITS*sizeof(int);
+                int length=(RESERVEDUNITS-1)*sizeof(int);
+                char* indicators=new char[length];
+                fread(indicators, sizeof(int),(RESERVEDUNITS-1), fptr);
+                int* tmp=(int *)indicators;
+                int ss=*tmp++;
+                if(ss!=-9)
+                {
+                    printf("The sample size is %d.\n",ss);
+                }
+                delete[] indicators;
             }
             
+            uint64_t colNum=(probnum<<1)+1;
+            uint64_t valnum=readuint64(fptr);
+            fseek(fptr,(pid<<1)*sizeof(uint64_t),SEEK_CUR);
+            uint64_t betaStart=readuint64(fptr);
+            uint64_t seStart=readuint64(fptr);
+            long num=seStart-betaStart;
+            if(num>0)
+            {
+                row_ids.resize(num);
+                betases.resize(2*num);
+                uint64_t rowSTART=infoLen + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+                uint64_t valSTART=infoLen + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valnum*sizeof(uint32_t);
+                fseek(fptr, rowSTART+betaStart*sizeof(uint32_t), SEEK_SET);
+                fread(&row_ids[0], sizeof(uint32_t),num,fptr);
+                fseek(fptr,valSTART+betaStart*sizeof(float),SEEK_SET);
+                fread(&betases[0],sizeof(float), 2*num,fptr);
+                
+            }
         }
+        else
+        {
+            printf("ERROR: OSCA format. please use OSCA to do this analysis.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    void extract_prb_dense(FILE* fptr,  uint64_t pid, uint64_t epinum,uint64_t esinum, vector<float> &betases)
+    {
+        if(epinum==0 || esinum==0) {
+            printf("ERROR: .epi file or .esi file is empty. please check.\n");
+            exit(EXIT_FAILURE);
+        }
+        if(pid>epinum) {
+            printf("ERROR: probe index %llu is larger than the totoal probe number %llu.\n", pid, epinum);
+            exit(EXIT_FAILURE);
+        }
+        fseek(fptr,0L,SEEK_SET);
+        uint32_t indicator=readuint32(fptr);
+        if(indicator==DENSE_FILE_TYPE_1 || indicator==DENSE_FILE_TYPE_3) {
+            if(indicator==DENSE_FILE_TYPE_3)
+            {
+                int length=(RESERVEDUNITS-1)*sizeof(int);
+                char* indicators=new char[length];
+                fread(indicators, sizeof(int),(RESERVEDUNITS-1), fptr);
+                int* tmp=(int *)indicators;
+                int ss=*tmp++;
+                if(ss!=-9)
+                {
+                    printf("The sample size is %d.\n",ss);
+                }
+                delete[] indicators;
+            }
+            int infoLen=sizeof(uint32_t);
+            if(indicator==DENSE_FILE_TYPE_3) infoLen=RESERVEDUNITS*sizeof(int);
+            
+            betases.resize(2*esinum);
+            fseek(fptr,((pid*esinum)<<3)+infoLen, SEEK_SET);
+            fread(&betases[0], sizeof(float),2*esinum,fptr);
+        }
+        else
+        {
+            printf("ERROR: OSCA format. please use OSCA to do this analysis.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    void pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs)
+    {
+        //pearson correlation with pairwise.complete.obs
+        double zmecs=qchisq(pmecs,1);
+        vector<double> beta1,beta2;
+        vector<int> pairsNoCor1,pairsNoCor2;
+        double sumcor=0.0;
+        int pairHasCorNUm=0;
+        for( int i=0;i<cohortnum;i++)
+        for(int j=i+1;j<cohortnum;j++)
+        {
+            
+            beta1.clear();
+            beta2.clear();
+            for(int k=0;k<snpnum;k++)
+            {
+                double sei=buffer_se[i*snpnum+k];
+                double betai=buffer_beta[i*snpnum+k];
+                double sej=buffer_se[j*snpnum+k];
+                double betaj=buffer_beta[j*snpnum+k];
+                if(abs(sei+9)>1e-6 && abs(sej+9)>1e-6) {
+                    double zi=betai/sei;
+                    double zj=betaj/sej;
+                    zi*=zi;
+                    zj*=zj;
+                    if(zi < zmecs && zj < zmecs)
+                    {
+                        
+                        beta1.push_back(betai);
+                        beta2.push_back(betaj);
+                    }
+                }
+            }
+            if(beta1.size()<1) {
+                printf("WARNING: %ld SNP in common between cohort %i and cohort %d (cohort number stats form 0).\n",beta1.size(),i,j);
+                printf("The correlation value of cohort %d and cohort %d would be imputed with the mean of all the correlation values excluding the diagnoal.\n",i,j);
+                pairsNoCor1.push_back(i);
+                pairsNoCor2.push_back(j);
+                PCC(i,j)=PCC(j,i)=0;
+            } else {
+                double corrtmp=cor(beta1,beta2);
+                sumcor +=corrtmp;
+                PCC(i,j)=PCC(j,i)=corrtmp;
+                pairHasCorNUm++;
+            }
+        }
+        if(pairsNoCor1.size()>0) {
+            printf("WARNING: %ld cohort pairs didn't get enough common SNPs to calcualte the correlation.\n",pairsNoCor1.size());
+            if(pairHasCorNUm==0) {
+                printf("ERROR: Every pair of cohort has not enough common SNPs to calcualte the correlation.\n");
+                exit(EXIT_FAILURE);
+            }
+            double corMean=sumcor/pairHasCorNUm;
+            printf("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
+            for(int i=0;i<pairsNoCor1.size();i++)
+            {
+                int p1=pairsNoCor1[i];
+                int p2=pairsNoCor2[i];
+                PCC(p1,p2)=PCC(p2,p1)=corMean;
+            }
+        }
+        for( int i=0;i<cohortnum;i++) PCC(i,i)=1;
+    }
+    void subMatrix_symm(MatrixXd &to,MatrixXd &from,vector<int> &idx)
+    {
+        long num = idx.size();
+        if(num>from.cols())
+        {
+            printf("ERROR: to extract sub-matrix. the size of index %ld is larger than the matrix dimension (%ld,%ld).\n",num, from.rows(),from.cols());
+            exit(EXIT_FAILURE);
+        } else if(num==0) {
+            printf("ERROR: the size of index is 0.\n");
+            exit(EXIT_FAILURE);
+        } else {
+            to.resize(num,num);
+            for(int i=0;i<num;i++)
+            for(int j=i;j<num;j++)
+            to(i,j)=to(j,i)=from(idx[i],idx[j]);
+        }
+    }
+    void mecs_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum,double pmecs,vector<int> &noninvertible, vector<int> &negativedeno)
+    {
+        
+        MatrixXd Corr(cohortnum,cohortnum);
+        printf("Estimate the cohort correlation using the beta values of pair-wised common SNPs.\n");
+        printf("We exclude the significant common SNPs with a p-value threshold %e to estimate the correlation matrix.\n",pmecs);
+        pcc(Corr,buffer_beta,buffer_se,snpnum,cohortnum,pmecs);
+        //cout<<Corr<<endl;
+#pragma omp parallel for
+        for(int j=0;j<snpnum;j++)
+        {
+            vector<double> ses, betas;
+            vector<int> keep;
+            //MatrixXd Corr_work = Corr;
+            MatrixXd Corr_work;
+            int nmiss=0, miss=0;
+            for(int k=0;k<cohortnum;k++)
+            {
+                double se=buffer_se[k*snpnum+j];
+                double beta=buffer_beta[k*snpnum+j];
+                buffer_se[k*snpnum+j]=-9;
+                if(abs(se+9)>1e-6){
+                    ses.push_back(se);
+                    betas.push_back(beta);
+                    keep.push_back(k);
+                    nmiss++;
+                } else {
+                    //removeRow(Corr_work, k-miss);
+                    //removeColumn(Corr_work, k-miss);
+                    miss++;
+                }
+            }
+            
+            if(nmiss==1)
+            {
+                buffer_beta[j]=betas[0];
+                buffer_se[j]=ses[0];
+            }
+            else if(nmiss>1)
+            {
+                if(nmiss<cohortnum) subMatrix_symm(Corr_work, Corr, keep);
+                else if(nmiss==cohortnum) Corr_work = Corr;
+                else {
+                    printf("Can't happen. I can guarantee!\n");
+                }
+                VectorXd sev(ses.size());
+                for(int k=0;k<ses.size();k++) sev(k)=ses[k];
+                MatrixXd W=sev*sev.transpose();
+                W=W.array()*Corr_work.array();
+                bool determinant_zero=false;
+                inverse_V(W,determinant_zero);
+                if(determinant_zero) noninvertible.push_back(j);
+                double deno=W.sum();
+                if(deno<=0) {
+                    negativedeno.push_back(j);
+                } else {
+                    VectorXd colsum=W.colwise().sum();
+                    double numerator=0.0;
+                    for(int k=0;k<betas.size();k++) numerator+=colsum(k)*betas[k];
+                    buffer_beta[j]=numerator/deno;
+                    buffer_se[j]=1/sqrt(deno);
+                }
+                
+            }
+        }
+    }
+    void meta_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum)
+    {
+#pragma omp parallel for
+        for(int j=0;j<snpnum;j++)
+        {
+            double numerator=0.0;
+            double deno=0.0;
+            int nmiss=0;
+            for(int k=0;k<cohortnum;k++)
+            {
+                double se=buffer_se[k*snpnum+j];
+                double beta=buffer_beta[k*snpnum+j];
+                buffer_se[k*snpnum+j]=-9;
+                if(abs(se+9)>1e-6){
+                    double tmp2=se*se;
+                    deno+=1/tmp2;
+                    numerator+=beta/tmp2;
+                    nmiss++;
+                }
+            }
+            if(nmiss>0)
+            {
+                buffer_beta[j]=numerator/deno;
+                buffer_se[j]=1/sqrt(deno);
+            }
+        }
+    }
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl)
+    {
+        cis_flag=true; // for later update. !!!
+        printf("NOTE: Only the information in the cis-region would be used.\n");
+        
+        string analysisType="";
+        if(meta_mth) analysisType="MeCS";
+        else analysisType="Meta";
+        vector<string> besds;
+        vector<smr_snpinfo> snpinfo;
+        vector<smr_probeinfo> probeinfo;
+        vector<uint64_t> nprb,nsnp;
+        vector< vector<int> > lookup;
+        
+        read_msglist(besdlistFileName, besds,"eQTL summary file names");
+        if(besds.size()<=1) {
+            printf("Less than 2 BESD files list in %s.\n",besdlistFileName);
+            exit(EXIT_FAILURE);
+        }
+        printf("%ld eQTL summary file names are included.\n",besds.size());
+        
+        printf("Checking the BESD format...\n");
+        vector<int> format, smpsize;
+        check_besds_format(besds, format, smpsize);
+        int label=-1;
+        for(int i=0;i<format.size();i++)
+        {
+            if(format[i]==DENSE_FILE_TYPE_1 || format[i]==DENSE_FILE_TYPE_3 ) {
+                if(label==-1) {
+                    label=0;
+                } else if(label==1) {
+                    label=2;
+                    break;
+                }
+                
+            } else if (format[i]==SPARSE_FILE_TYPE_3F || format[i]==SPARSE_FILE_TYPE_3 ) {
+                if(label==-1) {
+                    label=1;
+                } else if(label==0) {
+                    label=2;
+                    break;
+                }
+            } else {
+                printf("Some BESDs are from old sparse format. please use SMR to re-make it.\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+        
+        if(meta_mth) label=1; // for later update. !!!!
+        
+        combine_epi(probeinfo, besds,nprb);
+        combine_esi(snpinfo, besds,nsnp);
+        if(probeinfo.size()==0)
+        {
+            printf("ERROR: No probe to be included!\n");
+            exit(EXIT_FAILURE);
+        }
+        smr_probeinfo* epiptr=&probeinfo[0];
+        qsort(epiptr,probeinfo.size(),sizeof(smr_probeinfo),comp_epi);
+        if(snpinfo.size()==0)
+        {
+            printf("ERROR: No SNP to be included!\n");
+            exit(EXIT_FAILURE);
+        }
+        smr_snpinfo* esiptr=&snpinfo[0];
+        qsort(esiptr,snpinfo.size(),sizeof(smr_snpinfo),comp_esi);
+        
+        long besdNum=besds.size();
+        long metaPrbNum=probeinfo.size();
+        long metaSNPnum=snpinfo.size();
+        
+        printf("\nGenerating epi file...\n");
+       
+        string epiName=string(outFileName)+".epi";
+         FILE* efile=fopen( epiName.c_str(),"w");
+        if(efile==NULL) exit(EXIT_FAILURE);
+        for(int i=0;i<probeinfo.size();i++)
+        {
+            string chrstr;
+            if(probeinfo[i].probechr==23) chrstr="X";
+            else if(probeinfo[i].probechr==24) chrstr="Y";
+            else chrstr=atosm(probeinfo[i].probechr);
+            
+            string str=chrstr+'\t'+probeinfo[i].probeId+'\t'+atos(0)+'\t'+atosm(probeinfo[i].bp)+'\t'+probeinfo[i].genename+'\t'+(probeinfo[i].orien=='*'?"NA":atos(probeinfo[i].orien))+'\n';
+            if(fputs_checked(str.c_str(),efile))
+            {
+                printf("ERROR: in writing file %s .\n", epiName.c_str());
+                exit(EXIT_FAILURE);
+            }
+        }
+        fclose(efile);
+        printf("%ld probes have been saved in the file %s .\n", probeinfo.size(), epiName.c_str());
+        
+        
+        printf("\nGenerating esi file...\n");
+        string esiName=string(outFileName)+".esi";
+        efile=fopen(esiName.c_str(),"w");
+        if(efile==NULL) exit(EXIT_FAILURE);
+        for(int i=0;i<snpinfo.size();i++)
+        {
+            string chrstr;
+            if(snpinfo[i].snpchr==23) chrstr="X";
+            else if(snpinfo[i].snpchr==24) chrstr="Y";
+            else chrstr=atosm(snpinfo[i].snpchr);
+            string str=chrstr+'\t'+snpinfo[i].snprs+'\t'+atos(0)+'\t'+atosm(snpinfo[i].bp)+'\t'+snpinfo[i].a1+'\t'+snpinfo[i].a2+'\t'+(abs(snpinfo[i].freq+9)>1e-6?atos(snpinfo[i].freq):"NA")+'\n';
+            if(fputs_checked(str.c_str(),efile))
+            {
+                printf("ERROR: in writing file %s .\n", esiName.c_str());
+                exit(EXIT_FAILURE);
+            }
+        }
+        fclose(efile);
+        printf("%ld SNPs have been saved in the file %s .\n", snpinfo.size(), esiName.c_str());
+        
+        lookup.resize(besdNum);
+        for(int i=0;i<besdNum;i++) lookup[i].resize(nsnp[i]);
+        for(int i=0;i<besdNum;i++)
+        for(int j=0;j<lookup[i].size();j++)
+        lookup[i][j]=-9;
+        for(int i=0;i<metaSNPnum;i++)
+        {
+            for(int j=0;j<besdNum;j++)
+            {
+                int tmpval=snpinfo[i].rstr[j];
+                if(tmpval>=0) {
+                    if(tmpval >=nsnp[j])
+                    {
+                        printf("ERROR: bug found in snpinfo. Please report.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    lookup[j][tmpval]=i;
+                }
+            }
+        }
+        
+        printf("\nPerforming %s analysis and save the result in BESD file....\n",analysisType.c_str());
+        FILE** fptrs = (FILE**)malloc(sizeof(FILE*) * besds.size());
+        for(int i=0;i<besdNum;i++) {
+            string besdFileName=besds[i]+".besd";
+            fptrs[i]=fopen(besdFileName.c_str(),"rb");
+            if(fptrs[i]==NULL) {
+                printf("ERROR: in opening file %s .\n", besdFileName.c_str());
+                exit(EXIT_FAILURE);
+            }
+        }
+        vector<uint64_t> cols;
+        vector<uint32_t> rowids;
+        vector<float> val;
+        string besdName=string(outFileName)+".besd";
+        efile=fopen( besdName.c_str(),"wb");
+        if(efile==NULL) exit(EXIT_FAILURE);
+        
+        uint32_t filetype=SPARSE_FILE_TYPE_3;
+        cols.resize((metaPrbNum<<1)+1);
+        cols[0]=0;
+        
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=filetype;
+        ten_ints[1]=-9;
+        ten_ints[2]=(int)snpinfo.size();
+        ten_ints[3]=(int)probeinfo.size();
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        fwrite(&ten_ints[0],sizeof(int), RESERVEDUNITS,efile);
+        
+        
+        float* buffer_beta=(float *)malloc(sizeof(float)*besdNum*metaSNPnum);
+        if (buffer_beta == NULL) {
+            printf("Memory buffer for beta values error.\n");
+            exit(EXIT_FAILURE);
+        } //probe major
+        
+        float* buffer_se=(float *)malloc(sizeof(float)*besdNum*metaSNPnum);
+        if (buffer_se == NULL) {
+            printf("Memory buffer for SEs error.\n");
+            exit(EXIT_FAILURE);
+        }
+        for(int i=0;i<besdNum*metaSNPnum;i++) buffer_se[i]=-9;
+        vector<string> noninvtb_prbs;
+        vector<string> nega_prbs;
+        for(int i=0;i<metaPrbNum;i++)
+        {
+            printf("%3.0f%%\r", 100.0*i/(metaPrbNum));
+            fflush(stdout);
+            printf("processing with probe %s...\n",probeinfo[i].probeId);
+            vector<float> betases;
+            vector<uint32_t> row_ids;
+            int probebp=probeinfo[i].bp;
+            int probechr=probeinfo[i].probechr;
+            long cohortnum=0;
+            for(int j=0;j<besds.size();j++)
+            {
+                int pid=probeinfo[i].ptr[j];
+                betases.clear();
+                row_ids.clear();
+                if(pid>=0)
+                {
+                    if(format[j]==SPARSE_FILE_TYPE_3 || format[j]==SPARSE_FILE_TYPE_3F )
+                    {
+                        extract_prb_sparse(fptrs[j], (uint64_t)pid, nprb[j],row_ids, betases);
+                        long num=row_ids.size();
+                        if(num==0) {
+                            printf("WARNING: empty probe %s found in the BESD file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                            continue;
+                        }
+                        long alignnum=0;
+                        if( cis_flag) {
+                            printf("Extract the cis-region of probe %s in the BESD file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                        } else {
+                            printf("Extract the eQTLs of probe %s in the BESD file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                        }
+                        for(int k=0;k<num;k++)
+                        {
+                            //align each cohort to the buffer. we don't have -9 of se from sparse.
+                            int idx=lookup[j][row_ids[k]];
+                            if(idx>=0)
+                            {
+                                int snpchr=snpinfo[idx].snpchr;
+                                int snpbp=snpinfo[idx].bp;
+                                if(cis_flag) {
+                                    //extract cis if mecs
+                                    int startpos=(probebp-cis_itvl*1000)>0?(probebp-cis_itvl*1000):0;
+                                    int endpos=probebp+cis_itvl*1000;
+                                    if(snpchr==probechr && snpbp >= startpos && snpbp <= endpos) {
+                                        if(snpinfo[idx].revs[j]) buffer_beta[cohortnum*metaSNPnum+idx]=-1.0*betases[k];
+                                        else buffer_beta[cohortnum*metaSNPnum+idx]=betases[k];
+                                        buffer_se[cohortnum*metaSNPnum+idx]=betases[k+num];
+                                        alignnum++;
+                                    }
+                                } else {
+                                    if(snpinfo[idx].revs[j]) buffer_beta[cohortnum*metaSNPnum+idx]=-1.0*betases[k];
+                                    else buffer_beta[cohortnum*metaSNPnum+idx]=betases[k];
+                                    buffer_se[cohortnum*metaSNPnum+idx]=betases[k+num];
+                                    alignnum++;
+                                }
+                            }
+                        }
+                        if(alignnum==0) {
+                            printf("No eQTLs extracted from probe %s in the BESD file %s for %s analysis.\n",probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
+                            continue;
+                        } else {
+                            printf("%ld eQTLs extracted from probe %s in the BESD file %s for %s analysis.\n",alignnum,probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
+                        }
+                    }
+                    else if(format[j]==DENSE_FILE_TYPE_1 || format[j]==DENSE_FILE_TYPE_3)
+                    {
+                        extract_prb_dense(fptrs[j], (uint64_t)pid, nprb[j], nsnp[j], betases);
+                        printf("%llu eQTLs extracted from probe %s in the BESD file %s.\n",nsnp[j],probeinfo[i].probeId,besds[j].c_str());
+                        long alignnum=0;
+                        if( cis_flag) {
+                            printf("Extract the cis-region of probe %s in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                        } else {
+                            printf("Extract the eQTLs of probe %s in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                        }
+                        for(int k=0;k<nsnp[j];k++)
+                        {
+                            int idx=lookup[j][k];
+                            if(idx>=0)
+                            {
+                                int snpchr=snpinfo[idx].snpchr;
+                                int snpbp=snpinfo[idx].bp;
+                                if(cis_flag)
+                                {
+                                    //extract cis if mecs
+                                    int startpos=(probebp-cis_itvl*1000)>0?(probebp-cis_itvl*1000):0;
+                                    int endpos=probebp+cis_itvl*1000;
+                                    if(snpchr==probechr && snpbp >= startpos && snpbp <= endpos) {
+                                        if(snpinfo[idx].revs[j]) buffer_beta[cohortnum*metaSNPnum+idx]=-1.0*betases[k];
+                                        else buffer_beta[cohortnum*metaSNPnum+idx]=betases[k];
+                                        buffer_se[cohortnum*metaSNPnum+idx]=betases[k+nsnp[j]];
+                                        alignnum++;
+                                    }
+                                } else
+                                {
+                                    if(snpinfo[idx].revs[j]) buffer_beta[cohortnum*metaSNPnum+idx]=-1.0*betases[k];
+                                    else  buffer_beta[cohortnum*metaSNPnum+idx]=betases[k];
+                                    buffer_se[cohortnum*metaSNPnum+idx]=betases[k+nsnp[j]];
+                                }
+                            }
+                        }
+                        if(alignnum==0) {
+                            printf("no eQTLs extracted from probe %s in the BESD file %s for %s analysis.\n",probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
+                            continue;
+                        } else {
+                            printf("%ld eQTLs extracted from probe %s in the BESD file %s for %s analysis.\n",alignnum,probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
+                        }
+                    }
+                    cohortnum++;
+                }
+                else {
+                    printf("probe %s is not in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                }
+            }
+            if(cohortnum==0) {
+                printf("No information of probe %s is included from any cohort for %s analysis.\n\n",probeinfo[i].probeId,analysisType.c_str());
+            } else if(cohortnum==1) {
+                printf("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
+                printf("The information of the probe %s would be saved in the result.\n\n",probeinfo[i].probeId);
+                
+            } else if(cohortnum>1) {
+                printf("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
+                if(meta_mth){
+                    printf("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
+                    vector<int> noninvertible, negativedeno;
+                    mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno);
+                    if(noninvertible.size()>0) {
+                        printf("%ld SNPs of probe %s have non-invertible S matrix.\n",noninvertible.size(), probeinfo[i].probeId);
+                        noninvtb_prbs.push_back(probeinfo[i].probeId);
+                    }
+                    if(negativedeno.size()>0) {
+                        printf("%ld SNPs of probe %s have negative 1'inv(S)1 .\n",negativedeno.size(), probeinfo[i].probeId);
+                        nega_prbs.push_back(probeinfo[i].probeId);
+                    }
+                    printf("end of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
+                }
+                else {
+                    printf("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
+                    meta_per_prob(buffer_beta,buffer_se, metaSNPnum, cohortnum);
+                    printf("End of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
+                }
+            }
+            
+            
+            vector<float> tmpse;
+            vector<uint32_t> tmprid;
+            for(int k=0;k<metaSNPnum;k++)
+            {
+                if(abs(buffer_se[k]+9)>1e-6)
+                {
+                    val.push_back(buffer_beta[k]);
+                    rowids.push_back(k);
+                    tmpse.push_back(buffer_se[k]);
+                    tmprid.push_back(k);
+                    buffer_se[k]=-9;
+                }
+            }
+            for(int k=0;k<tmpse.size();k++)
+            {
+                val.push_back(tmpse[k]);
+                rowids.push_back(tmprid[k]);
+            }
+            uint64_t real_num=tmpse.size();
+            cols[(i<<1)+1]=real_num+cols[i<<1];
+            cols[i+1<<1]=(real_num<<1)+cols[i<<1];
+        }
+        
+        
+        
+        uint64_t valNum=val.size();
+        fwrite(&valNum,sizeof(uint64_t),1, efile) ;
+        fwrite(&cols[0],sizeof(uint64_t),cols.size(), efile);
+        fwrite(&rowids[0],sizeof(uint32_t),rowids.size(), efile);
+        fwrite(&val[0],sizeof(float),val.size(), efile);
         
         if(noninvtb_prbs.size()>0)
         {
-            printf("\nWARNING: %ld probes have at least one eQTL whose V is non-invertible.\n",noninvtb_prbs.size());
+            printf("\nWARNING: %ld probes have at least one eQTL whose S is non-invertible.\n",noninvtb_prbs.size());
             string filename=string(outFileName)+".non-invertible.probe.list";
             FILE* tmpfile=fopen(filename.c_str(),"w");
             if(!tmpfile)
@@ -3340,8 +4085,8 @@ namespace SMRDATA
         
         if(nega_prbs.size()>0)
         {
-            printf("\nWARNING: %ld probes have at least one eQTL whose 1'inv(v)1 is negative .\n",nega_prbs.size());
-            printf("WARNING: That means we can't get SE by doing square-root. Pleae report to us to update the method.\n");
+            printf("\nWARNING: %ld probes have at least one eQTL whose 1'inv(S)1 is negative .\n",nega_prbs.size());
+            printf("WARNING: That means we can't get SE by doing square-root.\n");
             printf("WARNING: In term of such case we set effect size as 0 and SE as missing (-9).\n");
             string filename=string(outFileName)+".negative.probe.list";
             FILE* tmpfile=fopen(filename.c_str(),"w");
@@ -3358,12 +4103,36 @@ namespace SMRDATA
             fclose(tmpfile);
             printf("These probes are saved in file %s.\n",filename.c_str());
         }
-
-        write_epi(outFileName, &eqtls[0]);
-        write_esi(outFileName, &eqtls[0]);
-        write_sbesd3(outFileName, cols, rowids, val);
         
+        
+        for(int i=0;i<probeinfo.size();i++)
+        {
+            if(probeinfo[i].genename) free2(&probeinfo[i].genename);
+            if(probeinfo[i].probeId) free2(&probeinfo[i].probeId);
+            if(probeinfo[i].ptr) free2(&probeinfo[i].ptr);
+            if(probeinfo[i].bfilepath) free2(&probeinfo[i].bfilepath);
+            if(probeinfo[i].esdpath) free2(&probeinfo[i].esdpath);
+        }
+        for(int i=0;i<snpinfo.size();i++)
+        {
+            if(snpinfo[i].a1) free2(&snpinfo[i].a1);
+            if(snpinfo[i].a2) free2(&snpinfo[i].a2);
+            if(snpinfo[i].snprs) free2(&snpinfo[i].snprs);
+            if(snpinfo[i].rstr) free2(&snpinfo[i].rstr);
+            if(snpinfo[i].revs) free2(&snpinfo[i].revs);
+        }
+        for(int i=0;i<besds.size();i++)
+        {
+            fclose(fptrs[i]);
+        }
+        fclose(efile);
+        free(fptrs);
+        free(buffer_se);
+        free(buffer_beta);
+        
+        printf("\nThe eQTL infomation of %ld probes and %ld SNPs has been in binary file %s.\n",metaPrbNum,metaSNPnum,besdName.c_str());
     }
+    
     void read_epi4u(eqtlInfo* eqtlinfo, string epifile)
     {
         ifstream epi(epifile.c_str());

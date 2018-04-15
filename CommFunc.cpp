@@ -155,12 +155,8 @@ int CommFunc::max_abs_id(VectorXd &zsxz)
     return(id);
 }
 
-int CommFunc::fopen_checked(FILE** in_file, const char* filename, const char* flag)
-{
-    *in_file=fopen(filename,flag);
-    if(!*in_file)  return 0;
-    return 1;
-}void CommFunc::getRank(vector<double> &a, vector<int> &b)
+
+void CommFunc::getRank(vector<double> &a, vector<int> &b)
 {
     b.resize(a.size());
     for (int i = (int)a.size()-1; i >= 0; i--)
@@ -226,12 +222,67 @@ void CommFunc::strcpy2(char** to, string from)
     tmp[from.size()]='\0';
     *to=tmp;
 }
-void CommFunc::free2(char** to)
+float CommFunc::readfloat(FILE *f) {
+    float v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+uint64_t CommFunc::readuint64(FILE *f) {
+    uint64_t v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+uint32_t CommFunc::readuint32(FILE *f) {
+    uint32_t v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+int CommFunc::readint(FILE *f) {
+    int v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+double CommFunc::cor(vector<double> &y, vector<double> &x)
 {
-    if(*to)
-    {
-        delete(*to);
-        *to=NULL;
+    long N = x.size();
+    if (N != y.size() || N < 1) {
+        printf("Error: The lengths of x and y do not match.\n");
+        exit(EXIT_FAILURE);
     }
+    
+    int i = 0;
+    double d_buf = 0.0, y_mu = 0.0, x_mu = 0.0, x_var = 0.0, y_var = 0.0, cov = 0.0;
+    for (i = 0; i < N; i++) {
+        x_mu += x[i];
+        y_mu += y[i];
+    }
+    x_mu /= (double) N;
+    y_mu /= (double) N;
+    for (i = 0; i < N; i++) {
+        d_buf = (x[i] - x_mu);
+        x_var += d_buf*d_buf;
+        d_buf = (y[i] - y_mu);
+        y_var += d_buf*d_buf;
+    }
+    x_var /= (double) (N - 1.0);
+    y_var /= (double) (N - 1.0);
+    for (i = 0; i < N; i++) cov += (x[i] - x_mu)*(y[i] - y_mu);
+    cov /= (double) (N - 1);
+    double a = 0.0, b = 0.0, sse = 0.0, a_se = 0.0, b_se = 0.0, r = 0.0;
+    if (x_var > 0.0) b = cov / x_var;
+    a = y_mu - b*x_mu;
+    for (i = 0; i < N; i++) {
+        d_buf = y[i] - a - b * x[i];
+        sse += d_buf*d_buf;
+    }
+    if (x_var > 0.0) {
+        a_se = sqrt((sse / (N - 2.0))*(1.0 / N + x_mu * x_mu / (x_var * (N - 1.0))));
+        b_se = sqrt(sse / x_var / (N - 1.0) / (N - 2.0));
+    }
+    if (x_var > 0.0 && y_var > 0.0) {
+        r = cov / sqrt(y_var * x_var);
+    }
+    
+    return (r);
 }
 
