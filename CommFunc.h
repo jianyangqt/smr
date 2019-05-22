@@ -26,8 +26,8 @@
 #define MAX_SNP_NAME 64
 #define DENSE_FILE_TYPE_1 0  // uint32 + floats
 #define SPARSE_FILE_TYPE_3F 0x40400000 // uint32 + uint64_t + uint64_ts + uint32_ts + floats
-#define SPARSE_FILE_TYPE_3 3 // 10*uint32s + uint64_t + uint64_ts + uint32_ts + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +valnumber+cols+rowids+betases) [default]
-#define DENSE_FILE_TYPE_3 5  // 10*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]
+#define SPARSE_FILE_TYPE_3 3 // 16*uint32s + uint64_t + uint64_ts + uint32_ts + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +valnumber+cols+rowids+betases) [default]
+#define DENSE_FILE_TYPE_3 5  // 16*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]
 #define RESERVEDUNITS 16
 #define FNAMESIZE 4096
 
@@ -35,8 +35,8 @@
 #define MAX_NUM_LD 500
 
 #define MIN_PVAL_ADJUSTED 1e-150
-typedef unsigned long long         uint64_t;
-typedef unsigned int         uint32_t;
+//typedef unsigned long long         uint64_t;
+//typedef unsigned int         uint32_t;
 
 #include <limits>
 #include <complex>
@@ -51,6 +51,7 @@ typedef unsigned int         uint32_t;
 #include <unsupported/Eigen/SparseExtra>
 #include <Eigen/Eigenvalues>
 #include <queue>
+//#include <cmath> //already in Eigen
 
 using namespace Eigen;
 using namespace std;
@@ -111,6 +112,28 @@ namespace CommFunc
     uint32_t readuint32(FILE *f);
     int readint(FILE *f);
     double cor(vector<double> &y, vector<double> &x);
+    double cor(VectorXd &Y, VectorXd &X, bool centered=false, bool standardised=false);
+    void update_map_kp(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep);
+    void update_map_rm(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep);
+    
+    template <typename T>
+    inline string atos (T const& a)
+    {
+        stringstream ss;
+        ss << a;
+        return(ss.str());
+    }
+    
+    
+    string dtos(double value);
+    string dtosf(double value);
+    string itos(int value);
+    string ltos(long value);
+    void update_id_map_kp(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep);
+    void update_id_map_rm(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep);
+    void read_indi_list(string indi_list_file, vector<string> &indi_list);
+    void read_msglist(string msglistfile, vector<string> &msglist, string msg);
+    void progress(int &cur, double &disp, int ttl);
 }
 
 #endif

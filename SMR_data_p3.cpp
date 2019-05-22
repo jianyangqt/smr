@@ -136,7 +136,7 @@ namespace SMRDATA
                 while(!feof(fptr))
                 {
                     float tmpfloat=readfloat(fptr);
-                    if(abs(tmpfloat+9)>1e-6) valnum++;
+                    if(fabs(tmpfloat+9)>1e-6) valnum++;
                 }
             }
             if(filetype==DENSE_FILE_TYPE_3) {
@@ -168,7 +168,7 @@ namespace SMRDATA
         
         // get esd info
         long esiNum=snpinfo.size();
-        long epiNum=probeinfo.size();
+        int epiNum=(int)probeinfo.size();
         string esdfile=string(outFileName)+string(".besd");
         FILE * smr1;
         smr1 = fopen (esdfile.c_str(), "wb");
@@ -187,10 +187,10 @@ namespace SMRDATA
         map<string, int>::iterator iter;
         eqtlInfo eqtlinfo;
         int ssck=-9;
+        double dis=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
-            fflush(stdout);
+            progress(j, dis, epiNum);
             string prbname=probeinfo[j].probeId;
             for(int k=0;k<bsize;k++) buffer[k]=-9; //init
             for(int k=0;k<probeinfo[j].besdpath.size();k++)
@@ -239,7 +239,7 @@ namespace SMRDATA
                     {
                         float beta=eqtlinfo._bxz[0][jj];
                         float se=eqtlinfo._sexz[0][jj];
-                        if(ABS(se+9)<1e-6) continue;
+                        if(fabs(se+9)<1e-6) continue;
                         _beta.push_back(beta);
                         _se.push_back(se);
                         _rs.push_back(eqtlinfo._esi_rs[jj]);
@@ -284,7 +284,6 @@ namespace SMRDATA
                 
                 
                 vector<int> rsid(_rs.size());
-#pragma omp parallel for private(iter)
                 for (int l = 0; l<_rs.size(); l++){
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) rsid[l]=iter->second;
@@ -405,10 +404,10 @@ namespace SMRDATA
        }
         int loops=ceil(1.0*epiNum/prbperloop);
         int ssck=-9;
+        double dis=0;
         for(int j=0;j<loops;j++)
         {
-            printf("Saving... %3.0f%%\r", 100.0*j/loops);
-            fflush(stdout);
+            progress(j, dis, loops);
             uint64_t numprbcurloop=prbperloop;
             if(j==loops-1) numprbcurloop=epiNum-j*numprbcurloop;
             uint64_t vnum=numprbcurloop*esiNum*2;
@@ -701,10 +700,10 @@ namespace SMRDATA
         eqtlInfo etmp;
         printf("Reading besd files....\n");
         int ssck=-9;
+        double dis=0;
         for (int i = 0; i < smasNames.size(); i++)
         {
-            printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
-            fflush(stdout);
+            progress(i, dis, (int)smasNames.size());
             
             string esifile = smasNames[i]+".esi";
             read_esifile(&etmp, esifile, prtscr);
@@ -843,7 +842,6 @@ namespace SMRDATA
                             _a1.push_back(etmp._esi_allele1[ridbuff[l]]);
                             _a2.push_back(etmp._esi_allele2[ridbuff[l]]);
                         }
-                        #pragma omp parallel for private(iter)
                         for (int l = 0; l<_rs.size(); l++)
                         {
                             iter = esi_map.find(_rs[l]);
@@ -884,7 +882,7 @@ namespace SMRDATA
                             vector<int> keepid;
                             for(int l=0;l<num;l++)
                             {
-                                if(abs(betasebuff[l+num]+9)>1e-6)
+                                if(fabs(betasebuff[l+num]+9)>1e-6)
                                 {
                                     rid_map.insert(pair<int,int>(ridbuff[l],ridsize));
                                     if(ridsize<rid_map.size())
@@ -1051,7 +1049,6 @@ namespace SMRDATA
                             _a1.push_back(etmp._esi_allele1[ridbuff[l]]);
                             _a2.push_back(etmp._esi_allele2[ridbuff[l]]);
                         }
-                        #pragma omp parallel for private(iter)
                         for (int l = 0; l<_rs.size(); l++)
                         {
                             iter = esi_map.find(_rs[l]);
@@ -1092,7 +1089,7 @@ namespace SMRDATA
                             vector<int> keepid;
                             for(int l=0;l<realnum;l++)
                             {
-                                if(abs(betasebuff[l+realnum]+9)>1e-6)
+                                if(fabs(betasebuff[l+realnum]+9)>1e-6)
                                 {
                                     rid_map.insert(pair<int,int>(ridbuff[l],ridsize));
                                     if(ridsize<rid_map.size())
@@ -1199,18 +1196,14 @@ namespace SMRDATA
 
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
-        
+        double disp=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", 100.0*j/(2*epiNum));
-            fflush(stdout);
+            progress(j, disp, (int)epiNum);
             fwrite (probeinfo[j].rowid,sizeof(uint32_t), probeinfo[j].vnum*2, smr1);
         }
-        
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", (100.0*j/(2*epiNum)+50));
-            fflush(stdout);
             fwrite (probeinfo[j].beta_se,sizeof(float), probeinfo[j].vnum*2, smr1);
         }
         fclose (smr1);
@@ -1253,11 +1246,11 @@ namespace SMRDATA
         printf("Reading besd files....\n");
         
         int ssck=-9;
+        double disp=0;
         for (int i = 0; i < smasNames.size(); i++)
         {
-            printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
-            fflush(stdout);
-            
+            progress(i, disp, (int)smasNames.size());
+          
             string epifile = smasNames[i]+".epi";
             read_epifile(&etmp, epifile, prtscr);
 
@@ -1455,7 +1448,7 @@ namespace SMRDATA
                     fseek(fptr,((j<<1)*etmp._snpNum+descriptive)<<2, SEEK_SET);
                     fread(tmpbetase, sizeof(float),etmp._snpNum<<1,fptr);
                     uint64_t realnum=0;
-                    for(int k=0;k<etmp._snpNum;k++) if(tmpbetase[etmp._snpNum+k]+9>1e-6) realnum++;
+                    for(int k=0;k<etmp._snpNum;k++) if(fabs(tmpbetase[etmp._snpNum+k]+9>1e-6)) realnum++;
                     probeinfo[prbindx].vnum=realnum;
                     uint32_t* ridbuff=(uint32_t*)malloc(realnum*2*sizeof(uint32_t));
                     if(NULL == ridbuff)
@@ -1474,7 +1467,7 @@ namespace SMRDATA
                     realnum=0;
                     for(int k=0;k<etmp._snpNum;k++)
                     {
-                        if(tmpbetase[etmp._snpNum+k]+9>1e-6){
+                        if(fabs(tmpbetase[etmp._snpNum+k]+9>1e-6)){
                             ridbuff[realnum]=k;
                             betasebuff[realnum]=tmpbetase[k];
                             realnum++;
@@ -1482,7 +1475,7 @@ namespace SMRDATA
                     }
                     for(int k=0;k<etmp._snpNum;k++)
                     {
-                        if(tmpbetase[etmp._snpNum+k]+9>1e-6){
+                        if(fabs(tmpbetase[etmp._snpNum+k]+9>1e-6)){
                             ridbuff[realnum]=k;
                             betasebuff[realnum]=tmpbetase[etmp._snpNum+k];
                             realnum++;
@@ -1533,18 +1526,15 @@ namespace SMRDATA
         
         fwrite (&valNum,sizeof(uint64_t), 1, smr1);
         fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
-        
+         disp=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", 100.0*j/(2*epiNum));
-            fflush(stdout);
             fwrite (probeinfo[j].rowid,sizeof(uint32_t), probeinfo[j].vnum*2, smr1);
         }
 
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", (100.0*j/(2*epiNum)+50));
-            fflush(stdout);
+            progress(j, disp, (int)epiNum);
             fwrite (probeinfo[j].beta_se,sizeof(float), probeinfo[j].vnum*2, smr1);
         }
         fclose (smr1);
@@ -1608,10 +1598,10 @@ namespace SMRDATA
         vector<snpinfolst> snpinfo;
         eqtlInfo eqtlinfo;
         int ssck=-9;
+        double disp=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving... %3.0f%%\r", 100.0*j/epiNum);
-            fflush(stdout);
+            progress(j, disp, (int)epiNum);
             string prbname=probeinfo[j].probeId;
             vector<uint32_t> tmprid;
             vector<float> tmpse;
@@ -1656,7 +1646,7 @@ namespace SMRDATA
                     {
                         float beta=eqtlinfo._bxz[0][jj];
                         float se=eqtlinfo._sexz[0][jj];
-                        if(ABS(se+9)<1e-6) continue;
+                        if(fabs(se+9)<1e-6) continue;
                         snp_map.insert(pair<string,int>(eqtlinfo._esi_rs[jj],snpmapsize));
                         if(snpmapsize<snp_map.size())
                         {
@@ -1694,7 +1684,7 @@ namespace SMRDATA
                         {
                             double beta=eqtlinfo._val[pos+jj];
                             double se=eqtlinfo._val[pos+jj+num];
-                            if(ABS(se+9)<1e-6) continue;
+                            if(fabs(se+9)<1e-6) continue;
                             int rowid=eqtlinfo._rowid[pos+jj];
                             snp_map.insert(pair<string,int>(eqtlinfo._esi_rs[jj],snpmapsize));
                             if(snpmapsize<snp_map.size())
@@ -1743,7 +1733,6 @@ namespace SMRDATA
                     _se[l]=snpinfo[slct_idx[l]].se;
                 }
                 vector<int> rsid(_rs.size());
-                #pragma omp parallel for private(iter)
                 for (int l = 0; l<_rs.size(); l++){
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) rsid[l]=iter->second;
@@ -1756,7 +1745,7 @@ namespace SMRDATA
               //  long rsNum=0;
                 for(int l=0;l<rsid.size();l++) // here rsid is not in order, so the rowids in the file is not in order
                 {
-                   // if(abs(_se[l]+9)>1e-6) // can move this. the NA is controled in slct_sparse_per_prb
+                   // if(fabs(_se[l]+9)>1e-6) // can move this. the NA is controled in slct_sparse_per_prb
                    // {
                     //    string chckstr=_rs[l]+":"+_a1[l]+":"+_a2[l];
                      //   rsa_map.insert(pair<string,int>(chckstr,l)); // in slct_sparse_per_prb, ras_map can privent selecting duplicate SNPs and double-slelecting SNPs. so we can move rsa_map here.
@@ -1907,10 +1896,10 @@ namespace SMRDATA
         eqtlInfo eqtlinfo;
         printf("Reading besd files....\n");
         int ssck=-9;
+        double disp=0;
         for (int i = 0; i < smasNames.size(); i++)
         {
-            printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
-            fflush(stdout);
+            progress(i, disp, (int)smasNames.size());
             string esifile = smasNames[i]+".esi";
             read_esifile(&eqtlinfo, esifile, prtscr);
             
@@ -2052,7 +2041,7 @@ namespace SMRDATA
                             {
                                 float beta=betasebuff[jj];
                                 float se=betasebuff[jj+num];
-                                if(abs(se+9)<1e-6) continue;
+                                if(fabs(se+9)<1e-6) continue;
                                 int rowid=ridbuff[jj];
                                 
                                 tmpsinfo[jj].beta=beta;
@@ -2083,7 +2072,7 @@ namespace SMRDATA
                             for(int jj=0;jj<num;jj++)
                             {
                                 double se=betasebuff[jj+num];
-                                if(ABS(se+9)<1e-6) continue;
+                                if(fabs(se+9)<1e-6) continue;
                                 int rowid=ridbuff[jj];
                                 rsmap.insert(pair<string,int>(eqtlinfo._esi_rs[rowid],rssize));
                                 if(rssize<rsmap.size())
@@ -2109,7 +2098,7 @@ namespace SMRDATA
                                 for(int l=0;l<keepid.size();l++) {
                                     double beta=betasebuff[keepid[l]];
                                     double se=betasebuff[keepid[l]+num];
-                                    if(ABS(se+9)<1e-6) continue;
+                                    if(fabs(se+9)<1e-6) continue;
                                     int rowid=ridbuff[keepid[l]];
                                     
                                     sinfo_new[probeinfo[prbindx].vnum+l].beta=beta;
@@ -2188,7 +2177,6 @@ namespace SMRDATA
                 }
                 memset(betasebuff,0,slct_idx.size()*2*sizeof(float));
 
-                #pragma omp parallel for private(iter)
                 for (int l = 0; l<slct_idx.size(); l++){
                     iter = esi_map.find(snpinfo[slct_idx[l]].snprs);
                     if (iter != esi_map.end()) {
@@ -2267,15 +2255,12 @@ namespace SMRDATA
         
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", 100.0*j/(2*epiNum));
-            fflush(stdout);
             fwrite (probeinfo[j].rowid,sizeof(uint32_t), probeinfo[j].vnum*2, smr1);
         }
-        
+         disp=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", (100.0*j/(2*epiNum)+50));
-            fflush(stdout);
+            progress(j, disp, (int)epiNum);
             fwrite (probeinfo[j].beta_se,sizeof(float), probeinfo[j].vnum*2, smr1);
         }
         fclose (smr1);
@@ -2333,10 +2318,10 @@ namespace SMRDATA
        
         read_esifile(&eqtlinfo, string(probeinfo[0].besdpath[0])+".esi", prtscr);
         int ssck=-9;
+        double disp=0;
         for (int i = 0; i < smasNames.size(); i++)
         {
-            printf("Reading... %3.0f%%\r", 100.0*i/(smasNames.size()));
-            fflush(stdout);
+            progress(i, disp, (int)smasNames.size());
             
             string epifile = smasNames[i]+".epi";
             read_epifile(&eqtlinfo, epifile, prtscr);
@@ -2465,7 +2450,7 @@ namespace SMRDATA
                         {
                             double beta=betasebuff[jj];
                             double se=betasebuff[jj+num];
-                            if(ABS(se+9)<1e-6) continue;
+                            if(fabs(se+9)<1e-6) continue;
                             int rowid=ridbuff[jj];
                             snpinfolst tmpinfo;
                             tmpinfo.beta=beta;
@@ -2518,7 +2503,6 @@ namespace SMRDATA
                         vector<string> _rs(slct_idx.size());
                         for(int l=0;l<slct_idx.size();l++) _rs[l]=snpinfo[slct_idx[l]].snprs;
                         vector<uint32_t> rsid(_rs.size());
-                        #pragma omp parallel for private(iter)
                         for (int l = 0; l<_rs.size(); l++){
                             iter = esi_map.find(_rs[l]);
                             if (iter != esi_map.end()) rsid[l]=iter->second;
@@ -2612,7 +2596,7 @@ namespace SMRDATA
                     {
                         float beta=tmpbetase[jj];
                         float se=tmpbetase[jj+eqtlinfo._snpNum];
-                        if(ABS(se+9)<1e-6) continue;
+                        if(fabs(se+9)<1e-6) continue;
                        
                         snpinfolst tmpinfo;
                         tmpinfo.beta=beta;
@@ -2718,15 +2702,14 @@ namespace SMRDATA
         
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", 100.0*j/(2*epiNum));
-            fflush(stdout);
+           
             fwrite (probeinfo[j].rowid,sizeof(uint32_t), probeinfo[j].vnum*2, smr1);
         }
-        
+        disp=0;
         for(int j=0;j<epiNum;j++)
         {
-            printf("Saving...  %3.0f%%\r", (100.0*j/(2*epiNum)+50));
-            fflush(stdout);
+            progress(j, disp, (int)epiNum);
+    
             fwrite (probeinfo[j].beta_se,sizeof(float), probeinfo[j].vnum*2, smr1);
         }
         fclose (smr1);
@@ -2790,7 +2773,7 @@ namespace SMRDATA
         ofstream esi(esifile.c_str());
         if (!esi) throw ("Error: can not open the ESI file to save!");
         for (long j = 0;j <snpinfo.size(); j++) {
-            esi<<snpinfo[j].snpchr<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<snpinfo[j].bp<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<(abs(snpinfo[j].freq+9)>1e-6?atos(snpinfo[j].freq):"NA")<<'\n';
+            esi<<snpinfo[j].snpchr<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<snpinfo[j].bp<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<(fabs(snpinfo[j].freq+9)>1e-6?atos(snpinfo[j].freq):"NA")<<'\n';
             if(!genouni)
             {
                 esi_rs[j]=snpinfo[j].snprs;
@@ -2901,7 +2884,7 @@ namespace SMRDATA
                 }
                 if(qcflag)
                 {
-                    if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
+                    if(fabs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
                     {
                         printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
                         nufreqwarnflg=true;
@@ -2909,7 +2892,7 @@ namespace SMRDATA
                     }
                     if(snpinfotmp.freq<1e-8)
                     {
-                        printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
+                        printf("WARNING: %s frequency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
                         continue;
                     }
                     snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, snpinfotmp.se);
@@ -2944,7 +2927,7 @@ namespace SMRDATA
         float* se_ptr = ft + etmp->_snpNum;
         for (int j = 0; j<etmp->_esi_include.size(); j++) {
             float se=*(se_ptr + etmp->_esi_include[j]);
-            if(abs(se+9)>1e-6)
+            if(fabs(se+9)>1e-6)
             {
                 snpinfolst snpinfotmp;
                 strcpy2(&snpinfotmp.snprs, etmp->_esi_rs[etmp->_esi_include[j]]);
@@ -3004,13 +2987,13 @@ namespace SMRDATA
             for(long i=0;i<ttlnum;i++)
             {
                 float z=(snpinfo[i].estn-avgn)/sdn;
-                if(abs(z)>3) lowidx=i;
+                if(fabs(z)>3) lowidx=i;
                 else break;
             }
             for(long i=ttlnum-1;i>=0;i--)
             {
                 float z=(snpinfo[i].estn-avgn)/sdn;
-                if(abs(z)>z_thresh) upidx=i;
+                if(fabs(z)>z_thresh) upidx=i;
                 else break;
             }
             
@@ -3139,8 +3122,8 @@ namespace SMRDATA
         vector<uint32_t> rowids;
         vector<float> val;
         cols[0]=0;
-
-        
+        val.reserve(etmp._esi_include.size()/5*etmp._include.size()*2);
+        rowids.reserve(etmp._esi_include.size()/5*etmp._include.size()*2);
         string besdfile = string(eqtlFileName)+".besd";
         FILE *fptr=fopen(besdfile.c_str(), "rb");
         if(!fptr)
@@ -3309,11 +3292,11 @@ namespace SMRDATA
             fputs(logstr.c_str(),qcsryfptr);
             fflush(qcsryfptr);
         }
-        
+        double disp=0;
         for(int i=0;i<etmp._include.size();i++)
         {
-            printf("Saving... %3.0f%%\r", 100.0*i/etmp._include.size());
-            fflush(stdout);
+            progress(i, disp, (int)etmp._include.size());
+         
             techHit=false;
             bool nufreqwarnflg=false;
             string prbname=etmp._epi_prbID[etmp._include[i]];
@@ -3342,7 +3325,7 @@ namespace SMRDATA
                 for (int j = 0; j<etmp._esi_include.size(); j++)
                 {
                     float se=*(se_ptr + etmp._esi_include[j]);
-                    if(abs(se+9)>1e-6)
+                    if(fabs(se+9)>1e-6)
                     {
                         snpinfolst snpinfotmp;
                         strcpy2(&snpinfotmp.snprs, etmp._esi_rs[etmp._esi_include[j]]);
@@ -3370,15 +3353,15 @@ namespace SMRDATA
                         }
 
                         if(qcflag) {
-                            if(abs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
+                            if(fabs(snpinfotmp.freq+9)<1e-6 && !nufreqwarnflg)
                             {
                                 printf("WARNING: one or more NA freqencies found. This SNP would be excluded.\n");
                                 nufreqwarnflg=true;
                                 continue;
                             }
-                            if(abs(snpinfotmp.freq)<1e-8)
+                            if(fabs(snpinfotmp.freq)<1e-8)
                             {
-                                printf("WARNING: %s freqency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
+                                printf("WARNING: %s frequency is 0. This SNP would be excluded.\n",snpinfotmp.snprs);
                                 continue;
                             }
                             snpinfotmp.estn=est_sample_size(snpinfotmp.freq, snpinfotmp.beta, se);
@@ -3443,7 +3426,6 @@ namespace SMRDATA
                 _se[l]=snpinfo[slct_idx[l]].se;
             }
             vector<int> rsid(_rs.size());
-            #pragma omp parallel for private(iter)
             for (int l = 0; l<_rs.size(); l++){
                 iter = esi_map.find(_rs[l]);
                 if (iter != esi_map.end()) rsid[l]=iter->second;
@@ -3456,7 +3438,7 @@ namespace SMRDATA
             long rsNum=0;
             for(int l=0;l<rsid.size();l++)
             {
-                if(abs(_se[l]+9)>1e-6) // can move this. the NA is controled in slct_sparse_per_prb
+                if(fabs(_se[l]+9)>1e-6) // can move this. the NA is controled in slct_sparse_per_prb
                 {
                    // string chckstr=_rs[l]+":"+_a1[l]+":"+_a2[l];
                   //  rsa_map.insert(pair<string,int>(chckstr,l)); // in slct_sparse_per_prb, ras_map can privent selecting duplicate SNPs and double-slelecting SNPs. so we can move rsa_map here.
@@ -3574,352 +3556,6 @@ namespace SMRDATA
         
     }
     
-    void diff(char* eqtlFileName1,char* eqtlFileName2)
-    {
-        if(eqtlFileName1==NULL) throw("Error: please input eQTL summary data for diff by the flag --eqtl-summary.");
-        if(eqtlFileName2==NULL) throw("Error: please input eQTL summary data for diff by the flag --eqtl-summary.");
-        bool diff=false;
-        eqtlInfo edata1;
-        eqtlInfo edata2;
-        read_esifile(&edata1, string(eqtlFileName1)+".esi");
-        read_esifile(&edata2, string(eqtlFileName2)+".esi");
-        read_epifile(&edata1, string(eqtlFileName1)+".epi");
-        read_epifile(&edata2, string(eqtlFileName2)+".epi");
-        // log file
-        FILE* logfile=NULL;
-        string logfname = "diff.out";
-        logfile=fopen(logfname.c_str(), "w");
-        if (!(logfile)) {
-            printf("Error: Failed to open log file.\n");
-            exit(1);
-        }
-        string logstr="";
-        
-        string besdfile1 = string(eqtlFileName1)+".besd";
-        FILE *fptr1=fopen(besdfile1.c_str(), "rb");
-        if(!fptr1)
-        {
-            printf ( "ERROR: Couldn't open file %s\n", besdfile1.c_str());
-            exit (EXIT_FAILURE);
-        }
-        uint32_t filetype1=readuint32(fptr1);
-        
-        string besdfile2 = string(eqtlFileName2)+".besd";
-        FILE *fptr2=fopen(besdfile2.c_str(), "rb");
-        if(!fptr2)
-        {
-            printf ( "ERROR: Couldn't open file %s\n", besdfile2.c_str());
-            exit (EXIT_FAILURE);
-        }
-        uint32_t filetype2=readuint32(fptr2);
-        if(filetype1!=filetype2) {
-            printf("different besd file format.\n");
-            return;
-        }
-        if(filetype1==SPARSE_FILE_TYPE_3F ){
-            
-            uint64_t colNum1=(edata1._probNum<<1)+1;
-            fseek(fptr1, 0L, SEEK_END);
-            uint64_t lSize = ftell(fptr1);
-            fseek(fptr1, 0L, SEEK_SET);
-            readfloat(fptr1);
-            uint64_t valNum1=readuint64(fptr1);
-            if( lSize - (sizeof(uint32_t) + sizeof(uint64_t) + colNum1*sizeof(uint64_t) + valNum1*sizeof(uint32_t) + valNum1*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
-            uint64_t colNum2=(edata2._probNum<<1)+1;
-            fseek(fptr2, 0L, SEEK_END);
-            uint64_t lSize2 = ftell(fptr2);
-            fseek(fptr2, 0L, SEEK_SET);
-            readfloat(fptr2);
-            uint64_t valNum2=readuint64(fptr2);
-            if( lSize2 - (sizeof(uint32_t) + sizeof(uint64_t) + colNum2*sizeof(uint64_t) + valNum2*sizeof(uint32_t) + valNum2*sizeof(float)) != 0) {fputs ("wrong element number.\n",stderr); exit (3);}
-            
-            uint64_t colsize1=colNum1*sizeof(uint64_t);
-            uint64_t* colbuf1=(uint64_t*)malloc(colsize1);
-            if(NULL == colbuf1)
-            {
-                printf("ERROR: Can't malloc the reading cols buffer for %llu MB.\n",(colsize1>>20));
-                exit(EXIT_FAILURE);
-            }
-            fread(colbuf1,colNum1,sizeof(uint64_t),fptr1);
-            uint64_t colsize2=colNum2*sizeof(uint64_t);
-            uint64_t* colbuf2=(uint64_t*)malloc(colsize2);
-            if(NULL == colbuf2)
-            {
-                printf("ERROR: Can't malloc the reading cols buffer for %llu MB.\n",(colsize2>>20));
-                exit(EXIT_FAILURE);
-            }
-            fread(colbuf2,colNum2,sizeof(uint64_t),fptr2);
-            
-            uint64_t* ptr1=NULL;
-            uint64_t rowSTART1=0;
-            uint64_t valSTART1=0;
-            ptr1=colbuf1;
-            uint64_t* ptr2=NULL;
-            uint64_t rowSTART2=0;
-            uint64_t valSTART2=0;
-            ptr2=colbuf2;
-            rowSTART1=sizeof(float) + sizeof(uint64_t) + colNum1*sizeof(uint64_t);
-            valSTART1=sizeof(float) + sizeof(uint64_t) + colNum1*sizeof(uint64_t)+valNum1*sizeof(uint32_t);
-            rowSTART2=sizeof(float) + sizeof(uint64_t) + colNum2*sizeof(uint64_t);
-            valSTART2=sizeof(float) + sizeof(uint64_t) + colNum2*sizeof(uint64_t)+valNum2*sizeof(uint32_t);
-            
-            int _j=0;
-            for( int j=0;j<edata1._probNum;j++){
-                uint64_t pos=*(ptr1+(j<<1)); //BETA START
-                uint64_t pos1=*(ptr1+(j<<1)+1); //SE START
-                uint64_t num=pos1-pos;
-                string prbname=edata1._epi_prbID[j];
-                int curj=_j;
-                while(curj<edata2._probNum && prbname!=edata2._epi_prbID[curj]) curj++;
-                if(curj==edata2._probNum) // prbname can't be found in edata2, it must be empty.
-                {
-                    if(num>0)
-                    {
-                        diff=true;
-                        logstr="Failed: no consistence for probe "+ prbname+".\n";
-                        fputs(logstr.c_str(),logfile);
-                        fflush(logfile);
-                        printf("%s",logstr.c_str());
-                        fclose(fptr1);
-                        fclose(fptr2);
-                        exit(EXIT_FAILURE);
-                    } else {
-                        continue;
-                    }
-                } else {
-                    
-                    for(int idx=_j;idx<curj;idx++)
-                    {
-                        if(!(*(ptr2+(idx<<1)+1)-*(ptr2+(idx<<1)))){
-                            diff=true;
-                            logstr="Failed: no consistence for probe "+ edata2._epi_prbID[idx]+".\n";
-                            fputs(logstr.c_str(),logfile);
-                            fflush(logfile);
-                            printf("%s",logstr.c_str());
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                        
-                    }
-                    
-                    if(num>0)
-                    {
-                        uint64_t _pos=*(ptr2+(curj<<1)); //BETA START
-                        uint64_t _pos1=*(ptr2+(curj<<1)+1); //SE START
-                        uint64_t _num=_pos1-_pos;
-                        if(num!=_num){
-                            diff=true;
-                            logstr="Failed: no consistence for probe "+ prbname+".\n";
-                            fputs(logstr.c_str(),logfile);
-                            fflush(logfile);
-                            printf("%s",logstr.c_str());
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                            
-                        uint32_t* ridbuff1=(uint32_t*)malloc(num*2*sizeof(uint32_t));
-                        if(NULL == ridbuff1)
-                        {
-                            printf("ERROR: Memory allocation error .\n");
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                        memset(ridbuff1,0,num*2*sizeof(uint32_t));
-                        float* betasebuff1=(float*)malloc(num*2*sizeof(float));
-                        if(NULL == betasebuff1)
-                        {
-                            printf("ERROR: Memory allocation error.\n");
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                        memset(betasebuff1,0,num*2*sizeof(float));
-                        
-                        fseek(fptr1, rowSTART1+pos*sizeof(uint32_t), SEEK_SET);
-                        fread(ridbuff1, sizeof(uint32_t),2*num,fptr1);
-                        fseek(fptr1,valSTART1+pos*sizeof(float),SEEK_SET);
-                        fread(betasebuff1,sizeof(float), 2*num,fptr1);
-                        
-                       
-                        uint32_t* ridbuff2=(uint32_t*)malloc(_num*2*sizeof(uint32_t));
-                        
-                        if(NULL == ridbuff2)
-                        {
-                            printf("ERROR: Memory allocation error .\n");
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                        memset(ridbuff2,0,_num*2*sizeof(uint32_t));
-                        float* betasebuff2=(float*)malloc(_num*2*sizeof(float));
-                        if(NULL == betasebuff2)
-                        {
-                            printf("ERROR: Memory allocation error.\n");
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                        memset(betasebuff2,0,_num*2*sizeof(float));
-                        
-                        fseek(fptr2, rowSTART2+_pos*sizeof(uint32_t), SEEK_SET);
-                        fread(ridbuff2, sizeof(uint32_t),2*_num,fptr2);
-                        fseek(fptr2,valSTART2+_pos*sizeof(float),SEEK_SET);
-                        fread(betasebuff2,sizeof(float), 2*_num,fptr2);
-                       // vector<uint32_t> rowid1;
-                        vector<string> rs1;
-                        vector<float> beta1;
-                        vector<float> se1;
-                        for(int jj=0;jj<num;jj++)
-                        {
-                            double beta=betasebuff1[jj];
-                            double se=betasebuff1[jj+num];
-                            if(ABS(se+9)<1e-6) continue;
-                            //rowid1.push_back(ridbuff1[jj]);
-                            rs1.push_back(edata1._esi_rs[ridbuff1[jj]]);
-                            beta1.push_back(beta);
-                            se1.push_back(se);
-                            
-                        }
-                        //vector<uint32_t> rowid2;
-                         vector<string> rs2;
-                        vector<float> beta2;
-                        vector<float> se2;
-                        for(int jj=0;jj<num;jj++)
-                        {
-                            double beta=betasebuff2[jj];
-                            double se=betasebuff2[jj+num];
-                            if(ABS(se+9)<1e-6) continue;
-                           // rowid2.push_back(ridbuff2[jj]);
-                            rs2.push_back(edata2._esi_rs[ridbuff2[jj]]);
-                            beta2.push_back(beta);
-                            se2.push_back(se);
-                        }
-                        vector<int> indx;
-                      //  match(rowid1, rowid2, indx);
-                        match(rs1, rs2, indx);
-                        for(int jj=0;jj<indx.size();jj++)
-                        {
-                            if(indx[jj]==-9){
-                                diff=true;
-                                logstr="Failed: no consistence for probe "+ edata1._epi_prbID[j]+".\n";
-                                fputs(logstr.c_str(),logfile);
-                                fflush(logfile);
-                                printf("%s",logstr.c_str());
-                                fclose(fptr1);
-                                fclose(fptr2);
-                                exit(EXIT_FAILURE);
-                            }
-                            if(abs(beta1[jj]-beta2[indx[jj]])>1e-6 || abs(se1[jj]-se2[indx[jj]])>1e-6)
-                            {
-                                diff=true;
-                                logstr=edata1._epi_prbID[j]+'\t'+rs1[jj]+'\t'+atos(beta1[jj])+'\t'+atos(beta2[indx[jj]])+'\t'+atos(se1[jj])+'\t'+atos(se2[indx[jj]])+'\n';
-                                fputs(logstr.c_str(),logfile);
-                                fflush(logfile);
-                                printf("%s",logstr.c_str());
-                            }
-                        }
-                        
-                        free(ridbuff1);
-                        free(betasebuff1);
-                        free(ridbuff2);
-                        free(betasebuff2);
-                    }
-                    else {
-                        if(!(*(ptr2+(curj<<1)+1)-*(ptr2+(curj<<1)))){
-                            diff=true;
-                            logstr="Failed: no consistence for probe "+ edata2._epi_prbID[curj]+".\n";
-                            fputs(logstr.c_str(),logfile);
-                            fflush(logfile);
-                            printf("%s",logstr.c_str());
-                            fclose(fptr1);
-                            fclose(fptr2);
-                            exit(EXIT_FAILURE);
-                        }
-                    }
-                    _j=++curj;
-                }
-            }
-            if(_j<edata2._probNum)
-            {
-                for(int idx=_j;idx<edata2._probNum;idx++)
-                {
-                    if(!(*(ptr2+(idx<<1)+1)-*(ptr2+(idx<<1)))){
-                        diff=true;
-                        logstr="Failed: no consistence for probe "+ edata2._epi_prbID[idx]+".\n";
-                        fputs(logstr.c_str(),logfile);
-                        fflush(logfile);
-                        printf("%s",logstr.c_str());
-                        fclose(fptr1);
-                        fclose(fptr2);
-                        exit(EXIT_FAILURE);
-                    }
-                    
-                }
-                
-
-            }
-            if(!diff){
-                logstr="PASSED: the files identify with each other.\n";
-                fputs(logstr.c_str(),logfile);
-                fflush(logfile);
-                printf("%s",logstr.c_str());
-                
-            }
-            free(colbuf1);
-            free(colbuf2);
-        }
-        else if(filetype1==DENSE_FILE_TYPE_1)
-        {
-            fseek(fptr1, 0L, SEEK_END);
-            uint64_t lSize = ftell(fptr1);
-            fseek(fptr1, 0L, SEEK_SET);
-            fseek(fptr2, 0L, SEEK_END);
-            uint64_t lSize2 = ftell(fptr1);
-            fseek(fptr2, 0L, SEEK_SET);
-            if(lSize!=lSize2)
-            {
-                diff=true;
-                logstr="Failed: no consistence in file size.\n";
-                fputs(logstr.c_str(),logfile);
-                fflush(logfile);
-                printf("%s",logstr.c_str());
-                fclose(fptr1);
-                fclose(fptr2);
-                exit(EXIT_FAILURE);
-
-            }
-            while(!feof(fptr1) && !feof(fptr2))
-            {
-                if(abs(readfloat(fptr1)-readfloat(fptr2))>1e-6)
-                {
-                    diff=true;
-                    logstr="Failed: no consistence in file content.\n";
-                    fputs(logstr.c_str(),logfile);
-                    fflush(logfile);
-                    printf("%s",logstr.c_str());
-                    fclose(fptr1);
-                    fclose(fptr2);
-                    exit(EXIT_FAILURE);
-                }
-            }
-            if(!diff){
-                logstr="PASSED: the files identify with each other.\n";
-                fputs(logstr.c_str(),logfile);
-                fflush(logfile);
-                printf("%s",logstr.c_str());
-                
-            }
-        }
-        
-        fclose(fptr1);
-        fclose(fptr2);
-        fclose(logfile);
-        
-        
-    }
     
     void beqtl_qc_se(eqtlInfo* eqtlinfo, int qc_mtd, int z_thresh, char* outFileName)
     {
@@ -3950,10 +3586,11 @@ namespace SMRDATA
         
         bool warnnullfrqflag=false;
         vector<snpinfolst> snpinfo;
+        double disp=0;
         for(int i=0;i<eqtlinfo->_include.size();i++)
         {
-            printf("Saving... %3.0f%%\r", 100.0*i/eqtlinfo->_include.size());
-            fflush(stdout);
+            progress(i, disp, (int)eqtlinfo->_include.size());
+           
             int prbidx=eqtlinfo->_include[i];
             string prbid=eqtlinfo->_epi_prbID[prbidx];
             snpinfo.clear();
@@ -3962,7 +3599,7 @@ namespace SMRDATA
                 for (int j = 0; j<eqtlinfo->_esi_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == gdata._include.size()
                 {
                     int snpidx=eqtlinfo->_esi_include[j];
-                    if (abs(eqtlinfo->_bxz[prbidx][snpidx] + 9) > 1e-6)
+                    if (fabs(eqtlinfo->_sexz[prbidx][snpidx] + 9) > 1e-6)
                     {
                         snpinfolst snptmp;
                         float se=eqtlinfo->_sexz[prbidx][snpidx];
@@ -3974,10 +3611,10 @@ namespace SMRDATA
                         float freq=eqtlinfo->_esi_freq[snpidx];
                         if(freq>=1 || freq<=0)
                         {
-                            printf("ERROR: freqency should be between 0 and 1. \n");
+                            printf("ERROR: frequency should be between 0 and 1. \n");
                             exit(EXIT_FAILURE);
                         }
-                        if(abs(freq+9)<1e-6 && !warnnullfrqflag)
+                        if(fabs(freq+9)<1e-6 && !warnnullfrqflag)
                         {
                             printf("WANRNING: one or more freqencies are NA, these SNPs would be removed. \n");
                             warnnullfrqflag=true;
@@ -4014,10 +3651,10 @@ namespace SMRDATA
                     }
                     if(freq>=1 || freq<=0)
                     {
-                        printf("ERROR: freqency should be between 0 and 1. \n");
+                        printf("ERROR: frequency should be between 0 and 1. \n");
                         exit(EXIT_FAILURE);
                     }
-                    if(abs(freq+9)<1e-6 && !warnnullfrqflag)
+                    if(fabs(freq+9)<1e-6 && !warnnullfrqflag)
                     {
                         printf("WANRNING: one or more freqencies are NA, these SNPs would be removed. \n");
                         warnnullfrqflag=true;

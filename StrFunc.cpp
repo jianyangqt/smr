@@ -65,6 +65,7 @@ void StrFunc::to_upper(char* str, int len)
         if(str[i]>='a' && str[i]<='z') str[i]+='A'-'a';
     }
 }
+
 void StrFunc::to_upper(string &str)
 {
 	int i=0;
@@ -300,6 +301,6 @@ void StrFunc::set_complement(const vector<int> &toRm, const vector<int> &source,
 bool StrFunc::stringNumCheck(string a, int num)
 {
     vector<string> b;
-    int number = split_string(a, b, " \t\n");
+    int number = split_string(a, b, ", \t\n");
     return(number==num);
 }

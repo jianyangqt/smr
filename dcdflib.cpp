@@ -6304,7 +6304,7 @@ void dstinv(double *zsmall,double *zbig,double *zabsst,
           QINCR is .FALSE. and F(BIG).LE.Y.LE.F(SMALL)
      if QMFINV returns .TRUE., then the X returned satisfies
      the following condition.  let
-               TOL(X) = MAX(ABSTOL,RELTOL*ABS(X))
+               TOL(X) = MAX(ABSTOL,RELTOL*fabs(X))
      then if QINCR is .TRUE.,
           F(X-TOL(X)) .LE. Y .LE. F(X+TOL(X))
      and if QINCR is .FALSE.
@@ -6317,7 +6317,7 @@ void dstinv(double *zsmall,double *zbig,double *zabsst,
           searched for a solution.
                     BIG is DOUBLE PRECISION
      ABSSTP, RELSTP --> The initial step size in the search
-          is MAX(ABSSTP,RELSTP*ABS(X)). See algorithm.
+          is MAX(ABSSTP,RELSTP*fabs(X)). See algorithm.
                     ABSSTP is DOUBLE PRECISION
                     RELSTP is DOUBLE PRECISION
      STPMUL --> When a step doesn't bound the zero, the step
@@ -6332,7 +6332,7 @@ void dstinv(double *zsmall,double *zbig,double *zabsst,
      Compares F(X) with Y for the input value of X then uses QINCR
      to determine whether to step left or right to bound the
      desired x.  the initial step size is
-          MAX(ABSSTP,RELSTP*ABS(S)) for the input value of X.
+          MAX(ABSSTP,RELSTP*fabs(S)) for the input value of X.
      Iteratively steps right or left until it bounds X.
      At each step which doesn't bound X, the step size is doubled.
      The routine is careful never to step beyond SMALL or BIG.  If
@@ -6383,7 +6383,7 @@ double dlanor(double *x)
                               Note
 
 
-      ABS(X) must be >= 5 else there is an error stop.
+      fabs(X) must be >= 5 else there is an error stop.
 
 **********************************************************************
 */
@@ -7105,10 +7105,10 @@ void dstzr(double *zxlo,double *zxhi,double *zabstl,double *zreltl)
      If the input condition is met, QRZERO returns .TRUE.
      and output values of XLO and XHI satisfy the following
           F(XLO)*F(XHI)  .LE. 0.
-          ABS(F(XLO)  .LE. ABS(F(XHI)
-          ABS(XLO-XHI)  .LE. TOL(X)
+          fabs(F(XLO)  .LE. fabs(F(XHI)
+          fabs(XLO-XHI)  .LE. TOL(X)
      where
-          TOL(X) = MAX(ABSTOL,RELTOL*ABS(X))
+          TOL(X) = MAX(ABSTOL,RELTOL*fabs(X))
      If this algorithm does not find XLO and XHI satisfying
      these conditions then QRZERO returns .FALSE.  This
      implies that the input condition was not met.
@@ -7246,7 +7246,7 @@ static double erfc1,ax,bot,e,t,top,w;
      .. Executable Statements ..
 */
 /*
-                     ABS(X) .LE. 0.5
+                     fabs(X) .LE. 0.5
 */
     ax = fabs(*x);
     if(ax > 0.5e0) goto S10;
@@ -7258,7 +7258,7 @@ static double erfc1,ax,bot,e,t,top,w;
     return erfc1;
 S10:
 /*
-                  0.5 .LT. ABS(X) .LE. 4
+                  0.5 .LT. fabs(X) .LE. 4
 */
     if(ax > 4.0e0) goto S20;
     top = ((((((p[0]*ax+p[1])*ax+p[2])*ax+p[3])*ax+p[4])*ax+p[5])*ax+p[6])*ax+p[
@@ -7269,7 +7269,7 @@ S10:
     goto S40;
 S20:
 /*
-                      ABS(X) .GT. 4
+                      fabs(X) .GT. 4
 */
     if(*x <= -5.6e0) goto S60;
     if(*ind != 0) goto S30;
@@ -7997,7 +7997,7 @@ static int i,j,m,n,T1;
     if(fabs(*a) >= 15.0e0) goto S110;
 /*
 -----------------------------------------------------------------------
-            EVALUATION OF GAMMA(A) FOR ABS(A) .LT. 15
+            EVALUATION OF GAMMA(A) FOR fabs(A) .LT. 15
 -----------------------------------------------------------------------
 */
     t = 1.0e0;
@@ -8065,7 +8065,7 @@ S100:
 S110:
 /*
 -----------------------------------------------------------------------
-            EVALUATION OF GAMMA(A) FOR ABS(A) .GE. 15
+            EVALUATION OF GAMMA(A) FOR fabs(A) .GE. 15
 -----------------------------------------------------------------------
 */
     if(fabs(*a) >= 1.e3) return Xgamm;
@@ -8724,7 +8724,7 @@ static int i,m,n,nq;
     if(x == 0.0e0) goto S100;
 /*
 ---------------------------------------------------------------------
-     0 .LT. ABS(X) .LE. XSMALL.  USE 1/X AS A SUBSTITUTE
+     0 .LT. fabs(X) .LE. XSMALL.  USE 1/X AS A SUBSTITUTE
      FOR  PI*COTAN(PI*X)
 ---------------------------------------------------------------------
 */

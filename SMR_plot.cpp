@@ -96,7 +96,7 @@ namespace SMRDATA
             {
                 for (int j = 0; j<etrait._esi_include.size(); j++)
                 {
-                    if (abs(etrait._bxz[ii][etrait._esi_include[j]] + 9) > 1e-6)
+                    if (fabs(etrait._sexz[ii][etrait._esi_include[j]] + 9) > 1e-6)
                     {
                         gdata.byz[count]=etrait._bxz[ii][etrait._esi_include[j]];
                         gdata.seyz[count]=etrait._sexz[ii][etrait._esi_include[j]];
@@ -248,7 +248,7 @@ namespace SMRDATA
                 {
                     for (int j = 0; j<esdata._esi_include.size(); j++)// bdata._include.size() == esdata._esi_include.size() == etrait._esi_include.size()
                     {
-                        if (abs(esdata._bxz[i][j] + 9) > 1e-6)
+                        if (fabs(esdata._sexz[i][j] + 9) > 1e-6)
                         {
                             int snpbp=esdata._esi_bp[j];
                             int snpchr=esdata._esi_chr[j];
@@ -360,11 +360,11 @@ namespace SMRDATA
                     ld_calc_o2m(ld_v,maxid,_X);
                     
                     //test here
-                    // for( int kk=0;kk<curId.size();kk++) if(abs(ld_v[kk]-_LD.col(maxid)[kk])>1e-6) cout<<"wrong"<<endl;
+                    // for( int kk=0;kk<curId.size();kk++) if(fabs(ld_v[kk]-_LD.col(maxid)[kk])>1e-6) cout<<"wrong"<<endl;
                     // test end
                     
                     sn_ids.clear(); //increase order
-                    if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
+                    if(fabs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
                     //else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,_LD, maxid,ld_top);
                     else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
                     
@@ -512,17 +512,17 @@ namespace SMRDATA
         MatrixXd _X;
         vector<int> sn_ids;
         double pthres=pchisq(threshold,1);
-        printf("Filtering SNPs (%ld in total) at eQTL p-value < %e for the HEIDI test.\n",smrwk->zxz.size(), pthres);
+        //printf("Filtering SNPs (%ld in total) at eQTL p-value < %e for the HEIDI test.\n",smrwk->zxz.size(), pthres);
         for(int i=0;i<smrwk->zxz.size();i++)
         {
             if(smrwk->zxz[i]*smrwk->zxz[i]-threshold>1e-6) sn_ids.push_back(i);
         }
         if(sn_ids.size() < m_hetero) {
             
-            printf("INFO: the HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
+            //printf("INFO: the HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
             return -9;
         }
-        printf("%ld SNPs left after filtering.\n",sn_ids.size());
+        //printf("%ld SNPs left after filtering.\n",sn_ids.size());
         update_snidx(smrwk,sn_ids,MAX_NUM_LD,"LD pruning");
         
         SMRWK smrwk_heidi;
@@ -530,10 +530,10 @@ namespace SMRDATA
         long maxid_heidi=max_abs_id(smrwk_heidi.zxz);
         
         make_XMat(bdata,smrwk_heidi.curId, _X);
-        printf("Removing SNPs with LD r-squared between top-SNP %s > %f or < %f...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top,ld_min);
+        //printf("Removing SNPs with LD r-squared between top-SNP %s > %f or < %f...\n",smrwk_heidi.rs[maxid_heidi].c_str(),ldr2_top,ld_min);
         ld_calc_o2m(ld_v,maxid_heidi,_X);
         
-        if(abs(ldr2_top-1)>1e-6 || ld_min>0) {
+        if(fabs(ldr2_top-1)>1e-6 || ld_min>0) {
             sn_ids.clear();
             for(int i=0;i<smrwk_heidi.zxz.size();i++)
             {
@@ -547,24 +547,24 @@ namespace SMRDATA
                 }
             }
         }
-        printf("%ld SNPs are removed and %ld SNPs are retained.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
+        //printf("%ld SNPs are removed and %ld SNPs are retained.\n",smrwk_heidi.zxz.size()-sn_ids.size(),sn_ids.size());
         if(sn_ids.size() < m_hetero) {
-            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
+            //printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", sn_ids.size(), m_hetero);
             return -9;
         }
         update_smrwk_x(&smrwk_heidi,sn_ids,_X);
         maxid_heidi=max_abs_id(smrwk_heidi.zxz);
-        printf("Removing one of each pair of remaining SNPs with LD r-squared > %f...\n",ldr2_top);
+        //printf("Removing one of each pair of remaining SNPs with LD r-squared > %f...\n",ldr2_top);
         int m = (int)smrwk_heidi.bxz.size();
         vector<int> rm_ID1;
         MatrixXd C;
         cor_calc(C, _X);
         double ld_top=sqrt(ldr2_top);
         if (ld_top < 1) rm_cor_sbat(C, ld_top, m, rm_ID1);
-        printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
+        //printf("%ld SNPs are removed and %ld SNPs (including the top SNP %s) are retained.\n",rm_ID1.size(),m-rm_ID1.size(),smrwk_heidi.rs[maxid_heidi].c_str());
         if(m-rm_ID1.size() < m_hetero) {
             
-            printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
+            //printf("INFO: HEIDI test is skipped because the number of SNPs (%ld) is smaller than %d.\n", m-rm_ID1.size(), m_hetero);
             return -9;
         }
         //Create new index
@@ -608,10 +608,10 @@ namespace SMRDATA
         
         // out ld
         int id=0;
-        double tmpVal, cmpVal=abs(smrwk_heidi.zxz[sn_ids[0]]);
+        double tmpVal, cmpVal=fabs(smrwk_heidi.zxz[sn_ids[0]]);
         for( int jj=1;jj<sn_ids.size();jj++)
         {
-            tmpVal=abs(smrwk_heidi.zxz[sn_ids[jj]]);
+            tmpVal=fabs(smrwk_heidi.zxz[sn_ids[jj]]);
             if( cmpVal-tmpVal < 1e-6)
             {
                 cmpVal=tmpVal;
@@ -649,7 +649,7 @@ namespace SMRDATA
         
         make_XMat(bdata,smrwk->curId, _X);
         ld_calc_o2m(ld_v,maxid,_X);
-        if(abs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
+        if(fabs(ld_top-1)<1e-6) get_square_idxes(sn_ids,zsxz,threshold);
         else get_square_ldpruning_idxes(sn_ids,zsxz,threshold,ld_v, maxid,ld_top);
         if(sn_ids.size() < m_hetero) {
             
@@ -739,12 +739,12 @@ namespace SMRDATA
             
             if(refSNP!=NULL && maxid==-9)
             {
-                printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
+                //printf("WARNING: can't find target SNP %s for probe %s.\n",refSNP, probename.c_str());
                 continue;
             }
             if (smrwk.bxz.size() == 0) {
                 
-                printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
+                //printf("WARNING: no SNP fetched for probe %s.\n", probename.c_str());
                 continue;
             }
             
@@ -756,14 +756,14 @@ namespace SMRDATA
             double pxz_val = pchisq(zsxz[maxid]*zsxz[maxid], 1);
             
             if(refSNP==NULL && pxz_val>p_smr){
-                printf("WARNING: no SNP passed the p-value threshold %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
+                //printf("WARNING: no SNP passed the p-value threshold %e for the SMR analysis for probe %s.\n", p_smr, probename.c_str());
                 continue;
             } else {
-                printf("Analysing probe %s...\n", probename.c_str());
+                //printf("Analysing probe %s...\n", probename.c_str());
             }
             if(sampleoverlap)
             {
-                printf("Estimating the correlation ...\n");
+                //printf("Estimating the correlation ...\n");
                 double z2mecs=qchisq(pmecs,1);
                 double zmecs=sqrt(z2mecs);
                 vector<double> zxz, zyz;
@@ -771,7 +771,7 @@ namespace SMRDATA
                 {
                     double z1=smrwk.bxz[k]/smrwk.sexz[k];
                     double z2=smrwk.byz[k]/smrwk.seyz[k];
-                    if(abs(z1)<zmecs && abs(z2)<zmecs )
+                    if(fabs(z1)<zmecs && fabs(z2)<zmecs )
                     {
                         zxz.push_back(z1);
                         zyz.push_back(z2);
@@ -779,8 +779,8 @@ namespace SMRDATA
                     
                 }
                 if(zxz.size()< minCor){
-                    printf("WARNING: less than %d common SNPs obtained from the cis-region of probe %s at a p-value threshold %5.2e.\n ", minCor,probename.c_str(), pmecs);
-                    printf("probe %s is skipped.\n ", probename.c_str());
+                    //printf("WARNING: less than %d common SNPs obtained from the cis-region of probe %s at a p-value threshold %5.2e.\n ", minCor,probename.c_str(), pmecs);
+                    //printf("probe %s is skipped.\n ", probename.c_str());
                     continue;
                 }
                 else
@@ -880,7 +880,7 @@ namespace SMRDATA
         {
             for (int j = 0; j<edata->_esi_include.size(); j++)
             {
-                if (abs(edata->_bxz[eTraitIdx][edata->_esi_include[j]] + 9) > 1e-6)
+                if (fabs(edata->_sexz[eTraitIdx][edata->_esi_include[j]] + 9) > 1e-6)
                 {
                     gdata->byz.push_back(edata->_bxz[eTraitIdx][edata->_esi_include[j]]);
                     gdata->seyz.push_back(edata->_sexz[eTraitIdx][edata->_esi_include[j]]);
@@ -924,7 +924,7 @@ namespace SMRDATA
         }
         gdata->snpNum=gdata->snpName.size();
     }
-    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero ,int opt_hetero ,char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt, double ld_min, bool sampleoverlap, double pmecs, int minCor)
+    void plot_triple(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName,char* meqtlFileName, double maf,char* indilstName, char* snplstName,double p_hetero,double ld_top,int m_hetero ,int opt_hetero ,char* indilst2remove, char* snplst2exclde, double p_smr, char* refSNP, int cis_itvl, char* prbname, int prbWind,bool prbwindFlag, int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double pthres_me2esmr,double threshpsmrest,bool new_het_mtd,double threshphet,bool opt, double ld_min, bool sampleoverlap, double pmecs, int minCor,char* targetsnpproblstName,double afthresh,double percenthresh)
     {        
        
         setNbThreads(thread_num);
@@ -939,12 +939,24 @@ namespace SMRDATA
             printf("ERROR: --ld-min %f is larger than --ld-top %f.\n",ld_min,ld_top);
             exit(EXIT_FAILURE);
         }
+        if(targetsnpproblstName)
+        {
+            printf("ERROR: --target-snp-probe-list can't be applied for the time being. please disable it.\n");
+            exit(EXIT_FAILURE);
+        }
+        bool targetLstFlg=false;
+        map<string, string> prb_snp;
         vector<int> gene_anno_chr;
         vector<string> gene_anno_genename;
         vector<int> gene_anno_start;
         vector<int> gene_anno_end;
         vector<string> strand;
         read_gene_anno_strand(geneAnnoName,gene_anno_chr, gene_anno_genename,gene_anno_start,gene_anno_end,strand);
+        if(strand.size()==0)
+        {
+            printf("ERROR: please input the gene list file containing strand information.\n");
+            exit(EXIT_FAILURE);
+        }
         map<string, int> gene_anno_map;
         map<string, int>::iterator iter;
         for(int i=0;i<gene_anno_genename.size();i++) gene_anno_map.insert(pair<string,int>(gene_anno_genename[i], i));
@@ -1007,7 +1019,6 @@ namespace SMRDATA
         gdata._include.clear();
         
         idx1.resize(gdata.snpName.size());
-        #pragma omp parallel for private(iter)
         for (int l = 0; l<gdata.snpName.size(); l++){
             iter = bdata._snp_name_map.find(gdata.snpName[l]);
             if (iter != bdata._snp_name_map.end()) idx1[l]=iter->second;
@@ -1027,7 +1038,7 @@ namespace SMRDATA
         update_gwas(&gdata);
         
         // eSMR begins
-        printf("\nPerforming eSMR test the and HEIDI test ...\n");
+        printf("\nPerforming SMR test the and HEIDI test ...\n");
         eqtlInfo edata_clone;
         eqtlInfo mdata_clone;
         bInfo bdata_clone;
@@ -1037,6 +1048,7 @@ namespace SMRDATA
         psudoclone(&bdata, &bdata_clone);
         
         allele_check(&bdata_clone, &gdata_clone, &edata_clone);
+        
         read_bedfile(&bdata_clone, string(bFileName)+".bed");
         if (bdata_clone._mu.empty()) calcu_mu(&bdata_clone);
         if (maf > 0)
@@ -1044,7 +1056,15 @@ namespace SMRDATA
             filter_snp_maf(&bdata_clone, maf);
             update_geIndx(&bdata_clone, &gdata_clone, &edata_clone);
         }
-        
+        if(forcefrqck)
+        {
+            double prop=freq_check(&bdata_clone, &gdata_clone, &edata_clone,afthresh,percenthresh);
+            if(prop > percenthresh)
+            {
+                printf("ERROR: the analysis stopped because more than %0.2f%% of the SNPs were removed by the allele frequency difference check. You can change the proportion threshold by the flag --diff-freq-prop.\n",100*percenthresh);
+                exit(EXIT_FAILURE);
+            }
+        }
         update_gwas(&gdata_clone);
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
         if(edata_clone._rowid.empty() && edata_clone._bxz.empty())
@@ -1054,7 +1074,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> smrrlts;
-        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor);
+        smr_heidi_func(smrrlts,  NULL, &bdata_clone,&gdata_clone,&edata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd,opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor,prb_snp,targetLstFlg);
         vector<int> egstart;
         vector<int> egend;
         for(int i=0;i<smrrlts.size();i++)
@@ -1071,7 +1091,7 @@ namespace SMRDATA
         }
         
         // mSMR begins
-        printf("\nPerforming mSMR test the and HEIDI test ...\n");
+        printf("\nPerforming SMR test the and HEIDI test ...\n");
         psudoclone(&gdata, &gdata_clone);
         psudoclone(&mdata, &mdata_clone);
         psudoclone(&bdata, &bdata_clone);
@@ -1084,7 +1104,15 @@ namespace SMRDATA
             filter_snp_maf(&bdata_clone, maf);
             update_geIndx(&bdata_clone, &gdata_clone, &mdata_clone);
         }
-        
+        if(forcefrqck)
+        {
+            double prop=freq_check(&bdata_clone, &gdata_clone, &mdata_clone,afthresh,percenthresh);
+            if(prop > percenthresh)
+            {
+                printf("ERROR: the analysis stopped because more than %0.2f%% of the SNPs were removed by the allele frequency difference check. You can change the proportion threshold by the flag --diff-freq-prop.\n",100*percenthresh);
+                exit(EXIT_FAILURE);
+            }
+        }
         update_gwas(&gdata_clone);
         read_besdfile(&mdata_clone, string(meqtlFileName)+".besd");
         if(mdata_clone._rowid.empty() && mdata_clone._bxz.empty())
@@ -1094,7 +1122,7 @@ namespace SMRDATA
         }
         
         vector<SMRRLT> msmrrlts;
-        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor);
+        smr_heidi_func(msmrrlts,  NULL, &bdata_clone,&gdata_clone,&mdata_clone,  cis_itvl,  false, refSNP,p_hetero,ld_top, m_hetero , p_smr, threshpsmrest,new_het_mtd, opt,ld_min,opt_hetero,sampleoverlap,pmecs,minCor,prb_snp,targetLstFlg);
         vector<int> mgstart;
         vector<int> mgend;
         for(int i=0;i<msmrrlts.size();i++)
@@ -1112,7 +1140,7 @@ namespace SMRDATA
 
         
         // m2eSMR begins
-        printf("\nPerforming m2eSMR test the and HEIDI test ...\n");
+        printf("\nPerforming SMR analysis of molecular traits ...\n");
         psudoclone(&edata, &edata_clone);
         extract_eqtl_single_probe(&edata_clone, prbname);
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
@@ -1138,7 +1166,15 @@ namespace SMRDATA
             filter_snp_maf(&bdata_clone, maf);
             update_geIndx(&bdata_clone, &gdata_clone, &mdata_clone);
         }
-        
+        if(forcefrqck)
+        {
+            double prop=freq_check(&bdata_clone, &gdata_clone, &mdata_clone,afthresh,percenthresh);
+            if(prop > percenthresh)
+            {
+                printf("ERROR: the analysis stopped because more than %0.2f%% of the SNPs were removed by the allele frequency difference check. You can change the proportion threshold by the flag --diff-freq-prop.\n",100*percenthresh);
+                exit(EXIT_FAILURE);
+            }
+        }
         update_gwas(&gdata_clone);
         read_besdfile(&mdata_clone, string(meqtlFileName)+".besd");
         if(mdata_clone._rowid.empty() && mdata_clone._bxz.empty())
@@ -1687,7 +1723,7 @@ namespace SMRDATA
         
     }
     
-    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet,double ld_min,bool sampleoverlap, double pmecs, int minCor)
+    void plot_newheidi(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf,char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde,double p_smr, char* refSNP, bool heidioffFlag, int cis_itvl, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag, char* geneAnnoName, double threshpsmrest,bool new_het_mtd,double threshphet,double ld_min,bool sampleoverlap, double pmecs, int minCor,double afthresh,double percenthresh)
     {
         setNbThreads(thread_num);
         if(prbname==NULL) throw("Error: please input probe to plot by the flag --probe.");
@@ -1728,9 +1764,6 @@ namespace SMRDATA
         int plottobp=prbbp+prbWind*1000;
         printf("The position of probe %s is %d. the plot region [%d , %d] is set.\n",prbname,prbbp,plotfrombp,plottobp);
         
-        int plotfromkb=ceil(plotfrombp/1000.0);
-        int plottokb=ceil(plottobp/1000.0);
-        
         //get gene list in this plot region
         vector<int> gidx;
         for(int i=0;i<gene_anno_genename.size();i++)
@@ -1765,7 +1798,6 @@ namespace SMRDATA
         gdata._include.clear();
         
         idx1.resize(gdata.snpName.size());
-#pragma omp parallel for private(iter)
         for (int l = 0; l<gdata.snpName.size(); l++){
             iter = bdata._snp_name_map.find(gdata.snpName[l]);
             if (iter != bdata._snp_name_map.end()) idx1[l]=iter->second;
@@ -1802,7 +1834,16 @@ namespace SMRDATA
             filter_snp_maf(&bdata_clone, maf);
             update_geIndx(&bdata_clone, &gdata_clone, &edata_clone);
         }
-        
+        if(forcefrqck)
+        {
+            double prop=freq_check(&bdata_clone, &gdata_clone, &edata_clone,afthresh,percenthresh);
+            if(prop > percenthresh)
+            {
+                printf("ERROR: the analysis stopped because more than %0.2f%% of the SNPs were removed by the allele frequency difference check. You can change the proportion threshold by the flag --diff-freq-prop.\n",100*percenthresh);
+                exit(EXIT_FAILURE);
+            }
+            
+        }
         update_gwas(&gdata_clone);
         read_besdfile(&edata_clone, string(eqtlFileName)+".besd");
         if(edata_clone._rowid.empty() && edata_clone._bxz.empty())
@@ -1854,7 +1895,7 @@ namespace SMRDATA
         for(int i=0;i<smrrlts.size();i++)
         {
             //output all the eQTL that passed a threshold.
-            if(smrrlts[i].p_HET-threshphet>=0){
+            if(threshphet==0 || smrrlts[i].p_HET-threshphet>=0){
                 out_epi_name.push_back(smrrlts[i].ProbeID);
             }
         }
@@ -2281,21 +2322,21 @@ namespace SMRDATA
             }
         }
         
-        string smrfile = string(outFileName)+".cis.count.txt";
+        string smrfile = string(outFileName)+".cis.summary.txt";
         ofstream smr(smrfile.c_str());
         if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
         
-        smr << "TopSNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' <<"Freq"<<'\t'<< "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"Orientation"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
+        smr << "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"Orientation"<<'\t'<<"cis_Chr" <<'\t'<<"cis_left" <<'\t'<<"cis_right" <<'\t'<<"TopSNP" <<'\t'<< "SNP_Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' <<"Freq"<<'\t'<<"b"<<'\t'<< "se" << '\t'<<"p"<<'\n';
         
         for (int i = 0;i <out_esi_id.size(); i++) {
-            smr<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<((eqtlinfo._esi_freq[out_esi_id[i]]+9>1e-6)?atos(eqtlinfo._esi_freq[out_esi_id[i]]):"NA")<<'\t'<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_orien[out_epi_id[i]]<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
+            smr<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_orien[out_epi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<(eqtlinfo._epi_bp[out_epi_id[i]]-cis_itvl*1000>0?(eqtlinfo._epi_bp[out_epi_id[i]]-cis_itvl*1000):0)<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]+cis_itvl*1000<<'\t'<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<((eqtlinfo._esi_freq[out_esi_id[i]]+9>1e-6)?atos(eqtlinfo._esi_freq[out_esi_id[i]]):"NA")<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
         }
         
         smr.close();
-        cout<<"Extracted results of "<<out_esi_id.size()<<" probes have been saved in the file [" + smrfile + "]."<<endl;
+        cout<<"Results of "<<out_esi_id.size()<<" probes have been saved in the file [" + smrfile + "]."<<endl;
         
     }
-    void count_trans(char* outFileName,char* eqtlFileName, double p_smr, int cis_itvl)
+    void count_trans(char* outFileName,char* eqtlFileName, double transThres, long cis_itvl, long trans_itvl)
     {
         string logstr;
         
@@ -2316,127 +2357,123 @@ namespace SMRDATA
             
         }
         else throw ("Error: please input the eQTL summary information for the eQTL data files by the option --beqtl-summary.\n");
-        
-        vector<int> out_esi_id;
-        vector<int> out_epi_id;
-        vector<float> out_beta;
-        vector<float> out_se;
-        vector<double> out_pval;
-        if(eqtlinfo._valNum==0)
-        {
-            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
-            {
-                double beta_top=0;
-                double se_top=1;
-                double pxz_top=1;
-                int esi_id_top=-1;
-                int epi_id_top=-1;
-                int prbbp=eqtlinfo._epi_bp[i];
-                int prbchr=eqtlinfo._epi_chr[i];
-                int cisR=prbbp+cis_itvl*1000;
-                int cisL=(prbbp-cis_itvl*1000)>0?(prbbp-cis_itvl*1000):0;
-                
-                for(uint32_t j=0;j<eqtlinfo._snpNum;j++)
-                {
-                    int snpbp=eqtlinfo._esi_bp[j];
-                    int snpchr=eqtlinfo._esi_chr[j];
-                    if(!(snpchr==prbchr && snpbp>=cisL && snpbp<=cisR))
-                    {
-                        double beta=eqtlinfo._bxz[i][j];
-                        double se=eqtlinfo._sexz[i][j];
-                        if(ABS(se+9)<1e-6) continue;
-                        double zsxz=beta/se;
-                        double pxz=pchisq(zsxz*zsxz, 1);
-                        if(pxz<=pxz_top)
-                        {
-                            esi_id_top=j;
-                            epi_id_top=i;
-                            beta_top=beta;
-                            se_top=se;
-                            pxz_top=pxz;
-                        }
-                        
-                    }
-                }
-                
-                if(pxz_top<=p_smr)
-                {
-                    out_esi_id.push_back(esi_id_top);
-                    out_epi_id.push_back(epi_id_top);
-                    out_beta.push_back(beta_top);
-                    out_se.push_back(se_top);
-                    out_pval.push_back(pxz_top);
-                }
-            }
-        }
-        else
-        {
-            if(eqtlinfo._val.size()==0)
-            {
-                throw ("Error: No data extracted from the input, please check.\n");
-            }
-            
-            for(uint32_t i=0;i<eqtlinfo._probNum;i++)
-            {
-                uint64_t proid=eqtlinfo._include[i];
-                uint64_t pos=eqtlinfo._cols[proid<<1];
-                uint64_t pos1=eqtlinfo._cols[(proid<<1)+1];
-                uint64_t num=pos1-pos;
-                double beta_top=0;
-                double se_top=1;
-                double pxz_top=1;
-                int esi_id_top=-1;
-                int epi_id_top=-1;
-                int prbbp=eqtlinfo._epi_bp[proid];
-                int prbchr=eqtlinfo._epi_chr[proid];
-                int cisR=prbbp+cis_itvl*1000;
-                int cisL=(prbbp-cis_itvl*1000)>0?(prbbp-cis_itvl*1000):0;
-                for(int j=0;j<num;j++)
-                {
-                    int esiid=eqtlinfo._rowid[pos+j];
-                    int snpbp=eqtlinfo._esi_bp[esiid];
-                    int snpchr=eqtlinfo._esi_chr[esiid];
-                    if(!(snpchr==prbchr && snpbp>=cisL && snpbp<=cisR))
-                    {
-                        double beta=eqtlinfo._val[pos+j];
-                        double se=eqtlinfo._val[pos+j+num];
-                        double zsxz=beta/se;
-                        double pxz=pchisq(zsxz*zsxz, 1);
-                        if(pxz<=pxz_top)
-                        {
-                            esi_id_top=eqtlinfo._rowid[pos+j];
-                            epi_id_top=i;
-                            beta_top=beta;
-                            se_top=se;
-                            pxz_top=pxz;
-                        }
-                    }
-                    
-                }
-                if(pxz_top<=p_smr)
-                {
-                    out_esi_id.push_back(esi_id_top);
-                    out_epi_id.push_back(epi_id_top);
-                    out_beta.push_back(beta_top);
-                    out_se.push_back(se_top);
-                    out_pval.push_back(pxz_top);
-                }
-                
-            }
-        }
-        
-        string smrfile = string(outFileName)+".trans.count.txt";
+        string smrfile = string(outFileName)+".trans.summary.txt";
         ofstream smr(smrfile.c_str());
         if (!smr) throw ("Error: can not open the file " + smrfile + " to save!");
         
-        smr << "TopSNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' <<"Freq"<<'\t'<< "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"Orientation"<<'\t'<<"b"<<'\t'<< "SE" << '\t'<<"p"<<'\n';
+        smr <<  "Probe"<< '\t' << "Probe_Chr"<< '\t'<< "Probe_bp"<< '\t'<<"Gene"<<'\t'<<"Orientation"<<'\t'<<"Trans_Chr" <<'\t'<<"Trans_left" <<'\t'<<"Trans_right" <<'\t'<<"TopSNP" <<'\t'<< "Chr" <<'\t' << "BP"  << '\t' << "A1" << '\t'<< "A2"<< '\t' <<"Freq"<<'\t'<<"b"<<'\t'<< "se" << '\t'<<"p"<<'\n';
         
-        for (int i = 0;i <out_esi_id.size(); i++) {
-            smr<<eqtlinfo._esi_rs[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_chr[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_bp[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele1[out_esi_id[i]]<<'\t'<<eqtlinfo._esi_allele2[out_esi_id[i]]<<'\t'<<((eqtlinfo._esi_freq[out_esi_id[i]]+9>1e-6)?atos(eqtlinfo._esi_freq[out_esi_id[i]]):"NA")<<'\t'<<eqtlinfo._epi_prbID[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_chr[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_bp[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_gene[out_epi_id[i]]<<'\t'<<eqtlinfo._epi_orien[out_epi_id[i]]<<'\t'<<out_beta[i]<<'\t'<<out_se[i]<<'\t'<<out_pval[i]<< '\n';
+        cis_itvl=cis_itvl*1000;
+        trans_itvl=trans_itvl*1000;
+        long probNum=eqtlinfo._include.size();
+        vector<info4trans> snpinfo;
+        int writc=0;
+        for(int ii=0;ii<probNum;ii++)
+        {
+            int i=eqtlinfo._include[ii];
+            probeinfolst prbifo;
+            prbifo.bp=eqtlinfo._epi_bp[i];
+            prbifo.probechr=eqtlinfo._epi_chr[i];
+            strcpy2(&prbifo.probeId, eqtlinfo._epi_prbID[i]);
+            strcpy2(&prbifo.genename, eqtlinfo._epi_gene[i]);
+            prbifo.orien=eqtlinfo._epi_orien[i];
+            
+            snpinfo.clear();
+            
+            if(eqtlinfo._rowid.empty())
+            {
+                for (int j = 0; j<eqtlinfo._esi_include.size(); j++)
+                {
+                    if (fabs(eqtlinfo._sexz[i][j] + 9) > 1e-6)
+                    {
+                        if( (eqtlinfo._esi_chr[j]!=prbifo.probechr || (eqtlinfo._esi_chr[j]==prbifo.probechr && ABS(prbifo.bp-eqtlinfo._esi_bp[j])>cis_itvl)))
+                        {
+                            info4trans snpinfotmp;
+                            strcpy2(&snpinfotmp.snprs, eqtlinfo._esi_rs[j]);
+                            snpinfotmp.snpchr=eqtlinfo._esi_chr[j];
+                            snpinfotmp.bp=eqtlinfo._esi_bp[j];
+                            snpinfotmp.gd=j;
+                            strcpy2(&snpinfotmp.a1, eqtlinfo._esi_allele1[j]);
+                            strcpy2(&snpinfotmp.a2, eqtlinfo._esi_allele2[j]);
+                            snpinfotmp.freq=eqtlinfo._esi_freq[j];
+                            snpinfotmp.beta=eqtlinfo._bxz[i][j];
+                            snpinfotmp.se=eqtlinfo._sexz[i][j];
+                            
+                            snpinfo.push_back(snpinfotmp);
+                            
+                        }
+                    }
+                }
+                
+            }
+            else{
+                uint64_t beta_start=eqtlinfo._cols[i<<1];
+                uint64_t se_start=eqtlinfo._cols[1+(i<<1)];
+                uint64_t numsnps=se_start-beta_start;
+                for(int j=0;j<numsnps;j++)
+                {
+                    int ge_rowid=eqtlinfo._rowid[beta_start+j];
+                    if((eqtlinfo._esi_chr[ge_rowid]!=prbifo.probechr || (eqtlinfo._esi_chr[ge_rowid]==prbifo.probechr && ABS(prbifo.bp-eqtlinfo._esi_bp[ge_rowid])>cis_itvl)))
+                    {
+                        info4trans snpinfotmp;
+                        snpinfotmp.beta=eqtlinfo._val[beta_start+j];
+                        snpinfotmp.se=eqtlinfo._val[se_start+j];
+                        strcpy2(&snpinfotmp.snprs, eqtlinfo._esi_rs[ge_rowid]);
+                        snpinfotmp.snpchr=eqtlinfo._esi_chr[ge_rowid];
+                        snpinfotmp.bp=eqtlinfo._esi_bp[ge_rowid];
+                        snpinfotmp.gd=ge_rowid; //save snp id of the raw datastruct
+                        strcpy2(&snpinfotmp.a1, eqtlinfo._esi_allele1[ge_rowid]);
+                        strcpy2(&snpinfotmp.a2, eqtlinfo._esi_allele2[ge_rowid]);
+                         snpinfotmp.freq=eqtlinfo._esi_freq[ge_rowid];
+                        
+                        snpinfo.push_back(snpinfotmp);
+                    }
+                }
+            }
+            
+            info4trans* sortptr=&snpinfo[0];
+            qsort(sortptr,snpinfo.size(),sizeof(info4trans),comp_i4tran);
+            vector<long> snpNumPerRegion;
+            vector<long> leftbound;
+            vector<long> rightbound;
+            vector<int> slct_idx;
+            vector<int> regionChr;
+            slct_trans_per_prb(slct_idx,regionChr, snpNumPerRegion,leftbound, rightbound,&prbifo, snpinfo,  cis_itvl,  trans_itvl, transThres);
+            if(snpNumPerRegion.size()==0) {
+                //printf("WARNING: no trans-eQTL for probe %s at the p-value threshold %e.\n",prbifo.probeId,transThres);
+            }
+            
+            int statidx=0;
+            for(int jj=0;jj<snpNumPerRegion.size();jj++)
+            {
+                int topid=0;
+                double topz2=0;
+                for(int k=0;k<snpNumPerRegion[jj];k++)
+                {
+                    int idx=statidx+k;
+                   double beta=snpinfo[slct_idx[idx]].beta;
+                    double se=snpinfo[slct_idx[idx]].se;
+                    double z2=beta/se;
+                    z2*=z2;
+                    if(z2>topz2)
+                    {
+                        topid=slct_idx[idx];
+                        topz2 = z2;
+                    }
+                }
+               smr <<  eqtlinfo._epi_prbID[i]<< '\t' << eqtlinfo._epi_chr[i]<< '\t'<< eqtlinfo._epi_bp[i]<< '\t'<<eqtlinfo._epi_gene[i]<<'\t'<<eqtlinfo._epi_orien[i]<<'\t'<<regionChr[jj] <<'\t'<<leftbound[jj] <<'\t'<<rightbound[jj] <<'\t'<<snpinfo[topid].snprs <<'\t'<< snpinfo[topid].snpchr <<'\t' << snpinfo[topid].bp  << '\t' << snpinfo[topid].a1 << '\t'<< snpinfo[topid].a2<< '\t' <<((snpinfo[topid].freq+9>1e-6)?atos(snpinfo[topid].freq):"NA")<<'\t'<<snpinfo[topid].beta<<'\t'<< snpinfo[topid].se << '\t'<<pchisq(topz2,1)<<'\n';
+                writc++;
+                statidx+=snpNumPerRegion[jj];
+            }
+            
+            free2(&prbifo.genename);
+            free2(&prbifo.probeId);
         }
+        free_snplist(snpinfo);
+        
         
         smr.close();
-        cout<<"Extracted results of "<<out_esi_id.size()<<" probes have been saved in the file [" + smrfile + "]."<<endl;
+        cout<<"Results of "<<writc<<" trans-regions have been saved in the file [" + smrfile + "]."<<endl;
         
     }
 

@@ -10,91 +10,25 @@
 #define __SRM_CPP__SMR_data__
 
 #include <stdlib.h>
-#include "CommFunc.h"
-#include "StatFunc.h"
-#include "StrFunc.h"
-#include <iostream>
-#include <stdio.h>
-#include <ctype.h>
-#include <errno.h>
-#include <zlib.h>
-#include <bitset>
-#include <sys/types.h>
-#include <sys/stat.h>
-#if defined _WIN64 || defined _WIN32
-#include <direct.h>
-#define GetCurrentDir _getcwd
-#else
-#include <unistd.h>
-#define GetCurrentDir getcwd
-#endif
-#ifndef __APPLE__
-#include <omp.h>
-#endif
+
+#include "bfile.hpp"
 
 #define MAX_LEN_PRBNAME 40
 #define MAX_LEN_GENENAME 40
 #define MAX_LEN_PATH 512
 
 
-typedef MatrixXf eigenMatrix;
-typedef VectorXf eigenVector;
-
-using namespace std;
-using namespace StatFunc;
-using namespace StrFunc;
-using namespace CommFunc;
 
 extern int thread_num;
+extern bool mute;
 extern int xh; //using when testing
+extern bool forcefrqck;
 extern FILE* techeQTLfile;
+extern char* outFileName;
+
 namespace SMRDATA
 {
-    //implementation of SoA(Struct of Array)
-    typedef struct{
-        // bim file
-        int _autosome_num;
-        vector<int> _chr;
-        vector<string> _snp_name;
-        map<string, int> _snp_name_map;
-        vector<double> _genet_dst;
-        vector<int> _bp;
-        vector<string> _allele1;
-        vector<string> _allele2;
-        vector<string> _ref_A; // reference allele
-        vector<string> _other_A; // the other allele
-        int _snp_num;
-        vector<double> _rc_rate;
-        vector<int> _include; // initialized in the read_bimfile()
-        eigenVector _maf;
-        
-        // fam file
-        vector<string> _fid;
-        vector<string> _pid;
-        map<string, int> _id_map;
-        vector<string> _fa_id;
-        vector<string> _mo_id;
-        vector<int> _sex;
-        vector<double> _pheno;
-        int _indi_num;
-        vector<int> _keep; // initialized in the read_famfile()
-        eigenMatrix _varcmp_Py; // BLUP solution to the total genetic effects of individuals
-        
-        // bed file
-        vector< vector<bool> > _snp_1;
-        vector< vector<bool> > _snp_2;
-        
-        // imputed data
-        bool _dosage_flag;
-        vector< vector<float> > _geno_dose;
-        vector<double> _impRsq;
-        
-        // genotypes
-        MatrixXf _geno;
-        
-        
-        vector<double> _mu;
-    } bInfo;
+   
     
 
     typedef struct{
@@ -109,6 +43,7 @@ namespace SMRDATA
         vector<double> pvalue;
         vector<uint32_t> splSize;
         vector<int> _include;
+        map<string,int> _snp_name_map;
     } gwasData;
     
     typedef struct{
@@ -237,10 +172,11 @@ namespace SMRDATA
         double p_HET;
         int nsnp;
         char Orien;
+        double p_SSMR;
     } SMRRLT;
 
     typedef struct{
-        int* ptr; //vector of int. using in combining besd files and meta analysis to save the probe index of the according besd file.
+        int* ptr;
         char* probeId;
         char* genename;
         char* esdpath;
@@ -252,8 +188,8 @@ namespace SMRDATA
     } smr_probeinfo;
     
     typedef struct{
-        int* rstr; //vector of int. using in combining besd files and meta analysis to save the rs index of the according besd file.
-        bool* revs; //vector of bool. using in combining besd files and meta analysis to save if the sign of beta should be changed the according besd file.
+        int* rstr;
+        bool* revs;
         char* snprs;
         char* a1;
         char* a2;
@@ -289,8 +225,7 @@ namespace SMRDATA
     void update_gwas(gwasData* gdata);
     
     bool make_XMat(bInfo* bdata, MatrixXd &X);
-    void makex_eigenVector(bInfo* bdata,int j, eigenVector &x, bool resize, bool minus_2p);
-    void calcu_mu(bInfo* bdata, bool ssq_flag=false);
+    void makex_eigenVector(bInfo* bdata,int j, VectorXd &x, bool resize, bool minus_2p);
     // inline functions
     template<typename ElemType>
     void makex(bInfo* bdata,int j, vector<ElemType> &x, bool minus_2p = false) {
@@ -304,28 +239,18 @@ namespace SMRDATA
             if (minus_2p) x[i] -= bdata->_mu[bdata->_include[j]];
         }
     }
-    void read_msglist(string msglistfile, vector<string> &msglist, string msg);
+ 
     void makeptrx(bInfo* bdata,int bsnpid,int cursnpid, float* x, bool minus_2p = false);
     void keep_indi(bInfo* bdata,string indi_list_file);
     void extract_snp(bInfo* bdata,string snplistfile);
-    void filter_snp_maf(bInfo* bdata,double maf);
+    void extract_snp(bInfo* bdata, int chr);
+    
     void extract_prob(eqtlInfo* eqtlinfo,string problstName);
 	void extract_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName);
     void exclude_eqtl_snp(eqtlInfo* eqtlinfo, string snplstName);
     void exclude_prob(eqtlInfo* eqtlinfo,string problstName);
     
-    template <typename T>
-    inline string atos (T const& a)
-    {
-        stringstream ss;
-        ss << a;
-        return(ss.str());
-    }
-
-    
-    string dtos(double value);
-    string dtosf(double value);
-    string itos(int value);
+   
     
     void free_gwas_data(gwasData* gdata);  
   
@@ -339,15 +264,17 @@ namespace SMRDATA
     void extract_smrwk(SMRWK* smrwk,vector<int> &sn_ids,SMRWK* smrwk2);
     void rm_cor_sbat(MatrixXd &R, double R_cutoff, int m, vector<int> &rm_ID1);
     void update_smrwk_x(SMRWK* smrwk,vector<int> &sn_ids,MatrixXd &X);    
-    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_het_mtd, bool opt, double ld_min,int opt_hetero, bool sampleoverlap, double pmecs, int minCor);
-    void smr(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , int opt_hetero,char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest,bool new_het_mth, bool opt, char* prbseqregion, double ld_min, bool sampleoverlap, double pmecs, int minCor);
+    void smr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, bool new_het_mtd, bool opt, double ld_min,int opt_hetero, bool sampleoverlap, double pmecs, int minCor,map<string, string> &prb_snp, bool targetLstFlg);
+    void smr(char* outFileName, char* bFileName,char* bldFileName, char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , int opt_hetero,char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest,bool new_het_mth, bool opt, char* prbseqregion, double ld_min, bool sampleoverlap, double pmecs, int minCor, char* targetsnpproblstName, char* snpproblstName,double afthresh,double percenthresh);
+    
     void smr_trans(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero , char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr, double ld_min);
-    void smr_trans_region(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr, bool opt, double ld_min);
+    void smr_trans_region(char* outFileName, char* bFileName,char* gwasFileName, char* eqtlFileName, double maf, char* indilstName, char* snplstName,char* problstName,bool bFlag,double p_hetero,double ld_top,int m_hetero ,int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, double p_trans,char* refSNP, bool heidioffFlag,int cis_itvl,int trans_itvl,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,double threshpsmrest, bool new_het_mth, double p_smr, bool opt, double ld_min,double afthresh,double percenthresh);
     
     void make_full_besd(char* outFileName, char* eqtlFileName, char* snplstName,char* problstName,bool bFlag,bool make_besd_flag, char* snplst2exclde, char* problst2exclde, int cis_itvl,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,bool snpwindFlag,bool cis_flag,int addn);
     
-    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm,double prepsmrthres, bool new_het_mth, bool opt, double ld_min, bool cis2all,bool sampleoverlap, double pmecs, int minCor);
+    void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName,char* eproblstName,char* mproblstName,bool bFlag,double p_hetero,double ld_prune,int m_hetero, int opt_hetero, char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* eproblst2exclde,char* mproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm,double prepsmrthres, bool new_het_mth, bool opt, double ld_min, bool cis2all,bool sampleoverlap, double pmecs, int minCor,bool ssmrflg,int expanWind, double ld_top_multi,char* targetsnpproblstName, char* snpproblstName,double afthresh,double percenthresh);
     
+    void ssmr_heidi_func(vector<SMRRLT> &smrrlts, char* outFileName, bInfo* bdata,gwasData* gdata,eqtlInfo* esdata, int cis_itvl, bool heidioffFlag, const char* refSNP,double p_hetero,double ld_top,int m_hetero , double p_smr,double threshpsmrest, double ld_min,int opt_hetero, int expanWind,bool sampleoverlap, double pmecs, int minCor, double ld_top_multi);
     void meta(char* outFileName,char* eqtlFileName, char* eqtlFileName2);
     int comp_esi(const void *a,const void *b);
     int comp(const void *a,const void *b);
@@ -363,14 +290,12 @@ namespace SMRDATA
     void update_geIndx(bInfo* bdata, eqtlInfo* etrait, eqtlInfo* esdata);
     void progress_print(float progress);
     void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p = false);
-    void ld_calc_o2m(VectorXd &ld_v,long targetid, MatrixXd &X);
     void get_square_ldpruning_idxes(vector<int> &sn_ids, VectorXd &zsxz, double threshold, VectorXd &ld_v, long maxid, double ld_top);
     void cor_calc(MatrixXd &LD, MatrixXd &X);
     void extract_prob_by_gene(eqtlInfo* eqtlinfo, string genelistName);
     void update_freq(char* eqtlFileName, char* frqfile);
     void write_besd(string outFileName, eqtlInfo* eqtlinfo);
     void extract_region_bp(bInfo* bdata, int chr, int fromkb, int tokb);
-   
     void extract_eqtl_single_snp(eqtlInfo* eqtlinfo, string snprs);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, string fromsnprs, string tosnprs);
     void extract_eqtl_snp(eqtlInfo* eqtlinfo, int chr, int fromsnpkb, int tosnpkb);
@@ -393,11 +318,15 @@ namespace SMRDATA
     void filter_snp_null(eqtlInfo* eqtlinfo);
     int max_zsmr_id(SMRWK *smrwk , double p_smr);
     double heidi_test_ref_new(bInfo* bdata,SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid, double ld_min,int opt_hetero, bool sampleoverlap, double theta);
+    double heidi_test_ref_new(ldInfo* ldinfo,FILE* ldfptr, SMRWK* smrwk,double ldr2_top, double threshold, int m_hetero,long &nsnp, int refid , double ld_min, int opt_hetero , bool sampleoverlap, double theta);
     void free_snplist(vector<snpinfolst> &a);
     void free_probelist(vector<probeinfolst> &a);
     void free_snplist(vector<info4trans> &a);
     void free_probelist(vector<probeinfolst2> &a);
     void read_epistartend(eqtlInfo* eqtlinfo,char* prbseqregion);
     int shown(string besdfile);
+    double freq_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata, double &freqthresh, double &percenthresh);
+    void slct_trans_per_prb(vector<int> &slct_idx, vector<int> &regionChr, vector<long> &snpNumPerRegion,vector<long> &leftbound, vector<long> &rightbound, probeinfolst* prbifo, vector<info4trans> &snpinfo, long cis_itvl, long trans_itvl,double transThres);
+    void extract_targets(eqtlInfo* eqtlinfo, string snpprblistfile, map<string, string> &prb_snp);
 }
 #endif /* defined(__SRM_CPP__SMR_data__) */
