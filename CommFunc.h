@@ -67,9 +67,9 @@ namespace CommFunc
     template <typename T>
     extern void free2(T** to)
     {
-        if(*to)
+        if(*to != NULL)
         {
-            delete(*to);
+         //   delete(*to);
             *to=NULL;
         }
     }

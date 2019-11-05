@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
  
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 1.02"<< endl;
+    cout << "* version 1.03"<< endl;
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -1077,7 +1077,7 @@ void option(int option_num, char* option_str[])
     else if(make_besd_flag && (mateqtlflag || fastqtlnflag || fastqtlpflag || qtltoolsnflag || qtltoolspflag) )  make_besd_fmat(eqtlFileName,outFileName,mateqtlflag, fastqtlnflag, fastqtlpflag,qtltoolsnflag,qtltoolspflag,addn);
     else if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || boltflag || merlinflag) ) make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag,merlinflag,boltflag,save_dense_flag, cis_itvl,  trans_itvl,  transThres, restThres,genouni,addn);
     else if (make_besd_flag && queryfileflg) make_besd_byQfile(queryFileName,outFileName, save_dense_flag, cis_itvl,  trans_itvl,  transThres,  restThres,addn);
-    else if (metaflg) meta( eqtlsmaslstName ,outFileName,meta_mtd,pmecs, cis_flag,  cis_itvl, nmecs);
+    else if (metaflg) meta( eqtlsmaslstName ,outFileName,meta_mtd,pmecs, cis_flag,  cis_itvl, nmecs,problstName,  problst2exclde,  genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,snplstName,  snplst2exclde, snpchr, snprs,  fromsnprs, tosnprs, snpWind, fromsnpkb,  tosnpkb,  snpwindFlag);
     else if (combineFlg && !metaflg) combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl,trans_itvl, transThres, restThres, genouni,addn);
     else if(save_dense_flag) make_full_besd(outFileName, eqtlFileName, snplstName,problstName,bFlag,make_besd_flag, snplst2exclde, problst2exclde,  cis_itvl,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,addn);
     else if(make_besd_flag) make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, restThres,genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag, snplstName, problstName,  snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh,extract_cis_only,prbseqregion,ptech,pinsnp,pexsnp,addn);

@@ -853,7 +853,7 @@ namespace SMRDATA
                                 {
                                 } else if(esi_a1[esiidx]==_a2[l] && esi_a2[esiidx]==_a1[l] )
                                 {
-                                    printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", _rs[l].c_str());
+                                    //printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", _rs[l].c_str());
                                     betasebuff[l]=-1.0*betasebuff[l];
                                 } else {
                                     printf("ERROR: SNP %s with multiple alleles <%s,%s> and <%s,%s> does not pass the allele check.\n", _rs[l].c_str(),esi_a1[esiidx].c_str(),esi_a2[esiidx].c_str(),_a1[l].c_str(),_a2[l].c_str());
@@ -1060,7 +1060,7 @@ namespace SMRDATA
                                 {
                                 } else if(esi_a1[esiidx]==_a2[l] && esi_a2[esiidx]==_a1[l] )
                                 {
-                                    printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", _rs[l].c_str());
+                                   // printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", _rs[l].c_str());
                                     betasebuff[l]=-1.0*betasebuff[l];
                                 } else {
                                     printf("ERROR: SNP %s with multiple alleles <%s,%s> and <%s,%s> does not pass the allele check.\n", _rs[l].c_str(),esi_a1[esiidx].c_str(),esi_a2[esiidx].c_str(),_a1[l].c_str(),_a2[l].c_str());
@@ -2191,7 +2191,7 @@ namespace SMRDATA
                             
                         } else if(esi_a1[esiidx]==snpinfo[slct_idx[l]].a2 && esi_a2[esiidx]==snpinfo[slct_idx[l]].a1 )
                         {
-                            printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", snpinfo[slct_idx[l]].snprs);
+                            //printf("WARING: switched the effect allele with the other allele of SNP %s found.\n", snpinfo[slct_idx[l]].snprs);
                             snpinfo[slct_idx[l]].beta=-1.0*snpinfo[slct_idx[l]].beta;
                             betasebuff[l]=snpinfo[slct_idx[l]].beta;
                             betasebuff[l+slct_idx.size()]=snpinfo[slct_idx[l]].se;
@@ -2808,7 +2808,8 @@ namespace SMRDATA
             long esiNum=snpinfo.size();
             if(genouni) save_slct_besds_sbesd(outFileName, probeinfo, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames, addn);
             else {
-                if(sparsefnum==smasNames.size()) save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
+                if(sparsefnum==smasNames.size()) save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
+                //save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
                 else save_slct_besds_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
             }
         }
@@ -3122,8 +3123,6 @@ namespace SMRDATA
         vector<uint32_t> rowids;
         vector<float> val;
         cols[0]=0;
-        val.reserve(etmp._esi_include.size()/5*etmp._include.size()*2);
-        rowids.reserve(etmp._esi_include.size()/5*etmp._include.size()*2);
         string besdfile = string(eqtlFileName)+".besd";
         FILE *fptr=fopen(besdfile.c_str(), "rb");
         if(!fptr)
@@ -3140,7 +3139,6 @@ namespace SMRDATA
             if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + etmp._esi_rs[etmp._esi_include[i]] + "\".");
             size = _incld_id_map.size();
         }
-
         uint32_t filetype=readuint32(fptr);
         int descriptive=1;
         if(filetype==SPARSE_FILE_TYPE_3 || filetype==DENSE_FILE_TYPE_3) descriptive=RESERVEDUNITS;

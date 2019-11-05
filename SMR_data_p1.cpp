@@ -3180,7 +3180,7 @@ namespace SMRDATA
          }
         
     }
-    void combine_epi(vector<smr_probeinfo> &probeinfo, vector<string> &besds, vector<uint64_t> &nprb)
+    void combine_epi(vector<smr_probeinfo> &probeinfo, vector<string> &besds, vector<uint64_t> &nprb,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename)
     {
         long counter = 0;
         map<string, int> prb_map;
@@ -3195,9 +3195,12 @@ namespace SMRDATA
             char* suffix=inputname+besds[i].length();
             memcpy(suffix,".epi",5);
             read_epifile(&etmp, inputname);
+            epi_man(&etmp, problstName, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename);
+            if(problst2exclde != NULL) exclude_prob(&etmp, problst2exclde);
             nprb.push_back(etmp._probNum);
-            for (int j = 0; j<etmp._probNum; j++)
+            for (int jj = 0; jj<etmp._include.size(); jj++)
             {
+                int j = etmp._include[jj];
                 string crsbpstr=etmp._epi_prbID[j]+":"+atos(etmp._epi_bp[j]);
                 prb_map.insert(pair<string, int>(etmp._epi_prbID[j].c_str(), counter));
                 prbbp_map.insert(pair<string, int>(crsbpstr.c_str(), counter));
@@ -3245,7 +3248,7 @@ namespace SMRDATA
         }
         printf("A total %ld probes to be included from %ld epi files.\n",probeinfo.size(),besds.size());
     }
-    void combine_esi(vector<smr_snpinfo> &snpinfo, vector<string> &besds, vector<uint64_t> &nsnp)
+    void combine_esi(vector<smr_snpinfo> &snpinfo, vector<string> &besds, vector<uint64_t> &nsnp,char* snplstName, char* snplst2exclde, int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag)
     {
         long ex_counter = 0;
         snpinfo.clear();
@@ -3263,9 +3266,13 @@ namespace SMRDATA
             char* suffix=inputname+besds[i].length();
             memcpy(suffix,".esi",5);
             read_esifile(&etmp, inputname);
+            esi_man(&etmp, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, smpwindFlag, false,  0, NULL);
+            if(snplst2exclde != NULL) exclude_eqtl_snp(&etmp, snplst2exclde);
+            
             nsnp.push_back(etmp._snpNum);
-            for (int j = 0; j<etmp._snpNum; j++)
+            for (int jj = 0; jj<etmp._esi_include.size(); jj++)
             {
+                int j = etmp._esi_include[jj];
                 if(ex_map.size()>0) {
                     iter=ex_map.find(etmp._esi_rs[j]);
                     if(iter!=ex_map.end()) continue;
@@ -3399,10 +3406,7 @@ namespace SMRDATA
     }
     void extract_prb_sparse(FILE* fptr, uint64_t pid, uint64_t probnum,vector<uint32_t> &row_ids, vector<float> &betases)
     {
-        if(pid>probnum) {
-            printf("ERROR: probe index %llu is larger than the totoal probe number %llu.\n", pid, probnum);
-            exit(EXIT_FAILURE);
-        }
+       
         row_ids.clear();
         betases.clear();
         fseek(fptr,0L,SEEK_SET);
@@ -3456,10 +3460,7 @@ namespace SMRDATA
             printf("ERROR: .epi file or .esi file is empty. please check.\n");
             exit(EXIT_FAILURE);
         }
-        if(pid>epinum) {
-            printf("ERROR: probe index %llu is larger than the totoal probe number %llu.\n", pid, epinum);
-            exit(EXIT_FAILURE);
-        }
+        
         fseek(fptr,0L,SEEK_SET);
         uint32_t indicator=readuint32(fptr);
         if(indicator==DENSE_FILE_TYPE_1 || indicator==DENSE_FILE_TYPE_3) {
@@ -3490,7 +3491,7 @@ namespace SMRDATA
         }
     }
 
-    void pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs, int nmecs)
+    bool pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs, int nmecs)
     {
         //pearson correlation with pairwise.complete.obs
         double zmecs=qchisq(pmecs,1);
@@ -3539,8 +3540,9 @@ namespace SMRDATA
         if(pairsNoCor1.size()>0) {
             //printf("WARNING: %ld cohort pairs didn't get enough common SNPs to calculate the correlation.\n",pairsNoCor1.size());
             if(pairHasCorNUm==0) {
-                printf("ERROR: at least %d null SNPs (e.g. PeQTL > %d) are required to estimate the sampling correlation between data sets.\n",nmecs,pmecs);
-                exit(EXIT_FAILURE);
+                //printf("ERROR: at least %d null SNPs (e.g. PeQTL > %f) are required to estimate the sampling correlation between data sets.\n",nmecs,pmecs);
+                //exit(EXIT_FAILURE);
+                return false;
             }
             double corMean=sumcor/pairHasCorNUm;
             //printf("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
@@ -3552,6 +3554,7 @@ namespace SMRDATA
             }
         }
         for( int i=0;i<cohortnum;i++) PCC(i,i)=1;
+        return true;
     }
     void subMatrix_symm(MatrixXd &to,MatrixXd &from,vector<int> &idx)
     {
@@ -3570,15 +3573,16 @@ namespace SMRDATA
             to(i,j)=to(j,i)=from(idx[i],idx[j]);
         }
     }
-    void mecs_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum,double pmecs,vector<int> &noninvertible, vector<int> &negativedeno, int nmecs)
+    bool mecs_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum,double pmecs,vector<int> &noninvertible, vector<int> &negativedeno, int nmecs)
     {
         
         MatrixXd Corr(cohortnum,cohortnum);
-        printf("Estimate the cohort correlation using the beta values of pair-wised common SNPs.\n");
-        printf("We exclude the significant common SNPs with a p-value threshold %e to estimate the correlation matrix.\n",pmecs);
-        pcc(Corr,buffer_beta,buffer_se,snpnum,cohortnum,pmecs,nmecs);
+        //printf("Estimate the cohort correlation using the beta values of pair-wised common SNPs.\n");
+        //printf("We exclude the significant common SNPs with a p-value threshold %e to estimate the correlation matrix.\n",pmecs);
+        bool enoughsnp = pcc(Corr,buffer_beta,buffer_se,snpnum,cohortnum,pmecs,nmecs);
+        if(!enoughsnp) return false;
         //cout<<Corr<<endl;
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int j=0;j<snpnum;j++)
         {
             vector<double> ses, betas;
@@ -3635,6 +3639,7 @@ namespace SMRDATA
                 
             }
         }
+        return true;
     }
     void meta_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum)
     {
@@ -3663,7 +3668,22 @@ namespace SMRDATA
             }
         }
     }
-    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl,int nmecs)
+    struct sort_snpinfo
+    {
+        inline bool operator() ( const smr_snpinfo& a, const smr_snpinfo& b)
+        {
+            return ((a.snpchr < b.snpchr) || ( (a.snpchr ==b.snpchr) && (a.bp < b.bp) ));
+        }
+    };
+    struct sort_probeinfo
+    {
+        inline bool operator() ( const smr_probeinfo& a, const smr_probeinfo& b)
+        {
+            return ((a.probechr < b.probechr) || ( (a.probechr ==b.probechr) && (a.bp < b.bp) ));
+        }
+    };
+
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag)
     {
         cis_flag=true; // for later update. !!!
         printf("NOTE: Only the data in the cis-region would be used.\n");
@@ -3674,7 +3694,7 @@ namespace SMRDATA
         vector<string> besds;
         vector<smr_snpinfo> snpinfo;
         vector<smr_probeinfo> probeinfo;
-        vector<uint64_t> nprb,nsnp;
+        vector<uint64_t> nprb,nsnp; // store the total number in besd file. 
         vector< vector<int> > lookup;
         
         read_msglist(besdlistFileName, besds,"eQTL summary file names");
@@ -3713,22 +3733,20 @@ namespace SMRDATA
         
         if(meta_mth) label=1; // for later update. !!!!
         
-        combine_epi(probeinfo, besds,nprb);
-        combine_esi(snpinfo, besds,nsnp);
+        combine_epi(probeinfo, besds,nprb, problstName, problst2exclde, genelistName,  chr, prbchr, prbname, fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename);
+        combine_esi(snpinfo, besds,nsnp,snplstName, snplst2exclde,  chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb,  smpwindFlag);
         if(probeinfo.size()==0)
         {
             printf("ERROR: No probe to be included!\n");
             exit(EXIT_FAILURE);
         }
-        smr_probeinfo* epiptr=&probeinfo[0];
-        qsort(epiptr,probeinfo.size(),sizeof(smr_probeinfo),comp_epi);
+        std::sort(probeinfo.begin(),probeinfo.end(),sort_probeinfo());
         if(snpinfo.size()==0)
         {
             printf("ERROR: No SNP to be included!\n");
             exit(EXIT_FAILURE);
         }
-        smr_snpinfo* esiptr=&snpinfo[0];
-        qsort(esiptr,snpinfo.size(),sizeof(smr_snpinfo),comp_esi);
+        std::sort(snpinfo.begin(),snpinfo.end(),sort_snpinfo());
         
         long besdNum=besds.size();
         long metaPrbNum=probeinfo.size();
@@ -3788,10 +3806,10 @@ namespace SMRDATA
             {
                 int tmpval=snpinfo[i].rstr[j];
                 if(tmpval>=0) {
-                    if(tmpval >=nsnp[j])
+                    if(tmpval >= lookup[j].size())
                     {
-                        printf("ERROR: bug found in snpinfo. Please report.\n");
-                        exit(EXIT_FAILURE);
+                        printf("ERROR: out of bundary error.\n");
+                        exit(1);
                     }
                     lookup[j][tmpval]=i;
                 }
@@ -3799,6 +3817,10 @@ namespace SMRDATA
         }
         
         printf("\nPerforming %s analysis (the result will be saved in BESD format)....\n",analysisType.c_str());
+        if(meta_mth){
+            printf("Estimate the cohort correlation using the beta values of pair-wised common SNPs.\n");
+            printf("We exclude the significant common SNPs with a p-value threshold %6.2e to estimate the correlation matrix.\n",pthresh);
+        }
         FILE** fptrs = (FILE**)malloc(sizeof(FILE*) * besds.size());
         for(int i=0;i<besdNum;i++) {
             string besdFileName=besds[i]+".besd";
@@ -3819,13 +3841,14 @@ namespace SMRDATA
         cols.resize((metaPrbNum<<1)+1);
         cols[0]=0;
         
-        vector<int> ten_ints(RESERVEDUNITS);
+        int nresv = RESERVEDUNITS;
+        vector<int> ten_ints(nresv);
         ten_ints[0]=filetype;
         ten_ints[1]=-9;
         ten_ints[2]=(int)snpinfo.size();
         ten_ints[3]=(int)probeinfo.size();
-        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
-        fwrite(&ten_ints[0],sizeof(int), RESERVEDUNITS,efile);
+        for(int i=4;i<nresv;i++) ten_ints[i]=-9;
+        fwrite(&ten_ints[0],sizeof(int), nresv,efile);
         
         
         float* buffer_beta=(float *)malloc(sizeof(float)*besdNum*metaSNPnum);
@@ -3842,6 +3865,7 @@ namespace SMRDATA
         for(int i=0;i<besdNum*metaSNPnum;i++) buffer_se[i]=-9;
         vector<string> noninvtb_prbs;
         vector<string> nega_prbs;
+        vector<string> snpdeficent;
         double cr=0.0;
         for(int i=0;i<metaPrbNum;i++)
         {
@@ -3974,14 +3998,17 @@ namespace SMRDATA
                 if(meta_mth){
                     //printf("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
                     vector<int> noninvertible, negativedeno;
-                    mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno,nmecs);
-                    if(noninvertible.size()>0) {
+                    bool mecsflag = mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno,nmecs);
+                    if(!mecsflag) snpdeficent.push_back(probeinfo[i].probeId);
+                    else {
+                        if(noninvertible.size()>0) {
                         //printf("%ld SNPs of probe %s have non-invertible S matrix.\n",noninvertible.size(), probeinfo[i].probeId);
                         noninvtb_prbs.push_back(probeinfo[i].probeId);
-                    }
-                    if(negativedeno.size()>0) {
+                        }
+                        if(negativedeno.size()>0) {
                         //printf("%ld SNPs of probe %s have negative 1'inv(S)1 .\n",negativedeno.size(), probeinfo[i].probeId);
                         nega_prbs.push_back(probeinfo[i].probeId);
+                        }
                     }
                     //printf("end of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
                 }
@@ -4017,12 +4044,27 @@ namespace SMRDATA
         }
         
         
-        
         uint64_t valNum=val.size();
         fwrite(&valNum,sizeof(uint64_t),1, efile) ;
         fwrite(&cols[0],sizeof(uint64_t),cols.size(), efile);
         fwrite(&rowids[0],sizeof(uint32_t),rowids.size(), efile);
         fwrite(&val[0],sizeof(float),val.size(), efile);
+        if(snpdeficent.size()>0)
+        {
+            string filename=string(outFileName)+".nmecs"+atos(nmecs)+".probe.list";
+            FILE* tmpfile=fopen(filename.c_str(),"w");
+            if(!tmpfile)
+            {
+                printf("ERROR: open file %s.\n",filename.c_str());
+                exit(EXIT_FAILURE);
+            }
+            for(int t=0;t<snpdeficent.size();t++)
+            {
+                string str=snpdeficent[t]+'\n';
+                fputs(str.c_str(),tmpfile);
+            }
+            fclose(tmpfile);
+        }
         
         if(noninvtb_prbs.size()>0)
         {
@@ -4090,7 +4132,7 @@ namespace SMRDATA
         free(buffer_se);
         free(buffer_beta);
         
-        printf("nThe meta-analysed eQTL results of %ld probes and %ld SNPs have been saved in the file %s.\n",metaPrbNum,metaSNPnum,besdName.c_str());
+        printf("The meta-analysed eQTL results of %ld probes and %ld SNPs have been saved in the file %s.\n",metaPrbNum,metaSNPnum,besdName.c_str());
     }
     
     void read_epi4u(eqtlInfo* eqtlinfo, string epifile)
