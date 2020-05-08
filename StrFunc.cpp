@@ -9,6 +9,10 @@
  */
 
 #include "StrFunc.h"
+#include <cmath>
+#include <cstdio>
+#include <limits>
+
 
 
 int StrFunc::split_string(const string &str, vector<string> &vec_str, string separator)
@@ -304,3 +308,4 @@ bool StrFunc::stringNumCheck(string a, int num)
     int number = split_string(a, b, ", \t\n");
     return(number==num);
 }
+

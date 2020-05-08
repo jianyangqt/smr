@@ -212,7 +212,7 @@ namespace SMRDATA
                 if(tmp!=-9)
                 {
                     printf("The sample size is %d.\n",tmp);
-                    if(ssck!=-9) {
+                    if(ssck==-9) {
                         ssck=tmp;
                     }
                     else
@@ -474,7 +474,7 @@ namespace SMRDATA
                         if(tmp!=-9)
                         {
                             printf("The sample size is %d.\n",tmp);
-                            if(ssck!=-9) {
+                            if(ssck==-9) {
                                 ssck=tmp;
                             }
                             else
@@ -578,7 +578,7 @@ namespace SMRDATA
                         if(tmp!=-9)
                         {
                             printf("The sample size is %d.\n",tmp);
-                            if(ssck!=-9) {
+                            if(ssck==-9) {
                                 ssck=tmp;
                             }
                             else
@@ -737,7 +737,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -960,7 +960,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -1281,7 +1281,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -1395,7 +1395,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -1619,7 +1619,7 @@ namespace SMRDATA
                 if(tmp!=-9)
                 {
                     printf("The sample size is %d.\n",tmp);
-                    if(ssck!=-9) {
+                    if(ssck==-9) {
                         ssck=tmp;
                     }
                     else
@@ -2352,7 +2352,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else
@@ -2543,7 +2543,7 @@ namespace SMRDATA
                     if(tmp!=-9)
                     {
                         printf("The sample size is %d.\n",tmp);
-                        if(ssck!=-9) {
+                        if(ssck==-9) {
                             ssck=tmp;
                         }
                         else

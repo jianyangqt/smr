@@ -10,6 +10,7 @@
 
 #include "StatFunc.h"
 
+
 ////////// P-value Calculatiion Functions Start ////////////////
 
 double StatFunc::t_prob(double df, double t_value, bool two_tail) {
@@ -603,6 +604,7 @@ double StatFunc::pchisq(double x, double df) {
     // Return p-value
     return q;
 }
+
 // q is not good to be less than 1e-161
 double StatFunc::qchisq(double q, double df) {
     if (q < 0) return -9;
@@ -619,7 +621,27 @@ double StatFunc::qchisq(double q, double df) {
 
     // Check status
     if (st != 0) return -9;
-
+    if(q<1e-161){
+        double tmp= pchisq(x, 1);
+        while(q/tmp > 10)
+        {
+            x-=10;
+            tmp= pchisq(x, 1);
+        }
+        if(q/tmp>1)
+        {
+            while(q/tmp>1.01){
+                x-=0.1;
+                tmp= pchisq(x, 1);
+            }
+        } else if(q/tmp<1) {
+            while(q/tmp<1.01){
+                x+=0.1;
+                tmp= pchisq(x, 1);
+            }
+        }
+    }
+    
     // Return p-value
     return x;
 }
@@ -771,3 +793,6 @@ double StatFunc::Brents_Kp_min_x(VectorXd &lambda, double x, double lowerLimit, 
     }
     return b;
 }
+
+
+

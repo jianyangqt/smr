@@ -58,6 +58,9 @@ namespace StrFunc
     void set_intersect(const vector<int> &VecA, const vector<int> &VecB, vector<int> &VecC);
     void set_complement(const vector<int> &toRm, const vector<int> &source, vector<int> &VecC);
      bool stringNumCheck(string a, int num);
+    double pchisqd1(double x);
+    
+    bool rankContrast(int n, double *Z);
 }
 
 #endif

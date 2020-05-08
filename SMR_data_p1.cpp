@@ -2726,7 +2726,7 @@ namespace SMRDATA
                 double set_pval_gwas=-9;
                 double set_pval_eqtl=-9;
                 vector<string> snp4msmr;
-                int snp_count=smr_setbased_test(&bdata, slctId, slct_bxz,slct_sexz,slct_byz,slct_seyz, p_smr, ld_top,set_pval_smr, set_pval_gwas,set_pval_eqtl,snp4msmr);
+                int snp_count=smr_setbased_test(&bdata, slctId, slct_bxz,slct_sexz,slct_byz,slct_seyz, p_smr, ld_top_multi,set_pval_smr, set_pval_gwas,set_pval_eqtl,snp4msmr);
                 if(snp_count==-9) continue;
                 // output snp set list
                 string setstr=probename+'\n';
