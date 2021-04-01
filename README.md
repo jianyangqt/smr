@@ -4,7 +4,7 @@
 * Eigen
 
 ## install 
-    In the top level of source
-    `./configure`
-    `make`
-    `make install`
+In the top level of source 
+`./configure`
+`make`
+`make install`
