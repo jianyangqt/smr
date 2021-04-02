@@ -1,62 +1,46 @@
-
 # -----------------------------------------------------------------
-#   Makefile for GCTA 
-#   
 #   Supported platforms: Unix / Linux
 # ---------------------------------------------------------------------
 
-# Directory of the target
-OUTPUT = smr_linux
-
-# Compiler
 CXX = g++
+CXXFLAGS = -Wall -g -O2
 
-# EIGEN library
-EIGEN_PATH = ../Lib/eigen
+smr_linux: bfile.o CommFunc.o dcdflib.o SMR.o SMR_data.o SMR_data_p1.o SMR_data_p2.o SMR_data_p3.o SMR_plot.o StatFunc.o StrFunc.o
+	${CXX} ${CXXFLAGS} bfile.o CommFunc.o SMR.o SMR_data.o SMR_data_p1.o SMR_data_p2.o SMR_data_p3.o SMR_plot.o StatFunc.o StrFunc.o dcdflib.o -lm -lz -lomp -o smr
 
-# Intel MKL library
-#MKL_PATH = /opt/intel/mkl
+bfile.o: bfile.cpp bfile.hpp
+	${CXX} ${CXXFLAGS} -c bfile.cpp 
 
-# Compiler flags
-CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG 
-LIB += -static -lz -Wl,-lm -ldl
-#LIB += -lz -Wl, -lm -ldl
+CommFunc.o: CommFunc.cpp CommFunc.h
+	${CXX} ${CXXFLAGS} -c CommFunc.cpp
 
-HDR += CommFunc.h \
-	   cdflib.h \
-	   dcdflib.h \
-           SMR.h \
-	   ipmpar.h \
-           StatFunc.h \
-           StrFunc.h \
-            SMR_data.h \
-            eData.h \
-            SMR_data_p1.h
-SRC = SMR.cpp \
-           CommFunc.cpp \
-           SMR_data.cpp \
-	   dcdflib.cpp \
-           StatFunc.cpp \
-           StrFunc.cpp	\
-           eData.cpp \
-           SMR_data_p1.cpp
+dcdflib.o: dcdflib.cpp dcdflib.h cdflib.h ipmpar.h
+	${CXX} ${CXXFLAGS} -c dcdflib.cpp
 
-OBJ = $(SRC:.cpp=.o)
+SMR.o: SMR.cpp SMR.h bfile.hpp StrFunc.h SMR_data_p1.h SMR_data_p2.h SMR_data_p3.h SMR_plot.h 
+	${CXX} ${CXXFLAGS} -c SMR.cpp
 
-all : $(OUTPUT) 
+SMR_data.o: SMR_data.cpp SMR_data.h
+	${CXX} ${CXXFLAGS} -c SMR_data.cpp
 
-$(OUTPUT) :
-	$(CXX) $(CXXFLAGS) -o $(OUTPUT) $(OBJ) $(LIB) 
+SMR_data_p1.o: SMR_data_p1.cpp SMR_data_p1.h
+	${CXX} ${CXXFLAGS} -c SMR_data_p1.cpp
 
-$(OBJ) : $(HDR)
+SMR_data_p2.o: SMR_data_p2.cpp SMR_data_p2.h
+	${CXX} ${CXXFLAGS} -c SMR_data_p2.cpp
 
-.cpp.o : 
-	$(CXX) $(CXXFLAGS) -c $*.cpp
-.SUFFIXES : .cpp .c .o $(SUFFIXES)
+SMR_data_p3.o: SMR_data_p3.cpp SMR_data_p3.h
+	${CXX} ${CXXFLAGS} -c SMR_data_p3.cpp
 
-$(OUTPUT) : $(OBJ)
+SMR_plot.o: SMR_plot.cpp SMR_plot.h
+	${CXX} ${CXXFLAGS} -c SMR_plot.cpp
 
-FORCE:
+StatFunc.o: StatFunc.cpp StatFunc.h
+	${CXX} ${CXXFLAGS} -c StatFunc.cpp
 
-clean: 
-	rm -f *.o
+StrFunc.o: StrFunc.cpp StrFunc.h
+	${CXX} ${CXXFLAGS} -c StrFunc.cpp
+
+
+clean:
+	rm *.o
