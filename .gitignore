@@ -1,2 +1,5 @@
 smr
 *.o
+
+test_fanghl
+test_fanghl/*
