@@ -15,6 +15,4 @@ check if libomp(if there just libgomp, please make a link) and libz was installe
 ### compile
 
 In the top level of source   
-`./configure`  
 `make`  
-`make install`  
