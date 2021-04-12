@@ -1,29 +1,30 @@
-//
 //  SMR_data_p2.cpp
 //  SMR_CPP
 //
 //  Created by Futao Zhang on 10/06/2016.
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
-//
+//  Modified by fanghl 20210412
 
 #include "SMR_data_p2.h"
-FILE* techeQTLfile=NULL;
+FILE * techeQTLfile = NULL;
 namespace SMRDATA
 {
-    double adjSE(double beta,double p)
+    double
+    adjSE(double beta,double p)
     {
-        if(p==1)
-        {
+        if(p == 1){
             return 1e10;
         }
-        else
-        {
+        else{
             double z2=qchisq(p, 1);
             return fabs(beta/sqrt(z2));
         }
     }
+
+
     // below for txt 2 besd
-    int read_probeinfolst(vector<probeinfolst> &prbiflst,char* syllabusName)
+    int
+    read_probeinfolst(vector<probeinfolst> &prbiflst, char * syllabusName)
     {
         ifstream flptr(syllabusName);
         if (!flptr) {
@@ -37,7 +38,7 @@ namespace SMRDATA
         long mapsize=0;
         char buf[MAX_LINE_SIZE];
         flptr.getline(buf, MAX_LINE_SIZE); //header
-        if(buf[0]=='\0')
+        if(buf[0] == '\0')
         {
             printf("ERROR: the first row of the file %s is empty.\n",syllabusName);
             exit(EXIT_FAILURE);
@@ -45,7 +46,7 @@ namespace SMRDATA
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, ", \t\n");
         to_upper(vs_buf[0]);
-        if(vs_buf[0]!="CHR") {
+        if(vs_buf[0] != "CHR") {
             printf("ERROR: %s should have headers that start with \"Chr\".\n", syllabusName);
             exit(EXIT_FAILURE);
         }
@@ -58,66 +59,70 @@ namespace SMRDATA
         flptr.clear(ios::goodbit);
         flptr.seekg (0, ios::beg);
         flptr.getline(buf, MAX_LINE_SIZE); //header
-        int fcount=0;
+        int fcount = 0;
         while(!flptr.eof())
         {
             flptr.getline(buf,MAX_LINE_SIZE);
-            if(buf[0]!='\0'){
+            if(buf[0] != '\0'){
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, ", \t\n");
-                if(col_num!=7 && col_num!=8) {
+                if(col_num != 7 && col_num != 8) {
                     printf("ERROR: column number is not correct in row %d with probe name %s.\n", fcount+2, vs_buf[1].c_str());
                     exit(EXIT_FAILURE);
                 }
-                if(vs_buf[1]=="NA" || vs_buf[1]=="na")
+                if(vs_buf[1] == "NA" || vs_buf[1] == "na")
                 {
                     printf("ERROR: probe name is missing in row %d.\n", fcount+2);
                     exit(EXIT_FAILURE);
                 }
                 to_upper(vs_buf[0]);
                 to_upper(vs_buf[3]);
-                if(vs_buf[0]=="NA" || vs_buf[3]=="NA")
+                if(vs_buf[0] == "NA" || vs_buf[3] == "NA")
                 {
                     printf("ERROR: probe chromosome information or probe position information of probe %s is missing in row %d.\n", vs_buf[1].c_str(),fcount+2);
                     exit(EXIT_FAILURE);
                 }
-                if(vs_buf[6]=="NA" || vs_buf[6]=="na")
+                if(vs_buf[6] == "NA" || vs_buf[6] == "na")
                 {
                     printf("ERROR: ESD file path of probe %s is missing in row %d.\n", vs_buf[1].c_str(),fcount+2);
                     exit(EXIT_FAILURE);
                 }
-                string cpstr=vs_buf[0]+":"+vs_buf[1];
-                string cpbstr=vs_buf[0]+":"+vs_buf[1]+":"+vs_buf[3];
-                probe_cp_map.insert(pair<string,int>(cpstr,fcount));
-                probe_cpb_map.insert(pair<string,int>(cpbstr,fcount));
-                probe_map.insert(pair<string,int>(vs_buf[6],fcount));
-                if(probe_cp_map.size()!=probe_cpb_map.size())
+                string cpstr=vs_buf[0] + ":" + vs_buf[1];
+                string cpbstr=vs_buf[0] + ":" + vs_buf[1] + ":" + vs_buf[3];
+                probe_cp_map.insert(pair<string, int>(cpstr, fcount));
+                probe_cpb_map.insert(pair<string, int>(cpbstr, fcount));
+                probe_map.insert(pair<string, int>(vs_buf[6], fcount));
+                if(probe_cp_map.size() != probe_cpb_map.size())
                 {
-                    printf("ERROR: probe %s has multiple positions.\n",vs_buf[1].c_str() );
+                    printf("ERROR: probe %s has multiple positions.\n", vs_buf[1].c_str() );
                     exit(EXIT_FAILURE);
                 }
-                if(mapsize==probe_map.size())
+                if(mapsize == probe_map.size())
                 {
-                    printf("ERROR: Duplicated ESD file name found for %s.\n",vs_buf[6].c_str() );
+                    printf("ERROR: Duplicated ESD file name found for %s.\n", vs_buf[6].c_str() );
                     exit(EXIT_FAILURE);
                 } else {
-                    mapsize=probe_map.size();
+                    mapsize = probe_map.size();
                 }
                 probeinfolst tmpinfo;
                 int tmpchr;
-                if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpchr=23;
-                else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpchr=24;
-                else tmpchr=atoi(vs_buf[0].c_str());
-                tmpinfo.probechr=tmpchr;
+                if(vs_buf[0] == "X" || vs_buf[0] == "x")
+                    tmpchr=23;
+                else if(vs_buf[0]=="Y" || vs_buf[0]=="y")
+                    tmpchr=24;
+                else
+                    tmpchr=atoi(vs_buf[0].c_str());
+                tmpinfo.probechr = tmpchr;
                 strcpy2(&tmpinfo.probeId, vs_buf[1]);
-                tmpinfo.gd=atoi(vs_buf[2].c_str());
-                tmpinfo.bp=atoi(vs_buf[3].c_str());
+                tmpinfo.gd = atoi(vs_buf[2].c_str());
+                tmpinfo.bp = atoi(vs_buf[3].c_str());
                 strcpy2(&tmpinfo.genename, vs_buf[4]);
-                tmpinfo.orien=vs_buf[5].c_str()[0];
+                tmpinfo.orien = vs_buf[5].c_str()[0];
                 strcpy2(&tmpinfo.esdpath, vs_buf[6]);
-                if(col_num==8){
+                if(col_num == 8){
                     strcpy2(&tmpinfo.bfilepath, vs_buf[7]);
-                } else tmpinfo.bfilepath=NULL;
+                } else 
+                    tmpinfo.bfilepath=NULL;
                 prbiflst.push_back(tmpinfo);
                 fcount++;
             }
@@ -126,22 +131,25 @@ namespace SMRDATA
         printf("%d ESD files of total %ld probes to be included from \"%s\".\n",lineNum, probe_cp_map.size(), syllabusName);
         return lineNum;
     }
-    void read_smr_sa(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<string> &a1, vector<string> &a2, vector<float> &freq,vector<float> &beta,vector<float> &se,string esdpath)
+
+
+    void
+    read_smr_sa(vector<string> &rs, vector<int> &chr, vector<int> &bp, vector<string> &a1, \
+        vector<string> &a2, vector<float> &freq, vector<float> &beta, vector<float> &se, \
+        string esdpath)
     {
-        gzFile gzfile=NULL;
+        gzFile gzfile = NULL;
         ifstream flptr;
-        bool gzflag=has_suffix(esdpath, "gz");
-        if(gzflag)
-        {
+        bool gzflag = has_suffix(esdpath, "gz");
+        if(gzflag){
             gzfile = gzopen(esdpath.c_str(), "rb");
-            if (!(gzfile)) {
+            if (!(gzfile)){
                 fprintf (stderr, "%s: Error: can not open the file %s\n",
                          esdpath.c_str(), strerror (errno));
                 exit (EXIT_FAILURE);
             }
         }
-        else
-        {
+        else{
             flptr.open(esdpath.c_str());
             if (!flptr) throw ("Error: can not open the file [" + esdpath + "] to read.");
         }
@@ -149,57 +157,60 @@ namespace SMRDATA
         
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
-        if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
-        else flptr.getline(buf,MAX_LINE_SIZE);// the header
+        if(gzflag)
+            gzgets(gzfile, buf, MAX_LINE_SIZE); //head
+        else 
+            flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
-        if(buf[0]=='\0')
-        {
+        if(buf[0] == '\0'){
             printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
             exit(EXIT_FAILURE);
         }
         vector<string> vs_buf;
         int col_num = split_string(buf, vs_buf, ", \t\n");
         to_upper(vs_buf[0]);
-        if(vs_buf[0]!="CHR") {
+        if(vs_buf[0]!="CHR"){
             printf("ERROR: the headers should start with \"Chr\"");
             exit(EXIT_FAILURE);
         }
         map<string, int> currs_map;
         long currssize=0;
-        while(!flptr.eof() && !gzeof(gzfile))
-        {
-            if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE);
-            else flptr.getline(buf,MAX_LINE_SIZE);
+        while(!flptr.eof() && !gzeof(gzfile)){
+            if(gzflag) 
+                gzgets(gzfile, buf, MAX_LINE_SIZE);
+            else 
+                flptr.getline(buf,MAX_LINE_SIZE);
             if(buf[0]!='\0'){
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, ", \t\n");
-                if(col_num!=9) {
+                if(col_num != 9){
                     printf("ERROR: column number is not correct in row %d.!", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
-                if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
+                if(vs_buf[1] == "NA" || vs_buf[1] == "na"){
                     printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+2);
                     exit(EXIT_FAILURE);
                 }
-                string tmpstr=vs_buf[0]+":"+vs_buf[1];
-                currs_map.insert(pair<string,int>(tmpstr,lineNum));
-                if(currssize<currs_map.size())
-                {
-                    if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
+                string tmpstr=vs_buf[0] + ":" + vs_buf[1];
+                currs_map.insert(pair<string, int>(tmpstr, lineNum));
+                if(currssize<currs_map.size()){
+                    if(vs_buf[0] == "NA" || vs_buf[0] == "na"){
                         printf("ERROR: the chromosome is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     int tmpchr;
-                    if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpchr=23;
-                    else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpchr=24;
-                    else tmpchr=atoi(vs_buf[0].c_str());
+                    if(vs_buf[0] == "X" || vs_buf[0] == "x")
+                        tmpchr=23;
+                    else if(vs_buf[0]=="Y" || vs_buf[0]=="y")
+                        tmpchr=24;
+                    else
+                        tmpchr=atoi(vs_buf[0].c_str());
                     chr.push_back(tmpchr);
                     rs.push_back(vs_buf[1]);
                     if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
                         printf("ERROR: the SNP position is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
-
                     bp.push_back(atoi(vs_buf[2].c_str()));
                     to_upper(vs_buf[3]);
                     a1.push_back(vs_buf[3]);
@@ -208,8 +219,7 @@ namespace SMRDATA
                     if(vs_buf[5].compare("NA") && vs_buf[5].compare("na"))
                     {
                         float fq=atof(vs_buf[5].c_str());
-                        if(fq<=0 || fq>=1)
-                        {
+                        if(fq<=0 || fq>=1){
                             printf("ERROR: allele frequency should be between 0 and 1 in row %d.\n",lineNum+2);
                             exit(EXIT_FAILURE);
                         }
@@ -222,23 +232,25 @@ namespace SMRDATA
                     to_upper(vs_buf[8]);
                     if(vs_buf[6].compare("NA") && (vs_buf[7].compare("NA") || vs_buf[8].compare("NA"))){
                         beta.push_back(atof(vs_buf[6].c_str()));
-                        if(vs_buf[8]=="NA") se.push_back(atof(vs_buf[7].c_str()));
+                        if(vs_buf[8] == "NA") 
+                            se.push_back(atof(vs_buf[7].c_str()));
                         else {
                             double betatmp=atof(vs_buf[6].c_str());
                             double ptmp=atof(vs_buf[8].c_str());
-                            if(ptmp<0)
-                            {
+                            if(ptmp < 0){
                                 printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
                                 printf("%s\n",buf);
                                 exit(EXIT_FAILURE);
                             }
-                            if(ptmp==0) {
-                                ptmp=__DBL_MIN__;
+                            if(ptmp == 0){
+                                ptmp = __DBL_MIN__;
                                 printf("WARNING: p-value of 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
                                 printf("%s\n",buf);
                             }
-                            if((ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") || ptmp==1) se.push_back(atof(vs_buf[7].c_str()));
-                            else se.push_back(adjSE(betatmp, ptmp));
+                            if((ptmp < MIN_PVAL_ADJUSTED && vs_buf[7] != "NA") || ptmp == 1) 
+                                se.push_back(atof(vs_buf[7].c_str()));
+                            else 
+                                se.push_back(adjSE(betatmp, ptmp));
                         }
                     } else {
                         printf("WARNING: this row is omitted because beta is missing or both SE and P are missing (\"NA\").\n");
@@ -259,22 +271,22 @@ namespace SMRDATA
         else flptr.close();
         cout << lineNum << " SNPs to be included from [" + string(esdpath) + "]." << endl;
     }
-    void read_smr_sa(vector<snpinfolst> &snpinfo,string esdpath)
+
+
+    void read_smr_sa(vector<snpinfolst> &snpinfo, string esdpath)
     {
-        gzFile gzfile=NULL;
+        gzFile gzfile = NULL;
         ifstream flptr;
-        bool gzflag=has_suffix(esdpath, "gz");
-        if(gzflag)
-        {
+        bool gzflag = has_suffix(esdpath, "gz");
+        if(gzflag){
             gzfile = gzopen(esdpath.c_str(), "rb");
-            if (!(gzfile)) {
+            if (!(gzfile)){
                 fprintf (stderr, "%s: Couldn't open file %s\n",
                          esdpath.c_str(), strerror (errno));
                 exit (EXIT_FAILURE);
             }
         }
-        else
-        {
+        else{
             flptr.open(esdpath.c_str());
             if (!flptr) throw ("Error: can not open the file [" + esdpath + "] to read.");
         }
@@ -282,11 +294,12 @@ namespace SMRDATA
         
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
-        if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE); //head
-        else flptr.getline(buf,MAX_LINE_SIZE);// the header
+        if(gzflag) 
+            gzgets(gzfile, buf, MAX_LINE_SIZE); //head
+        else 
+            flptr.getline(buf,MAX_LINE_SIZE);// the header
         /* check headers */
-        if(buf[0]=='\0')
-        {
+        if(buf[0]=='\0'){
             printf("ERROR: the first row of the file %s is empty.\n",esdpath.c_str());
             exit(EXIT_FAILURE);
         }
@@ -299,11 +312,12 @@ namespace SMRDATA
         }
         map<string, int> currs_map;
         long currssize=0;
-        while(!flptr.eof() && !gzeof(gzfile))
-        {
+        while(!flptr.eof() && !gzeof(gzfile)){
             snpinfolst tmpesd;
-            if(gzflag) gzgets(gzfile, buf, MAX_LINE_SIZE);
-            else flptr.getline(buf,MAX_LINE_SIZE);
+            if(gzflag) 
+                gzgets(gzfile, buf, MAX_LINE_SIZE);
+            else 
+                flptr.getline(buf,MAX_LINE_SIZE);
             if(buf[0]!='\0'){
                 vs_buf.clear();
                 col_num = split_string(buf, vs_buf, ", \t\n");
@@ -317,30 +331,30 @@ namespace SMRDATA
                 }
                 string tmpstr=vs_buf[0]+":"+vs_buf[1];
                 currs_map.insert(pair<string,int>(tmpstr,lineNum));
-                if(currssize<currs_map.size())
-                {
+                if(currssize<currs_map.size()){
                     if(vs_buf[0]=="NA" || vs_buf[0]=="na"){
                         printf("ERROR: the chromosome is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
-                    if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpesd.snpchr=23;
-                    else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpesd.snpchr=24;
-                    else tmpesd.snpchr=atoi(vs_buf[0].c_str());
+                    if(vs_buf[0]=="X" || vs_buf[0]=="x") 
+                        tmpesd.snpchr=23;
+                    else if(vs_buf[0]=="Y" || vs_buf[0]=="y") 
+                        tmpesd.snpchr=24;
+                    else 
+                        tmpesd.snpchr=atoi(vs_buf[0].c_str());
                     strcpy2(&tmpesd.snprs,vs_buf[1]);
                     if(vs_buf[2]=="NA" || vs_buf[2]=="na"){
                         printf("ERROR: the SNP position is \'NA\' in row %d.\n", lineNum+2);
                         exit(EXIT_FAILURE);
                     }
                     tmpesd.bp=atoi(vs_buf[2].c_str());
-                     to_upper(vs_buf[3]);
-                     strcpy2(&tmpesd.a1,vs_buf[3]);
-                     to_upper(vs_buf[4]);
+                    to_upper(vs_buf[3]);
+                    strcpy2(&tmpesd.a1,vs_buf[3]);
+                    to_upper(vs_buf[4]);
                     strcpy2(&tmpesd.a2,vs_buf[4]);
-                    if(vs_buf[5].compare("NA") && vs_buf[5].compare("na"))
-                    {
+                    if(vs_buf[5].compare("NA") && vs_buf[5].compare("na")){
                         float fq=atof(vs_buf[5].c_str());
-                        if(fq<=0 || fq>=1)
-                        {
+                        if(fq<=0 || fq>=1){
                             printf("ERROR: freq should be between 0 and 1 in row %d.\n", lineNum+2);
                             exit(EXIT_FAILURE);
                         }
@@ -348,38 +362,40 @@ namespace SMRDATA
                     } else {
                         tmpesd.freq=-9;
                     }
-                     to_upper(vs_buf[6]);
-                     to_upper(vs_buf[7]);
+                    to_upper(vs_buf[6]);
+                    to_upper(vs_buf[7]);
                     to_upper(vs_buf[8]);
                     if(vs_buf[6].compare("NA") && (vs_buf[7].compare("NA") || vs_buf[8].compare("NA"))){
                         tmpesd.beta=atof(vs_buf[6].c_str());
-                        if(vs_buf[8]=="NA") tmpesd.se=atof(vs_buf[7].c_str());
+                        if(vs_buf[8] == "NA") 
+                            tmpesd.se = atof(vs_buf[7].c_str());
                         else {
                             double betatmp=atof(vs_buf[6].c_str());
                             double ptmp=atof(vs_buf[8].c_str());
-                            if(ptmp<0)
-                            {
+                            if(ptmp < 0){
                                 printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
                                 printf("%s\n",buf);
                                 exit(EXIT_FAILURE);
                             }
-                            if(ptmp==0) {
+                            if(ptmp == 0) {
                                 ptmp=__DBL_MIN__;
                                 printf("WARNING: p-value of 0 found in row %d and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
                                 printf("%s\n",buf);
                             }
-                            if((ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") || ptmp==1) tmpesd.se=atof(vs_buf[7].c_str());
-                            else tmpesd.se=adjSE(betatmp, ptmp);
+                            if((ptmp<MIN_PVAL_ADJUSTED && vs_buf[7]!="NA") || ptmp==1) 
+                                tmpesd.se=atof(vs_buf[7].c_str());
+                            else 
+                                tmpesd.se=adjSE(betatmp, ptmp);
                         }
                         snpinfo.push_back(tmpesd);
                     } else {
                         printf("WARNING: this row is omitted because beta is missing or both SE and P are missing (\"NA\").\n");
                         printf("%s\n",buf);
-                        tmpesd.beta=-9;
-                        tmpesd.se=-9;
+                        tmpesd.beta = -9;
+                        tmpesd.se = -9;
                     }
                     lineNum++;
-                    currssize=currs_map.size();
+                    currssize = currs_map.size();
                 } else {
                     printf("WARNING: duplicated SNP ID %s in file %s. The duplicated entry is omitted:\n", vs_buf[1].c_str(),esdpath.c_str());
                     printf("%s.\n",buf);
@@ -387,10 +403,14 @@ namespace SMRDATA
             }
         }
         
-        if(gzflag) gzclose(gzfile);
-        else flptr.close();
+        if(gzflag) 
+            gzclose(gzfile);
+        else 
+            flptr.close();
         cout << lineNum << " SNPs infomation to be included from [" + string(esdpath) + "]." << endl;
     }
+
+
     void read_plink_qassoc_gz(vector<string> &rs,vector<int> &chr,vector<int> &bp, vector<float> &beta,vector<float> &se,string esdpath){
         
         cout << "Reading summary information from [" + esdpath + "]." << endl;
@@ -452,10 +472,10 @@ namespace SMRDATA
                 if(vs_buf[4].compare("NA") && (vs_buf[5].compare("NA") || vs_buf[8].compare("NA")))
                 {
                     beta.push_back(atof(vs_buf[4].c_str()));
-                    if(vs_buf[8]=="NA") se.push_back(atof(vs_buf[5].c_str()));
+                    if(vs_buf[8] == "NA") se.push_back(atof(vs_buf[5].c_str()));
                     else {
-                        double betatmp=atof(vs_buf[4].c_str());
-                        double ptmp=atof(vs_buf[8].c_str());
+                        double betatmp = atof(vs_buf[4].c_str());
+                        double ptmp = atof(vs_buf[8].c_str());
                         if(ptmp<0)
                         {
                             printf("ERROR: p-value should be positive in row %d.\n",lineNum+2);
@@ -483,8 +503,9 @@ namespace SMRDATA
         cout << lineNum << " SNPs summary info to be included from [" + esdpath + "]." << endl;
     }
     
-    void read_plink_qassoc(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<float> &beta,vector<float> &se,string esdpath){
-        
+
+    void read_plink_qassoc(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<float> &beta,vector<float> &se,string esdpath)
+    {
         ifstream flptr(esdpath.c_str());
         if (!flptr) throw ("Error: can not open the file [" + string(esdpath) + "] to read.");
         cout << "Reading eQTL information from [" + string(esdpath) + "]." << endl;
@@ -570,7 +591,9 @@ namespace SMRDATA
         cout << lineNum << " SNPs summary info to be included from [" + esdpath + "]." << endl;
     }
 
-    void read_plink_qassoc(vector<snpinfolst> &snpinfo,string esdpath)
+
+    void
+    read_plink_qassoc(vector<snpinfolst> &snpinfo,string esdpath)
     {
         gzFile gzfile=NULL;
         ifstream flptr;
@@ -675,8 +698,11 @@ namespace SMRDATA
         else flptr.close();
         cout << lineNum << " SNPs summary info to be included from [" + esdpath + "]." << endl;
     }
-    void read_merlin_qassoc_gz(vector<string> &rs,vector<int> &chr,vector<string> &a1, vector<string> &a2, vector<float> freq, vector<float> &beta,vector<float> &se,string esdpath){
-        
+
+
+    void 
+    read_merlin_qassoc_gz(vector<string> &rs,vector<int> &chr,vector<string> &a1, vector<string> &a2, vector<float> freq, vector<float> &beta,vector<float> &se,string esdpath)
+    {
         cout << "Reading summary information from [" + esdpath + "]." << endl;
         char tbuf[MAX_LINE_SIZE];
         gzFile gzfile = gzopen(esdpath.c_str(), "rb");
@@ -779,7 +805,12 @@ namespace SMRDATA
         gzclose(gzfile);
         cout << lineNum << " SNPs summary info to be included from [" + esdpath + "]." << endl;
     }
-    void read_gemma_qassoc(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<string> &a1, vector<string> &a2, vector<float> freq, vector<float> &beta,vector<float> &se,string esdpath)
+
+
+    void 
+    read_gemma_qassoc(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<string> &a1, \
+        vector<string> &a2, vector<float> freq, vector<float> &beta, \
+        vector<float> &se,string esdpath)
     {
         gzFile gzfile=NULL;
         ifstream flptr;
@@ -905,7 +936,10 @@ namespace SMRDATA
         if(gzflag) gzclose(gzfile);
         else flptr.close();
     }
-    void read_bolt_qassoc(vector<string> &rs,vector<int> &chr, vector<int> &bp, vector<string> &a1, vector<string> &a2, vector<float> freq, vector<float> &beta,vector<float> &se,string esdpath)
+
+
+    void read_bolt_qassoc(vector<string> &rs, vector<int> &chr, vector<int> &bp, vector<string> &a1, \
+        vector<string> &a2, vector<float> freq, vector<float> &beta, vector<float> &se, string esdpath)
     {
         gzFile gzfile=NULL;
         ifstream flptr;
@@ -1030,7 +1064,10 @@ namespace SMRDATA
         if(gzflag) gzclose(gzfile);
         else flptr.close();
     }
-    void read_gemma_qassoc(vector<snpinfolst> &snpinfo,string esdpath)
+
+
+    void 
+    read_gemma_qassoc(vector<snpinfolst> &snpinfo,string esdpath)
     {
         gzFile gzfile=NULL;
         ifstream flptr;
@@ -1154,6 +1191,8 @@ namespace SMRDATA
         if(gzflag) gzclose(gzfile);
         else flptr.close();
     }
+
+
     void read_bolt_qassoc(vector<snpinfolst> &snpinfo,string esdpath)
     {
         gzFile gzfile=NULL;
@@ -1273,7 +1312,6 @@ namespace SMRDATA
                     tmpesd.se=-9;
                 }
                 lineNum++;
-                
             }
         }
         
@@ -1282,7 +1320,10 @@ namespace SMRDATA
         else flptr.close();
     }
     
-    void read_mapfile(bInfo* bdata,string bimfile) {
+
+    void 
+    read_mapfile(bInfo* bdata,string bimfile)
+    {
         // Read mapfile in the format as: chr snp bp
         int ibuf = 0;
         string cbuf = "0";
@@ -1329,7 +1370,8 @@ namespace SMRDATA
         }
     }
 
-    uint64_t get_esi_info(vector<snpinfolst> &snpinfo, probeinfolst** prbiflst,int prb_num,int fformat)
+    uint64_t
+    get_esi_info(vector<snpinfolst> &snpinfo, probeinfolst** prbiflst,int prb_num,int fformat)
     {
         probeinfolst* locinfolst=*prbiflst;
         map<string, int> rs_map;
@@ -1418,7 +1460,8 @@ namespace SMRDATA
                          to_upper(vs_buf[4]);
                         if(vs_buf[3]=="NA" ||vs_buf[4]=="NA")
                         {
-                            printf("WARNING: Allele infomation of row %d is \"NA\" in esd file \"%s\"! This may cause incorrect positive/negative sign of effect size when conducting allele check.\n", lineNum+2, esdfilename.c_str());
+                            printf("WARNING: Allele infomation of row %d is \"NA\" in esd file \"%s\"! This may cause \
+                                incorrect positive/negative sign of effect size when conducting allele check.\n", lineNum+2, esdfilename.c_str());
                            
                         }
                         string crsstr=vs_buf[0]+":"+vs_buf[1];
@@ -1748,7 +1791,10 @@ namespace SMRDATA
         }
         return ttl_value_num;
     }
-    void save_txts_dbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd,probeinfolst* prbiflst, int fformat,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2, int addn)
+    void
+    save_txts_dbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd, \
+        probeinfolst* prbiflst, int fformat,vector<string> &esi_rs, \
+        vector<string> &esi_a1,vector<string> &esi_a2, int addn)
     {
         // get esd info
         string esdfile=string(outFileName)+string(".besd");
@@ -1889,7 +1935,11 @@ namespace SMRDATA
 
     }
     
-     void save_full_txts_sbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd,probeinfolst* prbiflst, int fformat,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2, int addn)
+
+     void
+     save_full_txts_sbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd, \
+        probeinfolst* prbiflst, int fformat,vector<string> &esi_rs, vector<string> &esi_a1, \
+        vector<string> &esi_a2, int addn)
     {
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -2070,7 +2120,11 @@ namespace SMRDATA
         cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
     }
 
-    void slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile, bool extract_cis_only, bool techHit)
+
+    void
+    slct_sparse_per_prb(vector<int> &slct_idx, probeinfolst* prbifo, vector<snpinfolst> &snpinfo, \
+        long cis_itvl, long trans_itvl,double transThres,double restThres,FILE* logfile, \
+        bool extract_cis_only, bool techHit)
     {
         // no null se in snpinfo has been guaranteed before here.
         // for log file
@@ -2109,7 +2163,11 @@ namespace SMRDATA
                         //printf("The following SNP in the cis-region is excluded due to the technical eQTL.\n");
                         double z=(snpinfo[l].beta/snpinfo[l].se);
                         double p=pchisq(z*z, 1);
-                        string tmp=atos(snpinfo[l].snprs)+"\t"+ atos(snpinfo[l].snpchr)+"\t"+ atos(snpinfo[l].bp)+"\t"+ atos(snpinfo[l].a1)+"\t"+ atos(snpinfo[l].a2)+"\t"+ atos(snpinfo[l].freq)+"\t"+ atos(prbifo->probeId)+"\t"+ atos(prbifo->probechr)+"\t"+ atos(prbifo->bp)+"\t" + atos(prbifo->genename)+"\t"+ atos(prbifo->orien)+"\t"+ atos(snpinfo[l].beta)+"\t"+ atos(snpinfo[l].se)+"\t"+ dtos(p)+"\n";
+                        string tmp=atos(snpinfo[l].snprs)+"\t"+ atos(snpinfo[l].snpchr)+"\t"+ \
+                            atos(snpinfo[l].bp)+"\t"+ atos(snpinfo[l].a1)+"\t"+ atos(snpinfo[l].a2)+"\t"+ \
+                            atos(snpinfo[l].freq)+"\t"+ atos(prbifo->probeId)+"\t"+ \
+                            atos(prbifo->probechr)+"\t"+ atos(prbifo->bp)+"\t" + atos(prbifo->genename)+"\t"+ \
+                            atos(prbifo->orien)+"\t"+ atos(snpinfo[l].beta)+"\t"+ atos(snpinfo[l].se)+"\t"+ dtos(p)+"\n";
                         if(techeQTLfile) {
                             fputs(tmp.c_str(),techeQTLfile);
                             fflush(techeQTLfile);
@@ -2250,11 +2308,11 @@ namespace SMRDATA
                 //printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n",snpinfo[l].snprs);
             }
         }
-        long cissnpnum=cis_idx.size();
-        long transnum=nsnp.size();
-        long transsnpnum=0;
-        long othersnpnum=other_idx.size();
-        for(int l=0;l<nsnp.size();l++) transsnpnum+=nsnp[l];
+        long cissnpnum = cis_idx.size();
+        long transnum = nsnp.size();
+        long transsnpnum = 0;
+        long othersnpnum = other_idx.size();
+        for(int l=0;l<nsnp.size();l++) transsnpnum += nsnp[l];
         if(slct_idx.size()-cissnpnum-transsnpnum-othersnpnum != 0)
         {
             printf("Something is wrong with this selection methold. Please report this bug.\n");
@@ -2297,7 +2355,12 @@ namespace SMRDATA
             fflush(logfile);
         }
     }
-    void save_slct_txts_sbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd,probeinfolst* prbiflst, int fformat,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl, int trans_itvl, float transThres, float restThres, int addn)
+
+
+    void
+    save_slct_txts_sbesd(char* outFileName, long esiNum, long epiNum,vector<int> &epi2esd, \
+        probeinfolst* prbiflst, int fformat,vector<string> &esi_rs,vector<string> &esi_a1, \
+        vector<string> &esi_a2,int cis_itvl, int trans_itvl, float transThres, float restThres, int addn)
     {
         map<string, int> esi_map;
         for(int j=0;j<esi_rs.size();j++)
@@ -2508,7 +2571,12 @@ namespace SMRDATA
         fclose(logfile);
         
     }
-    void make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag,bool gemmaflag,bool merlinflag,bool boltflag, bool save_dense_flag,int cis_itvl, int trans_itvl, float transThres, float restThres,bool samegeno, int addn)
+
+
+    void 
+    make_besd(char*outFileName, char* syllabusName, bool gctaflag,bool plinkflag, \
+        bool gemmaflag,bool merlinflag,bool boltflag, bool save_dense_flag, \
+        int cis_itvl, int trans_itvl, float transThres, float restThres,bool samegeno, int addn)
     {
         if(samegeno) {
             printf("WARNING: --geno-uni is enabled. Please ensure the SNPs and their alleles identical across all the text files.\n");
@@ -2970,7 +3038,11 @@ namespace SMRDATA
         
         
     }
-    void make_besd_byQfile(char* qfileName, char* outFileName,bool save_dense_flag,int cis_itvl, int trans_itvl, float transThres, float restThres,int addn)
+
+
+    void 
+    make_besd_byQfile(char* qfileName, char* outFileName,bool save_dense_flag, \
+        int cis_itvl, int trans_itvl, float transThres, float restThres,int addn)
     {
         FILE* qfile=fopen(qfileName, "r");
         if (!qfile) {
@@ -3568,7 +3640,11 @@ namespace SMRDATA
         
     }
     
-    void read_maf_file(vector<string> &rs,vector<string> &a1,vector<string> &a2,vector< vector<float> > &maf, vector<string> &cohorts, map<string,int> &rs_map, string mafFileName){
+
+    void 
+    read_maf_file(vector<string> &rs,vector<string> &a1,vector<string> &a2, vector<vector<float>> &maf, \
+        vector<string> &cohorts, map<string,int> &rs_map, string mafFileName)
+    {
         
         cout << "Reading summary information from [" + mafFileName + "]." << endl;
         char tbuf[MAX_LINE_SIZE];
@@ -3644,7 +3720,10 @@ namespace SMRDATA
         gzclose(gzfile);
         cout << lineNum << " MAF info to be included from [" + mafFileName + "]." << endl;
     }
-    void selective_cpy(eqtlInfo* etrait, eqtlInfo* esdata)
+
+
+    void 
+    selective_cpy(eqtlInfo* etrait, eqtlInfo* esdata)
     {
         esdata->_esi_rs.resize(etrait->_esi_include.size());
         esdata->_esi_allele1.resize(etrait->_esi_include.size());
@@ -3734,7 +3813,10 @@ namespace SMRDATA
             esdata->_valNum=esdata->_val.size();
         }
     }
-    void write_smr_esi(string outFileName, eqtlInfo* eqtlinfo)
+
+
+    void
+    write_smr_esi(string outFileName, eqtlInfo* eqtlinfo)
     {
         string epiName=outFileName+".esi";
         FILE* efile=fopen(epiName.c_str(),"w");
@@ -3757,7 +3839,10 @@ namespace SMRDATA
         fclose(efile);
         printf("%ld SNPs have been saved in the file %s .\n", eqtlinfo->_esi_include.size(), epiName.c_str());
     }
-    void write_smr_epi(string outFileName, eqtlInfo* eqtlinfo)
+
+
+    void 
+    write_smr_epi(string outFileName, eqtlInfo* eqtlinfo)
     {
         string epiName=outFileName+".epi";
         FILE* efile=fopen(epiName.c_str(),"w");
