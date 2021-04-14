@@ -420,8 +420,8 @@ void CommFunc::update_map_rm(const vector<string> &id_list, map<string, int> &id
 
 void CommFunc::progress(int &cur, double &disp, int ttl)
 {
-    double desti=1.0*cur/(ttl-1);
-    if(desti>=disp)
+    double desti = 1.0 * cur / (ttl-1);
+    if(desti >= disp)
     {
         printf("%3.0f%%\r", 100.0*desti);
         fflush(stdout);
