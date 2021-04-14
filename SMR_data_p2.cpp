@@ -3619,7 +3619,7 @@ namespace SMRDATA
 				int pkey = prbiflst[j].gd;
                 vector<uint32_t> tmprid;
                 vector<float> tmpse;
-                string curprb = prbiflst[j].probeId;
+                string curprb = prbiflst[j].probeId; //??
                 snpinfoperprb.clear();
 
 				for (int k = 0; k < _ttl_beta[pkey].size(); k++)
@@ -3657,7 +3657,7 @@ namespace SMRDATA
                 }
 
                 vector<int> rsid(_rs.size());
-                for (int l = 0; l<_rs.size(); l++){
+                for (int l = 0; l < _rs.size(); l++){
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) 
                         rsid[l]=iter->second;
@@ -3697,8 +3697,11 @@ namespace SMRDATA
             }
             uint64_t valNum=val.size();
             fwrite (&valNum,sizeof(uint64_t), 1, smr1);
+
             fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
+
             fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
+
             fwrite (&val[0],sizeof(float), val.size(), smr1);
             fclose (smr1);
             free_snplist(snpiflst);
