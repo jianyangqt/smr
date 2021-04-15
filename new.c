@@ -15,6 +15,17 @@
 #define SNP_NUM_INDEX 2
 #define PROB_NUM_INDEX 3
 
+// uint32 + floats
+#define DENSE_FILE_TYPE_1 0
+// 16*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]]
+#define DENSE_FILE_TYPE_3 5
+// uint32 + uint64_t + uint64_ts + uint32_ts + floats
+#define SPARSE_FILE_TYPE_3F 0x40400000
+// 16*uint32s + uint64_t + uint64_ts + uint32_ts + 
+// floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +
+// valnumber+cols+rowids+betases) [default]]
+#define SPARSE_FILE_TYPE_3 3
+
 #define  ALLEL_TYPE(al) ((al == 1)? 'N': ((al == 0)? '2': ((al == 2)? '1': '0')))
 
 struct BIM_NODE{
@@ -72,7 +83,6 @@ struct TMP_S {
 };
 
 
-
 static struct BIM_RES  parse_bim(const char *);
 static struct FAM_RES  parse_fam(const char *);
 static void * parse_bed(const char *, unsigned long, unsigned long);
@@ -114,6 +124,7 @@ main(int argc, char ** argv)
 
 }
 #endif
+
 
 /* The besd file is a kind of packed file, which store data 
  * as binary instead of ASCII to reduce size of file. Here we 
@@ -247,10 +258,6 @@ decode_besd_file(const char * besd_file_name)
 }
 
 
-
-
-
-
 static struct BIM_RES
 parse_bim(const char * bim_file_name)
 {
@@ -308,7 +315,6 @@ parse_bim(const char * bim_file_name)
 
     return data_out;
 }
-
 
 
 static struct FAM_RES
