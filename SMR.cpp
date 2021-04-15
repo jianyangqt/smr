@@ -207,7 +207,7 @@ option(int option_num, char* option_str[])
     char* prbseqregion = NULL;
     double ptech = 5.0e-8;
 
-    int addn=-9;
+    int addn = -9;
     bool shownflag=false;
 
     char* refepiName = NULL;
@@ -956,9 +956,9 @@ option(int option_num, char* option_str[])
             }
         }
         else if(strcmp(option_str[i],"--add-n")==0){
-            addn=atoi(option_str[++i]);
+            addn = atoi(option_str[++i]);
             printf("--add-n %d\n", addn);
-            if(addn<0 )
+            if(addn < 0 )
             {
                 fprintf (stderr, "Error: --add-n should be over 0.\n");
                 exit (EXIT_FAILURE);
@@ -1084,7 +1084,7 @@ option(int option_num, char* option_str[])
             transThres, restThres,genouni,addn);
     else if (make_besd_flag && queryfileflg)
         make_besd_byQfile(queryFileName, outFileName, save_dense_flag, cis_itvl, \
-            trans_itvl, transThres, restThres,addn);
+            trans_itvl, transThres, restThres, addn);
     else if (metaflg)
         meta(eqtlsmaslstName, outFileName, meta_mtd, pmecs, cis_flag, cis_itvl, \
             nmecs, problstName, problst2exclde, genelistName, chr, prbchr, \

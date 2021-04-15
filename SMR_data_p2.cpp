@@ -5,6 +5,7 @@
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //  Modified by fanghl 20210412
 
+
 #include "SMR_data_p2.h"
 FILE * techeQTLfile = NULL;
 namespace SMRDATA
@@ -3044,23 +3045,30 @@ namespace SMRDATA
 
     }
 
-    // Has been reviewed.
+
+/*
+    The function need six arguments:
+    qfileName; outFileName; save_dense_flag; cis interval length, in kilo
+    basepair; trans interval lengtn, in kilo basepair unit; transThres?;
+    resThres?;addn?.
+ */
     void
     make_besd_byQfile(char* qfileName, char* outFileName,bool save_dense_flag, \
         int cis_itvl, int trans_itvl, float transThres, float restThres,int addn)
     {
+/*      //print arguments inputed.
         cout << "qfileName:" << qfileName << " outFileName:"<< outFileName << " save_dense_flag:" << save_dense_flag \
             << " cis_itvl:" << cis_itvl << " trans_itvl:" << trans_itvl << " transThres:" <<transThres \
             << " restThres:" << restThres << " addn:" <<addn << endl;
+*/
         FILE * qfile = fopen(qfileName, "r");
         if (!qfile) {
             printf("ERROR: Can't open file %s.\n ", qfileName);
             exit(EXIT_FAILURE);
         }
-
         printf("Reading eQTL summary data from %s ...\n", qfileName);
 
-/*
+/* probeinfolst structure, which is included in SMR_data.h:
     typedef struct{
         char* probeId;
         char* genename;
@@ -3075,7 +3083,7 @@ namespace SMRDATA
     } probeinfolst;
 */
         vector<probeinfolst> prbiflst;
-/*
+/*  snpinfolst structure, which is included in SMR_data.h:
     typedef struct{
         char* snprs;
         char* a1;
@@ -3089,11 +3097,19 @@ namespace SMRDATA
         float estn;
     } snpinfolst;
 */
+
+/*
+    snpiflst: vector of snpinfolst, which used to store snp infor.
+    _ttl_res: string vector vector, store snp name/rs of a prob per vector.
+    _ttl_beta: float vector vector, store beta value of a prob per vector.
+    _ttl_se: float vector vector, store se value of a prob per vector.
+    varible below is as same meaning as above.
+
+ */
         vector<snpinfolst> snpiflst;
         vector< vector<string> > _ttl_rs;
         vector< vector<float> > _ttl_beta;
         vector< vector<float> > _ttl_se;
-
         vector< vector<string> > _ttl_a1;
         vector< vector<string> > _ttl_a2;
         vector< vector<int> > _ttl_chr;
@@ -3101,14 +3117,17 @@ namespace SMRDATA
 
         bool warningdone=false;
         bool warningdone1=false;
-        char buf[MAX_LINE_SIZE];
-        fgets(buf, MAX_LINE_SIZE, qfile); //header
+        char buf[MAX_LINE_SIZE]; //defined in CommFunc.h
+        vector<string> vs_buf;
+
+        fgets(buf, MAX_LINE_SIZE, qfile); //get header line of file stream.
         if(buf[0]=='\0')
         {
             printf("ERROR: the first row of the file %s is empty.\n",qfileName);
             exit(EXIT_FAILURE);
         }
-        vector<string> vs_buf;
+
+        //check whether qfile header line is proper.
         split_string(buf, vs_buf, ", \t\n");
         cout << vs_buf[0] << endl;
         to_upper(vs_buf[0]);
@@ -3117,63 +3136,68 @@ namespace SMRDATA
             exit(EXIT_FAILURE);
         }
         if(vs_buf.size() == 13) {
-            printf("ERROR: the input file could be in the old Query format. Please update it by adding one column of the effect allele frequency.\n");
+            printf("ERROR: the input file could be in the old Query format. \
+                Please update it by adding one column of the effect allele frequency.\n");
             printf("http://cnsgenomics.com/software/smr/query.html\n");
             exit(EXIT_FAILURE);
         }
+
         long lineNum(0);
         long esiNum(0);
         long epiNum(0);
-        map<string, int> esi_map;
+        map<string, int> esi_map; //esi map, using to store snp uniquely, and index it first show up.
+        map<string, int> epi_map; // epi map, using to store prob uniquely, and index it first show up.
+        map<string, int> rs_prb_map; // snp_prob conctenated string map, using to check snp_prob uniqueness.
         map<string, int>::iterator iter;
-        map<string, int> epi_map;
-        map<string, int> rs_prb_map;
+        
         long rsprbmapsize(0);
         while(fgets(buf, MAX_LINE_SIZE, qfile))
         {
+            //begin, check qfile format and some field.
             vs_buf.clear();
             int col_num = split_string(buf, vs_buf, ", \t\n");
-            if(col_num!=14) {
-                printf("ERROR: the number of columns is incorrect in row %ld.\n", lineNum+2);
+            if(col_num != 14) {
+                printf("ERROR: the number of columns is incorrect in row %ld.\n", lineNum + 2);
                 exit(EXIT_FAILURE);
             }
-            if( (vs_buf[0]=="NA" || vs_buf[0]=="na"))
+            if( (vs_buf[0] == "NA" || vs_buf[0] == "na"))
             {
                 printf("ERROR: SNP name is \"NA\".\n");
                 exit(EXIT_FAILURE);
             }
-            if(!save_dense_flag && (vs_buf[1]=="NA" || vs_buf[1]=="na"))
+            if(!save_dense_flag && (vs_buf[1] == "NA" || vs_buf[1] == "na"))
             {
                 printf("ERROR: chromosome infomation of SNP is \"NA\".\n");
                 exit(EXIT_FAILURE);
             }
-            if(!save_dense_flag && (vs_buf[6]=="NA" || vs_buf[6]=="na"))
+            if(!save_dense_flag && (vs_buf[6] == "NA" || vs_buf[6] == "na"))
             {
                 printf("ERROR: Probe name is missing.\n");
                 exit(EXIT_FAILURE);
             }
-            if(!save_dense_flag && (vs_buf[7]=="NA" || vs_buf[7]=="na"))
+            if(!save_dense_flag && (vs_buf[7] == "NA" || vs_buf[7] == "na"))
             {
                 printf("ERROR: chromosome infomation of probe is \"NA\". \n");
                 exit(EXIT_FAILURE);
             }
-            if(!save_dense_flag && (vs_buf[2]=="NA" || vs_buf[2]=="na"))
+            if(!save_dense_flag && (vs_buf[2] == "NA" || vs_buf[2] == "na"))
             {
                 printf("ERROR: SNP position is \"NA\". \n");
                 exit(EXIT_FAILURE);
             }
-            if(!save_dense_flag && (vs_buf[8]=="NA" || vs_buf[8]=="na"))
+            if(!save_dense_flag && (vs_buf[8] == "NA" || vs_buf[8] == "na"))
             {
                 printf("ERROR: probe position is \"NA\". \n");
                 exit(EXIT_FAILURE);
             }
-            if((vs_buf[3]=="NA" || vs_buf[4]=="NA" || vs_buf[3]=="na" || vs_buf[4]=="na") && !warningdone)
+            if((vs_buf[3] == "NA" || vs_buf[4] == "NA" || vs_buf[3] == "na" || vs_buf[4] == "na") && !warningdone)
             {
-               printf("WARING: Allele information of one or more SNPs is \"NA\". This may cause incorrect positive/negative sign of effect size when conducting allele check.\n");
+                printf("WARING: Allele information of one or more SNPs is \"NA\". \
+                    This may cause incorrect positive/negative sign of effect size \
+                    when conducting allele check.\n");
                 warningdone=true;
-
             }
-            if((vs_buf[5]=="NA" || vs_buf[5]=="na" ) )
+            if((vs_buf[5] == "NA" || vs_buf[5] == "na"))
             {
                 if(!warningdone1)
                 {
@@ -3188,14 +3212,15 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
             }
-            int tmpchr;
+
+            int tmpchr = 0;
             to_upper(vs_buf[1]);
-            //if(vs_buf[1]=="X" ) tmpchr=23;
-            //else if(vs_buf[1]=="Y") tmpchr=24;
-            //else tmpchr=atoi(vs_buf[1].c_str());
-            if(!vs_buf[1].compare("X")) tmpchr=23;
-            else if(!vs_buf[1].compare("Y")) tmpchr=24;
-            else tmpchr=atoi(vs_buf[1].c_str());
+            if(!vs_buf[1].compare("X"))
+                tmpchr=23;
+            else if(!vs_buf[1].compare("Y"))
+                tmpchr=24;
+            else
+                tmpchr=atoi(vs_buf[1].c_str());
             to_upper(vs_buf[3]);
             to_upper(vs_buf[4]);
             to_upper(vs_buf[5]);
@@ -3203,34 +3228,37 @@ namespace SMRDATA
             to_upper(vs_buf[12]);
             to_upper(vs_buf[13]);
             if(!vs_buf[11].compare("NA")) {
-
-                printf("WARNING: this row is omitted because the effect size of the SNP is missing (\"NA\").\n");
+                printf("WARNING: this row is omitted because the effect size of the SNP \
+                    is missing (\"NA\").\n");
                 printf("%s\n",buf);
                 continue;
             }
-            if(!vs_buf[12].compare("NA") && vs_buf[13]=="NA") {
-
+            if(!vs_buf[12].compare("NA") && vs_buf[13] == "NA") {
                 printf("WARNING: both of SE and P are missing (\"NA\"), this row is omitted.\n");
                 printf("%s\n",buf);
                 continue;
             }
-            if(vs_buf[13]!="NA" && atof(vs_buf[13].c_str())<0) {
-                printf("ERROR: p-value should be positive in row %ld.\n", lineNum+2);
+            if(vs_buf[13] != "NA" && atof(vs_buf[13].c_str()) < 0) {
+                printf("ERROR: p-value should be positive in row %ld.\n", lineNum + 2);
                 printf("%s\n",buf);
                 exit(EXIT_FAILURE);
             }
+
+            // check duplication of snp prob conctenate.
             string rsprb = vs_buf[0] + ":" + vs_buf[6];
             rs_prb_map.insert(pair<string, int>(rsprb.c_str(), lineNum));
             if(rsprbmapsize < rs_prb_map.size())
             {
-                rsprbmapsize=rs_prb_map.size();
+                rsprbmapsize = rs_prb_map.size();
             } else {
                 printf("ERROR: duplicated records found for the SNP %s and the probe %s.\n", vs_buf[0].c_str(),vs_buf[6].c_str());
                 exit(EXIT_FAILURE);
             }
 
-
+             
             iter = esi_map.find(vs_buf[0]);
+            //if snp not show up first time, check if its information is
+            // consistent with previous.
             if(iter != esi_map.end()){
                 int idx = iter -> second;
                 string esi_a1 = string(snpiflst[idx].a1);
@@ -3238,82 +3266,99 @@ namespace SMRDATA
                 int esi_bp = snpiflst[idx].bp;
                 int esi_chr = snpiflst[idx].snpchr;
                 if(tmpchr != esi_chr) {
-                    printf("ERROR: the same SNP ID %s on different chromosomes, please check.\n", vs_buf[0].c_str());
+                    printf("ERROR: the same SNP ID %s on different \
+                        chromosomes, please check.\n", vs_buf[0].c_str());
                     exit(EXIT_FAILURE);
                 }
-                if(atoi(vs_buf[2].c_str())!=esi_bp)
+                if(atoi(vs_buf[2].c_str()) != esi_bp)
                 {
-                    printf("ERROR: multiple positions found for the same SNP %s on Chromosome %s, please check.\n", vs_buf[0].c_str(), vs_buf[1].c_str());
+                    printf("ERROR: multiple positions found for the \
+                        same SNP %s on Chromosome %s, please check.\n", \
+                        vs_buf[0].c_str(), vs_buf[1].c_str());
                     exit(EXIT_FAILURE);
                 }
-                if(esi_a1==vs_buf[3] && esi_a2==vs_buf[4]) {
-                    //??
+                if(esi_a1 == vs_buf[3] && esi_a2 == vs_buf[4]) {
                     ;
-                } else if(esi_a1==vs_buf[4] && esi_a2==vs_buf[3]) {
-                    printf("WARING: switched ref allele with alt allele of SNP %s found. Then the sign of beta value is changed.\n", vs_buf[0].c_str());
-                    vs_buf[11]=atos(-1.0*atof(vs_buf[11].c_str()));
-                    string a0=vs_buf[3];
-                    vs_buf[3]=vs_buf[4];
-                    vs_buf[4]=a0;
+                } else if(esi_a1 == vs_buf[4] && esi_a2 == vs_buf[3]) {
+                    printf("WARING: switched ref allele with alt allele \
+                        of SNP %s found. Then the sign of beta value \
+                        is changed.\n", vs_buf[0].c_str());
+                    vs_buf[11] = atos(-1.0 * atof(vs_buf[11].c_str()));
+                    string a0 = vs_buf[3];
+                    vs_buf[3] = vs_buf[4];
+                    vs_buf[4] = a0;
                 } else {
-                    printf("ERROR: inconsistent alleles for the SNP %s with multiple alleles <%s,%s> and <%s,%s>.\n", vs_buf[0].c_str(),esi_a1.c_str(),esi_a2.c_str(),vs_buf[3].c_str(),vs_buf[4].c_str());
+                    printf("ERROR: inconsistent alleles for the SNP %s \
+                        with multiple alleles <%s,%s> and <%s,%s>.\n", \
+                        vs_buf[0].c_str(), esi_a1.c_str(), esi_a2.c_str(), \
+                        vs_buf[3].c_str(), vs_buf[4].c_str());
                     exit(EXIT_FAILURE);
                 }
-
+            // if it is a new snp, store it's name and index into esi_map,
+            // creat a new snpinfolst structure, and push it into snpiflist.
             } else {
                 esi_map.insert(pair<string, int>(vs_buf[0].c_str(), esiNum));
                 snpinfolst snptmp;
-                snptmp.snpchr=tmpchr;
+                snptmp.snpchr = tmpchr;
                 strcpy2(&snptmp.snprs, vs_buf[0]);
-                snptmp.bp=atoi(vs_buf[2].c_str());
+                snptmp.bp = atoi(vs_buf[2].c_str());
                 strcpy2(&snptmp.a1,vs_buf[3]);
                 strcpy2(&snptmp.a2,vs_buf[4]);
-                snptmp.gd=0;
-                snptmp.freq=vs_buf[5]=="NA"?-9:atof(vs_buf[5].c_str());
+                snptmp.gd = 0;
+                snptmp.freq = vs_buf[5] == "NA"? -9: atof(vs_buf[5].c_str());
                 snpiflst.push_back(snptmp);
                 esiNum++;
             }
 
-
-            int prbchr=0;
+            int prbchr = 0;
             if(vs_buf[7]=="X" || vs_buf[7]=="x")
                 prbchr=23;
             else if(vs_buf[7]=="Y" || vs_buf[7]=="y")
                 prbchr=24;
             else
                 prbchr=atoi(vs_buf[7].c_str());
+            
+            // check if prob id have been showed up before, if 
+            // it is not first time show up, check the consistence
+            // of it's information with previous, and push snp information
+            // into associating _ttl vector, which is 2d vector, very line
+            // store snp information of a unique prob.
             iter = epi_map.find(vs_buf[6]);
             if(iter != epi_map.end()){
                 int idx = iter->second;
                 int epi_bp = prbiflst[idx].bp;
                 int epi_chr = prbiflst[idx].probechr;
-                if(epi_chr != prbchr)
-                {
-                    printf("ERROR: the same probe ID %s found on different chromosomes.\n",vs_buf[5].c_str() );
+                if(epi_chr != prbchr){
+                    printf("ERROR: the same probe ID %s found on different \
+                        chromosomes.\n", vs_buf[5].c_str());
                     exit(EXIT_FAILURE);
                 }
-                if(epi_bp != atoi(vs_buf[8].c_str()))
-                {
-                    printf("ERROR: multiple posisions found for the same probe %s.\n",vs_buf[5].c_str() );
+                if(epi_bp != atoi(vs_buf[8].c_str())){
+                    printf("ERROR: multiple posisions found for the same \
+                        probe %s.\n",vs_buf[5].c_str() );
                     exit(EXIT_FAILURE);
                 }
+
                 _ttl_rs[idx].push_back(vs_buf[0].c_str());
                 _ttl_beta[idx].push_back(atof(vs_buf[11].c_str()));
+                
+                // Ajust SE value according condiations.
                 if(vs_buf[13] == "NA")
                     _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
                 else {
-                    double betatmp=atof(vs_buf[11].c_str());
-                    double ptmp=atof(vs_buf[13].c_str());
-                    if(ptmp<0)
+                    double betatmp = atof(vs_buf[11].c_str());
+                    double ptmp = atof(vs_buf[13].c_str());
+                    if(ptmp < 0)
                     {
-                        printf("ERROR: p-value should be positive in row %ld.\n",lineNum+2);
-                        printf("%s\n",buf);
+                        printf("ERROR: p-value should be positive in row %ld.\n",lineNum + 2);
+                        printf("%s\n", buf);
                         exit(EXIT_FAILURE);
                     }
-                    if(ptmp==0) {
-                        ptmp=__DBL_MIN__;
-                        //printf("WARNING: p-value of 0 found in row %ld and changed to min double value %e.\n",lineNum+2,__DBL_MIN__);
-                        //printf("%s\n",buf);
+                    if(ptmp == 0) {
+                        ptmp = __DBL_MIN__;
+                        printf("WARNING: p-value of 0 found in row %ld and changed to min \
+                            double value %e.\n", lineNum + 2, __DBL_MIN__);
+                        printf("%s\n", buf);
                     }
                     if((ptmp < MIN_PVAL_ADJUSTED && vs_buf[12] != "NA") || ptmp == 1)
                         _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
@@ -3326,27 +3371,32 @@ namespace SMRDATA
                     _ttl_chr[idx].push_back(tmpchr);
                     _ttl_bp[idx].push_back(atoi(vs_buf[2].c_str()));
                 }
-
+            // If the prob is show up first time. add prob id and it's index into
+            // epi_map. Create probeinfolist structure and store it's information and 
+            // push it into prob infor list.
+            // for every snp information store vector list, creat new vector and push
+            // it into list _ttl.
             } else {
                 probeinfolst tmpprbinfo;
                 epi_map.insert(pair<string, int>(vs_buf[6], epiNum));
                 strcpy2(&tmpprbinfo.probeId, vs_buf[6]);
-                //??
-                vs_buf[6].c_str();
                 tmpprbinfo.probechr = prbchr;
                 tmpprbinfo.bp = atoi(vs_buf[8].c_str());
-                strcpy2(&tmpprbinfo.genename,vs_buf[9]);
+                strcpy2(&tmpprbinfo.genename, vs_buf[9]);
                 tmpprbinfo.orien = vs_buf[10][0];
                 tmpprbinfo.gd = 0;
                 tmpprbinfo.bfilepath = NULL;
                 tmpprbinfo.esdpath = NULL;
                 prbiflst.push_back(tmpprbinfo);
+
                 vector<string> rstmp;
                 rstmp.push_back(vs_buf[0].c_str());
                 _ttl_rs.push_back(rstmp);
+
                 vector<float> betatmp;
                 betatmp.push_back(atof(vs_buf[11].c_str()));
                 _ttl_beta.push_back(betatmp);
+
                 vector<float> setmp;
                 if(vs_buf[13]=="NA")
                     setmp.push_back(atof(vs_buf[12].c_str()));
@@ -3368,6 +3418,7 @@ namespace SMRDATA
                         setmp.push_back(atof(vs_buf[12].c_str()));
                     else setmp.push_back(adjSE(betatmp, ptmp));
                 }
+
                 _ttl_se.push_back(setmp);
                 if(!save_dense_flag) {
                     vector<string> a1tmp;
@@ -3390,13 +3441,16 @@ namespace SMRDATA
         }
         printf("%ld SNPs to be included from %s.\n", lineNum, qfileName);
         fclose(qfile);
+        // The qfile reading loop is end here, print some information and close FILE ptr.
 
-        //keep previous order of prob_infor list.
+
+        //record prob_infor list original index into gd field.
 		for (int j = 0; j < epiNum; j++)
             prbiflst[j].gd = j;
+
         printf("\nGenerating the .epi file...\n");
         probeinfolst * epiptr = &prbiflst[0];
-        qsort(epiptr, epiNum, sizeof(probeinfolst), comp);
+        qsort(epiptr, epiNum, sizeof(probeinfolst), comp); //sort prob information with chrome bp location.
         string epifile = string(outFileName) + string(".epi");
         ofstream epi(epifile.c_str());
         if (!epi)
@@ -3409,149 +3463,185 @@ namespace SMRDATA
         epi.close();
         printf("%ld probes have been saved in the file %s.\n", epiNum, epifile.c_str());
 
-
+        
+        //print esi(snp) information into file, and the order of snp is resorted
+        // by chromosome bp location.
         printf("\nGenerating the .esi file...\n");
         snpinfolst * esiptr = &snpiflst[0];
         qsort(esiptr, esiNum, sizeof(snpinfolst), comp_esi);
+        //clean epi_map and esi_map for next use.
         epi_map.clear();
         esi_map.clear();
-
         string esifile = string(outFileName) + string(".esi");
         ofstream esi(esifile.c_str());
         if (!esi)
             throw ("Error: can not open the ESI file to save!");
-        for (int j = 0; j <esiNum; j++) {
+        for (int j = 0; j < esiNum; j++) {
             esi<< (snpiflst[j].snpchr == 0? "NA": atos(snpiflst[j].snpchr)) << '\t'<<snpiflst[j].snprs \
                 << '\t'<<snpiflst[j].gd << '\t' << (snpiflst[j].bp==0? "NA": atos(snpiflst[j].bp)) \
                 << '\t'<<snpiflst[j].a1 << '\t'<<snpiflst[j].a2 << '\t' \
                 << (snpiflst[j].freq+9>1e-6? atos(snpiflst[j].freq): "NA") << '\n';
+            // new esi_map order, which is as same as esi file, beside start which zero.
             esi_map.insert(pair<string, int>(snpiflst[j].snprs, j));
         }
         esi.close();
         printf("%ld SNPs have been saved in the file %s.\n",esiNum,esifile.c_str());
 
-
+        //calculate sparsity value, if every prob contain all snp, the value is equal 1.
+        // Else, minimal value is 1/epiNum, mean every prob just contain 1 snp, and snp is
+        // different from each other.
         double sparsity = 1.0 * lineNum / (esiNum * epiNum);
         printf("\nGenerating the .besd file...\n");
-        // quanlity control and correctness are done above.
         if(save_dense_flag)
         {
-            if(sparsity>0.4)
+            if(sparsity > 0.4)
             {
-                //printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
-
-                string esdfile=string(outFileName)+string(".besd");
+                //The data will be saved in dense format
+                string esdfile = string(outFileName)+string(".besd");
                 FILE * smr1;
                 smr1 = fopen (esdfile.c_str(), "wb");
                 if (!(smr1)) {
-                    printf("ERROR: failed to open file %s.\n",esdfile.c_str());
+                    printf("ERROR: failed to open file %s.\n", esdfile.c_str());
                     exit(EXIT_FAILURE);
                 }
-                uint32_t filetype=DENSE_FILE_TYPE_3;
-                vector<int> ten_ints(RESERVEDUNITS);
-                ten_ints[0]=filetype;
-                if(addn!=-9)
-                    printf("Saving sample size %d to the file %s.\n", addn, esdfile.c_str());
-                ten_ints[1]=addn;
-                ten_ints[2]=(int)esiNum;
-                ten_ints[3]=(int)epiNum;
-                for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
-                fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
 
-                uint64_t bsize=(uint64_t)esiNum<<1;
-                float* buffer=(float*)malloc (sizeof(float)*bsize);
+                uint32_t filetype = DENSE_FILE_TYPE_3; //DENSE_FILE_TYPE_3 is 5 as definded in CommFunc.h
+                vector<int> ten_ints(RESERVEDUNITS);  // RESERVEDUNITS is 16 as defined in CommFunc.h
+
+                //write first 16 int into file.
+                ten_ints[0] = filetype;
+                if(addn != -9)
+                    printf("Saving sample size %d to the file %s.\n", addn, esdfile.c_str());
+                ten_ints[1] = addn;
+                ten_ints[2] = (int)esiNum;
+                ten_ints[3] = (int)epiNum;
+                for(int i = 4; i < RESERVEDUNITS; i++) 
+                    ten_ints[i] = -9;
+                fwrite (&ten_ints[0], sizeof(int), RESERVEDUNITS, smr1);
+
+
+                uint64_t bsize = (uint64_t)esiNum << 1;
+                float * buffer = (float *)malloc (sizeof(float) * bsize);
                 if (NULL == buffer) {
                     fprintf(stderr, "Malloc failed\n");
                     exit(-1);
                 }
                 map<string, int>::iterator iter;
-                double disp=0;
-                for(int j=0;j<epiNum;j++)
+                double disp = 0;
+                for(int j = 0; j < epiNum; j++)
                 {
-                    progress(j, disp, (int)epiNum);
+                    progress(j, disp, (int)epiNum); //show program progress, don't mind.
 
 					int pkey = prbiflst[j].gd;
-                    for(int k=0;k<bsize;k++) buffer[k]=-9; //init
-					vector<int> rsid(_ttl_rs[pkey].size());
-					for (int l = 0; l<_ttl_rs[pkey].size(); l++){
+
+                    //init with -9
+                    for(int k = 0; k < bsize; k++) 
+                        buffer[k] = -9; 
+
+                    //vector length is equal to snp amout of this prob.
+                    unsigned int  snp_num_this_prob = _ttl_rs[pkey].size();
+					vector<int> rsid(snp_num_this_prob);
+
+                    //find snp from esi_map(with new order), and store the snp index into raid.
+					for (int l = 0; l < snp_num_this_prob; l++){
 						iter = esi_map.find(_ttl_rs[pkey][l]);
-                        if (iter != esi_map.end()) rsid[l]=iter->second;
+                        if (iter != esi_map.end())
+                            rsid[l] = iter -> second;
                         else {
                             printf("ERROR: SNP is not in SNP map. Please report this bug.\n");
                             exit(EXIT_FAILURE);
                         }
                     }
-                    for(int l=0;l<rsid.size();l++)
-                    {
+                    /*
+                        for every prob, the double size of snp float was cearted, and every
+                        unit was fill by -9 at begin. And then, at index of snp(esi file) positon,
+                        the beta was stored if this prob contain the snp, and index of snp after 
+                        esiNum offset, the SE value was stored if this prob contain the snp.
+                     */
+                    for(int l = 0; l < rsid.size(); l++){
 						buffer[rsid[l]] = _ttl_beta[pkey][l];
 						buffer[esiNum + rsid[l]] = _ttl_se[pkey][l];
                     }
-                    fwrite (buffer,sizeof(float), bsize, smr1);
+                    fwrite (buffer, sizeof(float), bsize, smr1);
                 }
                 fclose (smr1);
                 free(buffer);
                 free_probelist(prbiflst);
                 free_snplist(snpiflst);
-                cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
+                cout << "Effect sizes (beta) and SE for " << epiNum << " probes and " \
+                    << esiNum << " SNPs have been saved in a binary file [" + esdfile + "]." << endl;
 
+            //if sparsity less equal than 0.4 
             } else {
+                //The data will be saved in sparse format
 
-                //printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
-
-                string esdfile = string(outFileName)+string(".besd");
+                string esdfile = string(outFileName) + string(".besd");
                 FILE * smr1;
-                smr1 = fopen (esdfile.c_str(), "wb");
-                if (!(smr1)) {
-                    printf("ERROR: failed to open file %s.\n",esdfile.c_str());
+                smr1 = fopen(esdfile.c_str(), "wb");
+                if (!smr1){
+                    printf("ERROR: failed to open file %s.\n", esdfile.c_str());
                     exit(EXIT_FAILURE);
                 }
-                uint32_t filetype = SPARSE_FILE_TYPE_3;
-                vector<int> ten_ints(RESERVEDUNITS);
-                ten_ints[0]=filetype;
-                if(addn!=-9)
-                    printf("Saving sample size %d to the file %s.\n", addn, esdfile.c_str());
-                ten_ints[1]=addn;
-                ten_ints[2]=(int)esiNum;
-                ten_ints[3]=(int)epiNum;
-                for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
-                fwrite (&ten_ints[0],sizeof(int), RESERVEDUNITS, smr1);
 
-                vector<uint64_t> cols((epiNum<<1)+1);;
-                uint64_t valNum=0;
-                cols[0]=0;
+                //print first 16 int.
+                uint32_t filetype = SPARSE_FILE_TYPE_3; // SPARSE_FILE_TYPE_3 is 3 as defined in CommFunc.h
+                vector<int> ten_ints(RESERVEDUNITS); //the micro value is 16 as definded in CommFunc.h
+                ten_ints[0] = filetype;
+                if(addn != -9)
+                    printf("Saving sample size %d to the file %s.\n", addn, esdfile.c_str());
+                ten_ints[1] = addn;
+                ten_ints[2] = (int)esiNum;
+                ten_ints[3] = (int)epiNum;
+                for(int i = 4; i < RESERVEDUNITS; i++)
+                    ten_ints[i] = -9;
+                fwrite(&ten_ints[0], sizeof(int), RESERVEDUNITS, smr1);
+
+                // cols is used to record Beta SE value and SNP index offset for 
+                // every Prob along Value array.
+                vector<uint64_t> cols((epiNum << 1) + 1);
+                uint64_t valNum = 0;
+                cols[0] = 0;
 
                 map<string, int>::iterator iter;
-                for(int j=0;j<epiNum;j++)
-                {
+                for(int j = 0; j < epiNum; j++){
 					int pkey = prbiflst[j].gd;
 					uint64_t real_num = _ttl_beta[pkey].size();
-                    cols[(j<<1)+1]=real_num+cols[j<<1];
-                    cols[j+1<<1]=(real_num<<1)+cols[j<<1];
-                    valNum+=real_num*2;
+                    cols[(j << 1) + 1] = real_num + cols[j << 1];
+                    cols[j+1 << 1] = (real_num << 1) + cols[j << 1];
+                    valNum += real_num * 2;
                 }
-                fwrite (&valNum,sizeof(uint64_t), 1, smr1);
-                fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
-                double disp=0;
-                for(int j=0;j<epiNum;j++)
+                fwrite (&valNum, sizeof(uint64_t), 1, smr1); //write ValNum number of (Beta + SE)
+                fwrite (&cols[0], sizeof(uint64_t), cols.size(), smr1); //write offset, start with zero.
+
+                //Write snp index information, the index array will repeat twice(totall 2 time)
+                //for consistent with Beta and SE value
+                double disp = 0;
+                for(int j = 0; j < epiNum; j++)
                 {
                     progress(j, disp, (int)epiNum);
+
 					int pkey = prbiflst[j].gd;
-					vector<uint32_t> rowids(_ttl_rs[pkey].size());
-					for (int l = 0; l<_ttl_rs[pkey].size(); l++){
+                    unsigned int snp_num_this_prob = _ttl_rs[pkey].size();
+					vector<uint32_t> rowids(snp_num_this_prob);
+					for (int l = 0; l < snp_num_this_prob; l++){
 						iter = esi_map.find(_ttl_rs[pkey][l]);
-                        if (iter != esi_map.end()) rowids[l]=iter->second;
+                        if (iter != esi_map.end()) 
+                            rowids[l] = iter -> second;
                         else {
                             printf("ERROR: SNP is not in SNP map. Please report this bug.\n");
                             exit(EXIT_FAILURE);
                         }
                     }
-                    fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
+                    fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1); //every prob write snp index twice.
                     fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
                 }
-                disp=0;
-                for(int j=0;j<epiNum;j++)
+
+                //Write Beta and SE value.
+                disp = 0;
+                for(int j = 0; j < epiNum; j++)
                 {
                     progress(j, disp, (int)epiNum);
+
 					int pkey = prbiflst[j].gd;
 					fwrite(&_ttl_beta[pkey][0], sizeof(float), _ttl_beta[pkey].size(), smr1);
 					fwrite(&_ttl_se[pkey][0], sizeof(float), _ttl_se[pkey].size(), smr1);
@@ -3559,20 +3649,23 @@ namespace SMRDATA
                 fclose (smr1);
                 free_probelist(prbiflst);
                 free_snplist(snpiflst);
-                cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
+                cout << "Effect sizes (beta) and SE for " << epiNum << " probes and " \
+                    << esiNum << " SNPs have been saved in a binary file [" + esdfile + "]." <<endl;
             }
         } else {
-            // get esd info
-            string esdfile=string(outFileName)+string(".besd");
+
+            string esdfile = string(outFileName) + string(".besd");
             FILE * smr1;
             smr1 = fopen (esdfile.c_str(), "wb");
             if (!(smr1)) {
                 printf("ERROR: failed to open file %s.\n",esdfile.c_str());
                 exit(EXIT_FAILURE);
             }
-            uint32_t filetype = SPARSE_FILE_TYPE_3;
-            vector<int> ten_ints(RESERVEDUNITS);
-            ten_ints[0]=filetype;
+            
+            // Wirte first 16 int.
+            uint32_t filetype = SPARSE_FILE_TYPE_3; //the micro value is 3 as defined in CommFunc.h
+            vector<int> ten_ints(RESERVEDUNITS); // the micro value is 16 as defined in CommFunc.h
+            ten_ints[0] = filetype;
             if(addn != -9)
                 printf("Saving sample size %d to the file %s.\n", addn, esdfile.c_str());
             ten_ints[1] = addn;
@@ -3598,17 +3691,19 @@ namespace SMRDATA
                 printf("Error: Failed to open log file.\n");
                 exit(1);
             }
+            
+            //write log file head.
             string logstr = "cis-window:\t" + itos(cis_itvl) + "Kb\ntrans-window:\t" \
                 +itos(trans_itvl) + "Kb\np-value threshold of trans:\t" + \
                 dtos(transThres) + "\np-value threshold of others:\t" + dtos(restThres) + "\n";
             logstr += "\ncis region is indicated by [Chr, Start bp, End bp, nsnp];\n \
                 trans region is indicated by <Chr, Start bp, End bp, nsnp>;\nthe number of other SNPs selected is indicated by (NumSNPs beyond cis and trans).\n";
             logstr += "\n{ProbeID, ProbeChr, ProbeBP}\t[Chr,cis_startBP,cis_endBP,NumSNPs]\t<Chr,trans_startBP,trans_endBP,NumSNPs>\t(NumSNPs)\n";
-
             fputs(logstr.c_str(), logfile);
             fflush(logfile);
-            cis_itvl = cis_itvl*1000;
-            trans_itvl = trans_itvl*1000;
+
+            cis_itvl = cis_itvl * 1000; //convert to bp
+            trans_itvl = trans_itvl * 1000; //convert to bp
             vector<snpinfolst> snpinfoperprb;
             double disp = 0;
             for(int j = 0; j < epiNum; j++)
@@ -3619,12 +3714,13 @@ namespace SMRDATA
 				int pkey = prbiflst[j].gd;
                 vector<uint32_t> tmprid;
                 vector<float> tmpse;
-                string curprb = prbiflst[j].probeId; //??
                 snpinfoperprb.clear();
-
+                
+                // store all snp of a prob into snpinfoperprb list
 				for (int k = 0; k < _ttl_beta[pkey].size(); k++)
                 {
                     snpinfolst tmpinfo;
+
                     strcpy2(&tmpinfo.snprs,_ttl_rs[pkey][k]);
                     strcpy2(&tmpinfo.a1,_ttl_a1[pkey][k]);
                     strcpy2(&tmpinfo.a2,_ttl_a2[pkey][k]);
@@ -3632,22 +3728,28 @@ namespace SMRDATA
 					tmpinfo.se = _ttl_se[pkey][k];
 					tmpinfo.snpchr = _ttl_chr[pkey][k];
 					tmpinfo.bp = _ttl_bp[pkey][k];
+
                     snpinfoperprb.push_back(tmpinfo);
                 }
-
+                
+                // resort the snp list
                 snpinfolst * sortptr = &snpinfoperprb[0];
                 qsort(sortptr, snpinfoperprb.size(), sizeof(snpinfolst), comp_esi);
 
                 probeinfolst prbifo = prbiflst[j];
                 vector<int> slct_idx;
+
                 /*select snp of every prob, and the index is save in slct_idx. 
                  *by the way the log file is prined in this function too.slct_idx with no order if there are trans-rgeions
                  */
                 slct_sparse_per_prb(slct_idx, &prbifo, snpinfoperprb, cis_itvl, trans_itvl, transThres, restThres, logfile, false);
                 stable_sort(slct_idx.begin(), slct_idx.end());
+
                 vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()), _a2(slct_idx.size());
                 vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
-
+                
+                // collect snp information of a prob, which was filter by slct_sparse_per_prb function
+                // the index of pass filter is stored in slct_idx list.
                 for(int l = 0; l < slct_idx.size(); l++) {
                     _rs[l] = snpinfoperprb[slct_idx[l]].snprs;
                     _a1[l] = snpinfoperprb[slct_idx[l]].a1;
@@ -3656,59 +3758,70 @@ namespace SMRDATA
                     _se[l] = snpinfoperprb[slct_idx[l]].se;
                 }
 
+                // retrieve snp index of esi file
                 vector<int> rsid(_rs.size());
                 for (int l = 0; l < _rs.size(); l++){
                     iter = esi_map.find(_rs[l]);
                     if (iter != esi_map.end()) 
-                        rsid[l]=iter->second;
+                        rsid[l] = iter -> second;
                     else {
                         printf("ERROR: SNP is not in SNP map. Please report this bug.");
                         exit(EXIT_FAILURE);
                     }
                 }
-                if(rsid.size()!=_rs.size())
-                {
+
+                if(rsid.size() != _rs.size()){
                     printf("ERROR: SNP names don't match for probe %s. Please report this bug.", prbiflst[j].probeId);
                     exit(EXIT_FAILURE);
                 }
 
-                for(int l=0; l<rsid.size(); l++)
-                {
-                    if(fabs(_se[l] + 9) > 1e-6) // can move this. the NA is controled in slct_sparse_per_prb
-                    {
+                //check se value and push Beta value to val, and push snp index to rowids.
+                unsigned int snp_num_filtered = rsid.size();
+                for(int l = 0; l < snp_num_filtered; l++){
+                    if(fabs(_se[l] + 9) > 1e-6){ // can move this. the NA is controled in slct_sparse_per_prb
                         val.push_back(_beta[l]);
                         rowids.push_back(rsid[l]);
                         tmpse.push_back(_se[l]);
                         tmprid.push_back(rsid[l]);
                     } else {
-                        printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n",_rs[l].c_str());
+                        printf("WARNING: SNP %s  with \"NA\" value found and skipped.\n", _rs[l].c_str());
                     }
                 }
-                for(int k=0; k<tmpse.size(); k++)
-                {
+
+                // actually the tmse.size should equal to snp_num_filtered. add SE
+                // value to val, and snp index to rowids(repeated).
+                for(int k = 0; k < tmpse.size(); k++){
                     val.push_back(tmpse[k]);
                     rowids.push_back(tmprid[k]);
                 }
+
+                // Store Beta SE and SNP index offset to cols
                 uint64_t real_num = tmpse.size();
                 cols[(j << 1) + 1] = real_num + cols[ j << 1];
-                cols[j+1 << 1] = (real_num <<1 ) + cols[j << 1];
+                cols[j + 1 << 1] = (real_num << 1 ) + cols[j << 1];
 
                 free_snplist(snpinfoperprb);
             }
-            uint64_t valNum=val.size();
-            fwrite (&valNum,sizeof(uint64_t), 1, smr1);
+            
+            //write value num into file
+            uint64_t valNum = val.size();
+            fwrite(&valNum, sizeof(uint64_t), 1, smr1);
+            
+            // write Beta SE offset and SNP offset into file.
+            fwrite(&cols[0], sizeof(uint64_t), cols.size(), smr1);
 
-            fwrite (&cols[0],sizeof(uint64_t), cols.size(), smr1);
-
-            fwrite (&rowids[0],sizeof(uint32_t), rowids.size(), smr1);
-
-            fwrite (&val[0],sizeof(float), val.size(), smr1);
-            fclose (smr1);
+            // write snp index of esi file into file. start with zero
+            fwrite(&rowids[0], sizeof(uint32_t), rowids.size(), smr1);
+            
+            // write value into file.
+            fwrite(&val[0], sizeof(float), val.size(), smr1);
+            fclose(smr1);
             free_snplist(snpiflst);
             free_probelist(prbiflst);
 
             printf("Summary data of the specified SNPs and probes has been saved in %s.\n", logfname.c_str());
-            cout<<"\nEffect sizes (beta) and SE for "<<epiNum<<" Probes have been saved in a binary file [" + esdfile + "]." <<endl;
+            cout << "\nEffect sizes (beta) and SE for " << epiNum \
+                << " Probes have been saved in a binary file [" + esdfile + "]." << endl;
             fclose(logfile);
         }
     }
