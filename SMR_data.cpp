@@ -338,113 +338,143 @@ namespace SMRDATA
         if(prtscr) cout << eqtlinfo->_snpNum << " SNPs to be included from [" + esifile + "]." << endl;
         esi.close();
     }
-    void read_epifile(eqtlInfo* eqtlinfo, string epifile, bool prtscr)
+
+
+    /*  
+        Read epi file which is part of beqtl summary file.
+        and store the content into eqtlInfo structure.
+     */
+    void
+    read_epifile(eqtlInfo * eqtlinfo, string epifile, bool prtscr)
     {
         ifstream epi(epifile.c_str());
-        if (!epi) throw ("ERROR: can not open the file [" + epifile + "] to read.");
-        if(prtscr) cout << "Reading eQTL probe information from [" + epifile + "]." << endl;
-        eqtlinfo->_epi_chr.clear();
-        eqtlinfo->_epi_prbID.clear();
-        eqtlinfo->_epi_gd.clear();
-        eqtlinfo->_epi_bp.clear();
-        eqtlinfo->_epi_gene.clear();
-        eqtlinfo->_epi_orien.clear();
-		eqtlinfo->_include.clear();
-        eqtlinfo->_probe_name_map.clear();
+        if (!epi) 
+            throw ("ERROR: can not open the file [" + epifile + "] to read.");
+        if(prtscr) 
+            cout << "Reading eQTL probe information from [" + epifile + "]." << endl;
+
+        eqtlinfo -> _epi_chr.clear();
+        eqtlinfo -> _epi_prbID.clear();
+        eqtlinfo -> _epi_gd.clear();
+        eqtlinfo -> _epi_bp.clear();
+        eqtlinfo -> _epi_gene.clear();
+        eqtlinfo -> _epi_orien.clear();
+		eqtlinfo -> _include.clear();
+        eqtlinfo -> _probe_name_map.clear();
 
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
         while(!epi.eof())
         {
-            epi.getline(buf,MAX_LINE_SIZE);
+            epi.getline(buf, MAX_LINE_SIZE);
             lineNum++;
         }
-        if(buf[0]=='\0') lineNum--;
-        eqtlinfo->_probNum=lineNum;
-        if(prtscr) cout << eqtlinfo->_probNum << " Probes to be included from [" + epifile + "]." << endl;
+
+        if(buf[0] == '\0') 
+            lineNum--;
+        eqtlinfo -> _probNum=lineNum;
+        if(prtscr) 
+            cout << eqtlinfo -> _probNum << " Probes to be included from [" + epifile + "]." << endl;
         
-        eqtlinfo->_epi_chr.resize(lineNum);
-        eqtlinfo->_epi_prbID.resize(lineNum);
-        eqtlinfo->_epi_gd.resize(lineNum);
-        eqtlinfo->_epi_bp.resize(lineNum);
-        eqtlinfo->_epi_gene.resize(lineNum);
-        eqtlinfo->_epi_orien.resize(lineNum);
-        eqtlinfo->_include.resize(lineNum);
+        eqtlinfo -> _epi_chr.resize(lineNum);
+        eqtlinfo -> _epi_prbID.resize(lineNum);
+        eqtlinfo -> _epi_gd.resize(lineNum);
+        eqtlinfo -> _epi_bp.resize(lineNum);
+        eqtlinfo -> _epi_gene.resize(lineNum);
+        eqtlinfo -> _epi_orien.resize(lineNum);
+        eqtlinfo -> _include.resize(lineNum);
+        
+        //reset file stream to begin.
         epi.clear(ios::goodbit);
         epi.seekg (0, ios::beg);
-        for(int i=0;i<lineNum;i++)
+
+        for(int i = 0; i < lineNum; i++)
         {
             string tmpStr;
-            epi.getline(buf,MAX_LINE_SIZE);
+            epi.getline(buf, MAX_LINE_SIZE);
             istringstream iss(buf);
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="-9") {
-                printf("ERROR: chromosome is \"NA\" in row %d.\n", i+1);
+
+            //read first field.
+            iss >> tmpStr;
+            if(tmpStr == "NA" || tmpStr == "na" || tmpStr == "-9") {
+                printf("ERROR: chromosome is \"NA\" in row %d.\n", i + 1);
                 exit(EXIT_FAILURE);
             }
+
             int tmpchr;
-            if(tmpStr=="X" || tmpStr=="x") tmpchr=23;
-            else if(tmpStr=="Y" || tmpStr=="y") tmpchr=24;
-            else tmpchr=atoi(tmpStr.c_str());
-            eqtlinfo->_epi_chr[i]=tmpchr;
-            iss>>tmpStr;
-            eqtlinfo->_include[i]=i;
+            if(tmpStr == "X" || tmpStr == "x") 
+                tmpchr=23;
+            else if(tmpStr=="Y" || tmpStr=="y") 
+                tmpchr=24;
+            else 
+                tmpchr=atoi(tmpStr.c_str());
+            eqtlinfo -> _epi_chr[i] = tmpchr;
             
-            if(eqtlinfo->_probe_name_map.find(tmpStr) != eqtlinfo->_probe_name_map.end()){
+            //read second field.
+            iss >> tmpStr;
+            eqtlinfo -> _include[i] = i; //record probe line be parsed in data structure.
+            //check probe id duplication.
+            if(eqtlinfo -> _probe_name_map.find(tmpStr) != eqtlinfo -> _probe_name_map.end()){
                 cout << "Warning: Duplicated probe ID \"" + tmpStr + "\" ";
                 stringstream ss;
                 ss << tmpStr << "_" << i + 1;
                 tmpStr = ss.str();
                 cout<<"has been changed to \"" + tmpStr + "\".\n";
             }
-            eqtlinfo->_probe_name_map.insert(pair<string, int>(tmpStr, i));
+            eqtlinfo -> _probe_name_map.insert(pair<string, int>(tmpStr, i));
+            eqtlinfo -> _epi_prbID[i] = tmpStr;
             
-            
-            eqtlinfo->_epi_prbID[i]=tmpStr;
-            iss>>tmpStr;
-            eqtlinfo->_epi_gd[i]=atoi(tmpStr.c_str());
-            iss>>tmpStr;
-            if(tmpStr=="NA" || tmpStr=="na" || tmpStr=="0") {
+            //read third field, which is add by smr make-besd function, the value is 0.
+            iss >> tmpStr;
+            eqtlinfo -> _epi_gd[i] = atoi(tmpStr.c_str());
+
+            //read fourth field, probe location by bp.
+            iss >> tmpStr;
+            if(tmpStr == "NA" || tmpStr == "na" || tmpStr == "0") {
                 printf("ERROR: probe BP is \"NA\" in row %d.\n", i+1);
                 exit(EXIT_FAILURE);
             }
-            eqtlinfo->_epi_bp[i]=atoi(tmpStr.c_str());
-            iss>>tmpStr;
-            eqtlinfo->_epi_gene[i]=tmpStr.c_str();
-            iss>>tmpStr;
-            eqtlinfo->_epi_orien[i]=tmpStr.c_str()[0];
+            eqtlinfo->_epi_bp[i] = atoi(tmpStr.c_str());
+
+            //read fifth field, gene name.
+            iss >> tmpStr;
+            eqtlinfo -> _epi_gene[i] = tmpStr.c_str();
+
+            //read sixth field. orientation.
+            iss >> tmpStr;
+            eqtlinfo -> _epi_orien[i] = tmpStr.c_str()[0];
             
         }
-        
         epi.close();
     }    
-    int shown(string besdfile)
+
+
+    int 
+    shown(string besdfile)
     {
-        string fname=besdfile+".besd";
-        FILE* besd=fopen(fname.c_str(), "rb");
+        string fname = besdfile + ".besd";
+        FILE * besd = fopen(fname.c_str(), "rb");
         if(!besd)
         {
             printf ( "ERROR: Couldn't open file %s\n", fname.c_str());
             exit (EXIT_FAILURE);
         }
 
-        printf("Reading sample size from %s \n",fname.c_str());
+        printf("Reading sample size from %s \n", fname.c_str());
         uint32_t indicator;
-        int ss=-9;
-        if(fread(&indicator, sizeof(uint32_t),1, besd)!=1)
-        {
+        int ss = -9;
+        if(fread(&indicator, sizeof(uint32_t), 1, besd) != 1){
             printf("ERROR: File %s read failed!\n", fname.c_str());
             exit (EXIT_FAILURE);
         }
-        if(indicator==SPARSE_FILE_TYPE_3 || indicator==DENSE_FILE_TYPE_3)
+
+        if(indicator == SPARSE_FILE_TYPE_3 || indicator == DENSE_FILE_TYPE_3)
         {
-            if(fread(&ss, sizeof(int),1, besd)!=1)
-            {
+            if(fread(&ss, sizeof(int), 1, besd) != 1){
                 printf("ERROR: File %s read failed!\n", fname.c_str());
                 exit (EXIT_FAILURE);
             }
-            if(ss==-9)
-            {
+            if(ss == -9){
                 printf("The sample size is missing. You may use --add-n to add it to the BESD file.\n");
             }
             else {
@@ -456,29 +486,36 @@ namespace SMRDATA
         fclose(besd);
         return ss;
     }
-    void read_besdfile(eqtlInfo* eqtlinfo, string besdfile, bool prtscr)
+
+
+    void
+    read_besdfile(eqtlInfo * eqtlinfo, string besdfile, bool prtscr)
     {
-        if (eqtlinfo->_include.size() == 0) throw ("Error: No probe is retained for analysis.");
-        if (eqtlinfo->_esi_include.size() == 0) throw ("Error: No SNP is retained for analysis.");
-        bool sorted = is_sorted(eqtlinfo->_esi_include.begin(), eqtlinfo->_esi_include.end()) && is_sorted(eqtlinfo->_include.begin(), eqtlinfo->_include.end());
+        if (eqtlinfo -> _include.size() == 0) 
+            throw ("Error: No probe is retained for analysis.");
+        if (eqtlinfo -> _esi_include.size() == 0) 
+            throw ("Error: No SNP is retained for analysis.");
+        bool sorted = is_sorted(eqtlinfo -> _esi_include.begin(), eqtlinfo -> _esi_include.end()) \
+            && is_sorted(eqtlinfo -> _include.begin(), eqtlinfo -> _include.end());
         
-        eqtlinfo->_cols.clear();
-        eqtlinfo->_rowid.clear();
-        eqtlinfo->_val.clear();
-        eqtlinfo->_valNum = 0;
-        eqtlinfo->_bxz.clear();
-        eqtlinfo->_sexz.clear();
+        eqtlinfo -> _cols.clear();
+        eqtlinfo -> _rowid.clear();
+        eqtlinfo -> _val.clear();
+        eqtlinfo -> _valNum = 0;
+        eqtlinfo -> _bxz.clear();
+        eqtlinfo -> _sexz.clear();
         
         // the fastest way is using malloc and memcpy
-        char SIGN[sizeof(uint64_t)+8];
+        char SIGN[sizeof(uint64_t) + 8];
         ifstream besd(besdfile.c_str(), ios::in|ios::binary);
-        if(!besd)
-        {
+        if(!besd){
             fprintf (stderr, "%s: Couldn't open file %s\n",
                      besdfile.c_str(), strerror (errno));
             exit (EXIT_FAILURE);
         }
-        if(prtscr)  cout << "Reading eQTL summary data from [" + besdfile + "]." << endl;
+
+        if(prtscr)
+            cout << "Reading eQTL summary data from [" + besdfile + "]." << endl;
         
         besd.read(SIGN, 4);
         uint32_t gflag = *(uint32_t *)SIGN;
@@ -526,21 +563,21 @@ namespace SMRDATA
         
         if(gflag == 0x40000000){
             // clear datastruct for dense befor read sparse
-            cout<<"This is an old file format. Please use --make-besd to update the file format."<<endl;
-            eqtlinfo->_bxz.clear();
-            eqtlinfo->_sexz.clear();
+            cout << "This is an old file format. Please use --make-besd to update the file format." << endl;
+            eqtlinfo -> _bxz.clear();
+            eqtlinfo -> _sexz.clear();
             
-            uint64_t colNum=(eqtlinfo->_probNum<<1)+1;
+            uint64_t colNum = (eqtlinfo -> _probNum << 1) + 1;
             uint64_t valNum;
             uint64_t lSize;
-            char* buffer;
-            besd.seekg(0,besd.end);
+            char * buffer;
+            besd.seekg(0, besd.end);
             lSize = besd.tellg();
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
             besd.read(SIGN, sizeof(uint64_t));
-            valNum=*(uint64_t *)SIGN;
-            if( lSize - (sizeof(float) + sizeof(uint64_t) + (colNum+valNum)*sizeof(uint32_t) + valNum*sizeof(float)) != 0)
+            valNum = *(uint64_t *)SIGN;
+            if( lSize - (sizeof(float) + sizeof(uint64_t) + (colNum + valNum) * sizeof(uint32_t) + valNum * sizeof(float)) != 0)
             {
                 printf("The file size is %llu",lSize);
                 printf(" %zu + %zu + %lld + %lld + %lld \n",sizeof(float),sizeof(uint64_t), colNum*sizeof(uint32_t),valNum*sizeof(uint32_t), valNum*sizeof(float));
@@ -549,41 +586,46 @@ namespace SMRDATA
             }
             
             
-            buffer = (char*) malloc (sizeof(char)*(lSize));
-            if (buffer == NULL) {fputs ("Memory error.\n",stderr); exit (1);}
-            besd.read(buffer,lSize);
-            if (besd.gcount()+sizeof(float) + sizeof(uint64_t) != lSize) {fputs ("Reading error",stderr); exit (2);}
+            buffer = (char *) malloc (sizeof(char) * (lSize));
+            if (buffer == NULL) {
+                fputs ("Memory error.\n",stderr); 
+                exit (1);
+            }
+            besd.read(buffer, lSize);
+            if (besd.gcount()+sizeof(float) + sizeof(uint64_t) != lSize) {
+                fputs ("Reading error",stderr); 
+                exit (2);
+            }
             
             
             uint32_t* ptr;
-            ptr=(uint32_t *)buffer;
+            ptr = (uint32_t *)buffer;
             
-            if(eqtlinfo->_include.size()<eqtlinfo->_probNum || eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum || !sorted)
+            if(eqtlinfo -> _include.size() < eqtlinfo -> _probNum || eqtlinfo -> _esi_include.size() < eqtlinfo -> _snpNum || !sorted)
             {
-                eqtlinfo->_cols.resize((eqtlinfo->_include.size()<<1)+1);
-                eqtlinfo->_cols[0]=*ptr;
-                uint32_t* row_ptr;
-                row_ptr=ptr+colNum;
-                float* val_ptr;
-                val_ptr=(float*)(row_ptr+valNum);
+                eqtlinfo -> _cols.resize((eqtlinfo -> _include.size() << 1) + 1);
+                eqtlinfo -> _cols[0] = *ptr;
+                uint32_t * row_ptr;
+                row_ptr = ptr + colNum;
+                float * val_ptr;
+                val_ptr = (float*)(row_ptr + valNum);
                 
                 map<int, int > _incld_id_map;
                 long size = 0;
-                for (int i = 0; i<eqtlinfo->_esi_include.size(); i++)
-                {
-                    _incld_id_map.insert(pair<int, int>(eqtlinfo->_esi_include[i], i));
-                    if (size == _incld_id_map.size()) throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo->_esi_rs[eqtlinfo->_esi_include[i]] + "\".");
+                for (int i = 0; i <eqtlinfo -> _esi_include.size(); i++){
+                    _incld_id_map.insert(pair<int, int>(eqtlinfo -> _esi_include[i], i));
+                    if (size == _incld_id_map.size()) 
+                        throw ("Error: Duplicated SNP IDs found: \"" + eqtlinfo -> _esi_rs[eqtlinfo -> _esi_include[i]] + "\".");
                     size = _incld_id_map.size();
                 }
 
-                for(int i=0;i<eqtlinfo->_include.size();i++)
-                {
-                    uint32_t pid=eqtlinfo->_include[i];
-                    uint32_t pos=*(ptr+(pid<<1));
-                    uint32_t pos1=*(ptr+(pid<<1)+1);
-                    uint32_t num=pos1-pos;
-                    uint32_t real_num=0;
-                    for(int j=0;j<num<<1;j++)
+                for(int i = 0; i < eqtlinfo -> _include.size(); i++){
+                    uint32_t pid = eqtlinfo->_include[i];
+                    uint32_t pos = *(ptr+(pid<<1));
+                    uint32_t pos1 = *(ptr+(pid<<1)+1);
+                    uint32_t num = pos1-pos;
+                    uint32_t real_num = 0;
+                    for(int j = 0; j < num << 1; j++)
                     {
                         uint32_t rid=*(row_ptr+pos+j);
                         
@@ -932,7 +974,7 @@ namespace SMRDATA
             lSize = besd.tellg();
             
             besd.seekg(4); // same as besd.seekg(4, besd.beg);
-            if(gflag==SPARSE_FILE_TYPE_3)
+            if(gflag == SPARSE_FILE_TYPE_3)
             {
                 int length=(RESERVEDUNITS-1)*sizeof(int);
                 char* indicators=new char[length];
@@ -1117,6 +1159,7 @@ namespace SMRDATA
          */
     }
     
+
     void filter_probe_null(eqtlInfo* eqtlinfo)
     {
         vector<string> nullprobes;
@@ -7339,7 +7382,13 @@ namespace SMRDATA
         }
         
     }
-    void epi_man(eqtlInfo* eqtlinfo,char* problstName,char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename)
+
+
+    void
+    epi_man(eqtlInfo * eqtlinfo, char * problstName, char * genelistName, \
+        int chr, int prbchr, const char * prbname, char * fromprbname, \
+        char * toprbname, int prbWind, int fromprbkb, int toprbkb, \
+        bool prbwindFlag, char* genename)
     {
         string logstr;
         int flags4prb=0;
@@ -7350,7 +7399,9 @@ namespace SMRDATA
         if(genename != NULL) flags4prb++;
         if(flags4prb>1)
         {
-            logstr="WARNING: Flags for probes in this section are mutual exclusive. The priority order (from high to low) is: --extract-probe, --gene-list, --probe-wind, --probe, --from(to)--probe, --from(to)-probe-kb, --gene.\n";
+            logstr="WARNING: Flags for probes in this section are mutual exclusive. \
+                The priority order (from high to low) is: --extract-probe, \
+                --gene-list, --probe-wind, --probe, --from(to)--probe, --from(to)-probe-kb, --gene.\n";
             fputs(logstr.c_str(), stdout);
         }
         

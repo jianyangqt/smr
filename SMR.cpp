@@ -68,31 +68,31 @@ void
 option(int option_num, char* option_str[])
 {
     thread_num = 1;
-    char* bFileName=NULL;
-    char* gwasFileName=NULL;
-    char* eqtlFileName=NULL;
-    char* indilstName=NULL;
-    char* snplstName=NULL;
-    char* indilst2remove=NULL;
-    char* snplst2exclde=NULL;
-    char* problst2exclde=NULL;
-    char* eproblst2exclde=NULL;
-    char* oproblst2exclde=NULL;
-    bool bFlag=false;// for binary file
-    double maf=0.0;
-    double p_hetero=1.5654e-3;
-    double p_smr=5.0e-8;
-    double ld_prune=0.9;
-    double ld_min=0.05;
-    double ld_prune_multi=0.1;
-    unsigned int m_hetero=3;
-    int opt_hetero=20;
-    bool smr_flag=true;
-    bool smr_trans_flag=false;
+    char * bFileName = NULL;
+    char * gwasFileName = NULL;
+    char * eqtlFileName = NULL;
+    char * indilstName = NULL;
+    char * snplstName = NULL;
+    char * indilst2remove = NULL;
+    char * snplst2exclde = NULL;
+    char * problst2exclde = NULL;
+    char * eproblst2exclde = NULL;
+    char * oproblst2exclde = NULL;
+    bool bFlag = false;// for binary file
+    double maf = 0.0;
+    double p_hetero = 1.5654e-3;
+    double p_smr = 5.0e-8;
+    double ld_prune = 0.9;
+    double ld_min = 0.05;
+    double ld_prune_multi = 0.1;
+    unsigned int m_hetero = 3;
+    int opt_hetero = 20;
+    bool smr_flag = true;
+    bool smr_trans_flag = false;
 
     // for data management
     bool make_besd_flag=false;
-    char* problstName=NULL;
+    char* problstName = NULL;
     char* eproblstName=NULL;
     char* oproblstName=NULL;
     char* targetsnpproblstName=NULL;
@@ -113,8 +113,8 @@ option(int option_num, char* option_str[])
     // for lookup
     double plookup=5e-8;
     bool lookup_flag=false;
-    char* genelistName=NULL;
-    int chr=0;
+    char * genelistName = NULL;
+    int chr = 0;
     int prbchr=0;
     int snpchr=0;
     char* snprs=NULL;
@@ -208,7 +208,7 @@ option(int option_num, char* option_str[])
     double ptech = 5.0e-8;
 
     int addn = -9;
-    bool shownflag=false;
+    bool shownflag = false;
 
     char* refepiName = NULL;
     char* refesiName = NULL;
@@ -246,8 +246,8 @@ option(int option_num, char* option_str[])
             printf("--bld %s\n",bldFileName);
         }
         else if(strcmp(option_str[i],"--make-bld")==0){
-            make_bld_flag=true;
-            cout<<"--make-bld "<<endl;
+            make_bld_flag = true;
+            cout << "--make-bld " << endl;
         }
         // gwas data file as cojo format
         else if(0==strcmp(option_str[i],"--gwas-summary")){
@@ -265,29 +265,27 @@ option(int option_num, char* option_str[])
             }
         }
         // eQTL files
-        else if(0==strcmp(option_str[i],"--eqtl-summary")){
-            if(eqtlFileName==NULL)
-            {
-                eqtlFileName=option_str[++i];
+        else if(0 == strcmp(option_str[i], "--eqtl-summary")){
+            if(eqtlFileName == NULL){
+                eqtlFileName = option_str[++i];
                 FLAG_VALID_CK("--eqtl-summary", eqtlFileName);
-                printf("--eqtl-summary %s\n",eqtlFileName);
+                printf("--eqtl-summary %s\n", eqtlFileName);
             }else{
                 eqtlFileName2=option_str[++i];
                 FLAG_VALID_CK("--eqtl-summary", eqtlFileName2);
                 printf("--eqtl-summary %s\n",eqtlFileName2);
             }
         }
-        else if(0==strcmp(option_str[i],"--beqtl-summary")){
-             bFlag=true;
-            if(eqtlFileName==NULL)
-            {
-                eqtlFileName=option_str[++i];
+        else if(0 == strcmp(option_str[i], "--beqtl-summary")){
+             bFlag = true;
+            if(eqtlFileName == NULL){
+                eqtlFileName = option_str[++i];
                 FLAG_VALID_CK("--beqtl-summary", eqtlFileName);
-                printf("--beqtl-summary %s\n",eqtlFileName);
+                printf("--beqtl-summary %s\n", eqtlFileName);
             }else{
-                eqtlFileName2=option_str[++i];
+                eqtlFileName2 = option_str[++i];
                 FLAG_VALID_CK("--beqtl-summary", eqtlFileName2);
-                printf("--beqtl-summary %s\n",eqtlFileName2);
+                printf("--beqtl-summary %s\n", eqtlFileName2);
             }
         }
         else if(strcmp(option_str[i],"--keep")==0){
@@ -327,10 +325,10 @@ option(int option_num, char* option_str[])
             }
         }
 
-        else if(strcmp(option_str[i],"--extract-probe")==0){
-            problstName=option_str[++i];
+        else if(strcmp(option_str[i], "--extract-probe") == 0){
+            problstName = option_str[++i];
             FLAG_VALID_CK("--extract-probe", problstName);
-            cout<<"--extract-probe "<<problstName<<endl;
+            cout << "--extract-probe " << problstName << endl;
             CommFunc::FileExist(problstName);
         }
         else if(strcmp(option_str[i],"--extract-exposure-probe")==0){
@@ -512,12 +510,16 @@ option(int option_num, char* option_str[])
             printf("--efile %s\n", eFileName);
         }
         else if (0 == strcmp(option_str[i], "--query")){
-            lookup_flag=true;
-            if(i+1==option_num || has_prefix(option_str[i+1],"--"))  plookup = 5.0e-8;
-            else plookup = atof (option_str[++i]);
-            if(bldFileName) printf("--query\n");
-            else printf("--query %10.2e\n", plookup);
-            if(plookup<0 || plookup>1)
+            lookup_flag = true;
+            if(i + 1 == option_num || has_prefix(option_str[i + 1], "--"))  
+                plookup = 5.0e-8;
+            else 
+                plookup = atof (option_str[++i]);
+            if(bldFileName) 
+                printf("--query\n");
+            else 
+                printf("--query %10.2e\n", plookup);
+            if(plookup < 0 || plookup > 1)
             {
                 fprintf (stderr, "Error: --query should be within the range from 0 to 1.\n");
                 exit (EXIT_FAILURE);
@@ -965,7 +967,7 @@ option(int option_num, char* option_str[])
             }
         }
         else if(strcmp(option_str[i],"--show-n")==0){
-            shownflag=true;
+            shownflag = true;
             printf("--show-n \n");
         }
         else if(strcmp(option_str[i],"--update-esi")==0){
@@ -1069,22 +1071,47 @@ option(int option_num, char* option_str[])
     cout << endl;
     char tmpch[4] = "smr";
     if(outFileName == NULL) 
-        outFileName=tmpch;
+        outFileName = tmpch;
+    
+    /* 
+        show sample size/
+        eqtlFileName: eqtl summary data file prefix.
+     */
     if(shownflag) 
         shown(eqtlFileName);
+    
+    /*
+        make bld file from
+     */
     else if(make_bld_flag)
-        ld_report(outFileName, bFileName,indilstName, indilst2remove, \
+        ld_report(outFileName, bFileName, indilstName, indilst2remove, \
             snplstName, snplst2exclde,chr, snprs, maf,ldr,ldr2,ldWind);
+    
+
     else if(make_besd_flag && (mateqtlflag || fastqtlnflag || fastqtlpflag || qtltoolsnflag || qtltoolspflag) )
         make_besd_fmat(eqtlFileName, outFileName, mateqtlflag, \
             fastqtlnflag, fastqtlpflag, qtltoolsnflag, qtltoolspflag, addn);
+    
+
     else if(make_besd_flag && (gctaflag || plinkflag || gemmaflag || boltflag || merlinflag) )
         make_besd(outFileName, syllabusName, gctaflag, plinkflag, gemmaflag, \
             merlinflag,boltflag,save_dense_flag, cis_itvl, trans_itvl, \
             transThres, restThres,genouni,addn);
+    
+    /* Make besd file from qfile. use --qfile and --make-besd flags to trigger this function.
+       The varible make_besd_flag == True and queryfileflg == True if these two flag added, and
+       varble queryFileName == qfile_name.
+
+       Arguments:
+           queryFileName: qfile name.
+           cis_itvl: dafault is 2000kbp
+           trans_itvl: default is 1000kbp.
+           addn: default is -9.
+     */
     else if (make_besd_flag && queryfileflg)
         make_besd_byQfile(queryFileName, outFileName, save_dense_flag, cis_itvl, \
             trans_itvl, transThres, restThres, addn);
+
     else if (metaflg)
         meta(eqtlsmaslstName, outFileName, meta_mtd, pmecs, cis_flag, cis_itvl, \
             nmecs, problstName, problst2exclde, genelistName, chr, prbchr, \
@@ -1136,13 +1163,50 @@ option(int option_num, char* option_str[])
             opt_slct_flag, ld_min, cis2all, sampleoverlap, pmecs, minsnpcor, \
             ssmrflg, setWind, ld_prune_multi, targetsnpproblstName, snpproblstName, \
             diff_freq, diff_freq_ratio);
+
+    // Query by p_value. triggered by --query flag. and lookup_flag will be set to true
+    // by this flag.
     else if(lookup_flag){
         if(bldFileName)
             lookup(outFileName, bldFileName, snplstName, snplst2exclde, \
                 chr, snprs, snp2rm, fromsnprs, tosnprs, snpWind, snpwindFlag, \
                 fromsnpkb, tosnpkb, ldWind);
+
+        /*  if --bld flag is not used and --beqtl-summary should used to indicat beqtl summary
+            Fuctions:
+                filter eqtl summary data by conditions.
+            Argument:
+                outFileName: set by --out flag.
+                eqtlFileName: set by --beqtl-summary flag.
+                snplstName: list file name which contain snp name want to extract. set by --extract-snp flag.
+                problstName: list file name which contain probe name want to extract. set by --extract-probe flag.
+                genelistName: list file name which contain gene want to extract, set by --genes flag.
+                plookup: p value set by --query. default is 5e-8.
+                bFlag: bool set by --beqtl-summary, default is false.
+                chr: set by --chr flag, default = 0.
+                prbchr: set by --prob-chr, default = 0.
+                snpchr: set by --snp-chr, default = 0.
+                snprs:
+                fromsnprs:
+                tosnprs:
+                prbname: set by --probe flag, indicat extract snp of this probe.
+                fromprbname:
+                toprbname:
+                snpWind:
+                prbWind:
+                genename:
+                fromsnpkb:
+                tosnpkb:
+                fromprbkb:
+                toprbkb:
+                snpwindFlag:
+                prbwindFlag:
+                cis_flag:
+                cis_itvl:
+                snpproblstName:
+         */
         else
-            lookup(outFileName,eqtlFileName, snplstName, problstName, \
+            lookup(outFileName, eqtlFileName, snplstName, problstName, \
                 genelistName, plookup, bFlag, chr, prbchr,snpchr, snprs, \
                 fromsnprs, tosnprs, prbname, fromprbname, toprbname, \
                 snpWind, prbWind, genename, fromsnpkb, tosnpkb, fromprbkb, \
@@ -1188,7 +1252,8 @@ option(int option_num, char* option_str[])
             pmecs, minsnpcor, targetsnpproblstName, snpproblstName, \
             diff_freq, diff_freq_ratio);
     else if (est_effe_spl_size_flg)
-        est_effect_splsize(eqtlsmaslstName,eqtlFileName, snplstName,problstName,snplst2exclde, problst2exclde,p_smr);
+        est_effect_splsize(eqtlsmaslstName, eqtlFileName, snplstName, problstName, \
+            snplst2exclde, problst2exclde, p_smr);
     else if(smr_flag && smr_trans_flag)
         smr_trans_region(outFileName, bFileName,gwasFileName, eqtlFileName, \
             maf, indilstName, snplstName,problstName, bFlag, p_hetero, ld_prune, \
