@@ -26,9 +26,9 @@
 #include <omp.h>
 #endif
 #include <bitset>
-#include "CommFunc.h"
-#include "StatFunc.h"
-#include "StrFunc.h"
+#include "CommFunc.hpp"
+#include "StatFunc.hpp"
+#include "StrFunc.hpp"
 
 using namespace std;
 using namespace StatFunc;

@@ -6,13 +6,13 @@
 //  Modified by fanghl in 20210511
 
 
-#include "StrFunc.h"
-#include "SMR_data_p1.h"
-#include "SMR_data_p2.h"
-#include "SMR_data_p3.h"
-#include "SMR_plot.h"
+#include "StrFunc.hpp"
+#include "SMR_data_p1.hpp"
+#include "SMR_data_p2.hpp"
+#include "SMR_data_p3.hpp"
+#include "SMR_plot.hpp"
 #include "bfile.hpp"
-#include "SMR.h"
+#include "SMR.hpp"
 
 using namespace SMRDATA;
 using namespace StatFunc;

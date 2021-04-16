@@ -8,7 +8,7 @@
 #ifndef __SMR_CPP__SMR_data_p2__
 #define __SMR_CPP__SMR_data_p2__
 
-#include "SMR_data.h"
+#include "SMR_data.hpp"
 
 namespace SMRDATA
 {

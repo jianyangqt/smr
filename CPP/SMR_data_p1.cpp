@@ -6,7 +6,7 @@
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //
 
-#include "SMR_data_p1.h"
+#include "SMR_data_p1.hpp"
 namespace SMRDATA
 {
     void get_top_sets(eqtlInfo* eqtlinfo, vector<string> &prbIds, vector<float> &beta, vector<float> &se, vector<string> &rs, float thres)

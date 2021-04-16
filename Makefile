@@ -5,7 +5,9 @@ CXXFLAGS = -g -O2
 CPPFLAGS ?= 
 LDLIBS = -lm -lz -lomp
 
-smr: bfile.o CommFunc.o dcdflib.o SMR.o SMR_data.o SMR_data_p1.o SMR_data_p2.o SMR_data_p3.o SMR_plot.o StatFunc.o StrFunc.o
+smr: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
+	CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
+	CPP/StatFunc.o CPP/StrFunc.o
 	$(CXX) $(CXXFLAGS)  $?  $(LDLIBS) -o $@
 
 bfile.o: bfile.cpp
@@ -43,8 +45,13 @@ StrFunc.o: StrFunc.cpp
 
 
 clean:
-	@rm *.o smr
+	@rm C/*.o
+	@rm CPP/*.o
+	@rm smr
 
 
 install:
 	@echo The binary is under building directory named smr.
+
+
+

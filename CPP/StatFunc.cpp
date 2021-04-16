@@ -8,7 +8,7 @@
  * details
  */
 
-#include "StatFunc.h"
+#include "StatFunc.hpp"
 
 
 ////////// P-value Calculatiion Functions Start ////////////////

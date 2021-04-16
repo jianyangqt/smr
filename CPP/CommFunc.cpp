@@ -8,7 +8,7 @@
  * details
  */
 
-#include "CommFunc.h"
+#include "CommFunc.hpp"
 
 void CommFunc::update_id_map_kp(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep)
 {

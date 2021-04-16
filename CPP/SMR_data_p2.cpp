@@ -6,7 +6,7 @@
 //  Modified by fanghl 20210412
 
 
-#include "SMR_data_p2.h"
+#include "SMR_data_p2.hpp"
 FILE * techeQTLfile = NULL;
 namespace SMRDATA
 {

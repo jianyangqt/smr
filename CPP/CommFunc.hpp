@@ -44,7 +44,7 @@
 #include <algorithm>
 #include <ctime>
 #include <fstream>
-#include "StrFunc.h"
+#include "StrFunc.hpp"
 #include <string.h>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>

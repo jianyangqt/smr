@@ -6,7 +6,7 @@
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //
 
-#include "SMR_data_p3.h"
+#include "SMR_data_p3.hpp"
 
 namespace SMRDATA
 {
