@@ -6,43 +6,45 @@ CPPFLAGS ?=
 LDLIBS = -lm -lz -lomp
 
 smr: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
-	CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
-	CPP/StatFunc.o CPP/StrFunc.o
+	 CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
+	 CPP/StatFunc.o CPP/StrFunc.o CPP/main.o
 	$(CXX) $(CXXFLAGS)  $?  $(LDLIBS) -o $@
 
-bfile.o: bfile.cpp
+bfile.o: CPP/bfile.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-CommFunc.o: CommFunc.cpp
+CommFunc.o: CPP/CommFunc.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-dcdflib.o: dcdflib.cpp 
+dcdflib.o: CPP/dcdflib.cpp 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR.o: SMR.cpp 
+SMR.o: CPP/SMR.cpp 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR_data.o: SMR_data.cpp
+SMR_data.o: CPP/SMR_data.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR_data_p1.o: SMR_data_p1.cpp
+SMR_data_p1.o: CPP/SMR_data_p1.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR_data_p2.o: SMR_data_p2.cpp
+SMR_data_p2.o: CPP/SMR_data_p2.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR_data_p3.o: SMR_data_p3.cpp
+SMR_data_p3.o: CPP/SMR_data_p3.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-SMR_plot.o: SMR_plot.cpp
+SMR_plot.o: CPP/SMR_plot.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-StatFunc.o: StatFunc.cpp
+StatFunc.o: CPP/StatFunc.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
-StrFunc.o: StrFunc.cpp 
+StrFunc.o: CPP/StrFunc.cpp 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
 
+main.o: CPP/main.cpp
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c $?
 
 clean:
 	@rm C/*.o

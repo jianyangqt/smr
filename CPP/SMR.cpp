@@ -24,7 +24,7 @@ char* outFileName=NULL;
 
 
 int
-main(int argc, char** argv)
+smr_main(int argc, char** argv)
 {
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
