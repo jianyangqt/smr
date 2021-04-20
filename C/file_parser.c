@@ -6,7 +6,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#define UTILITY
+#define TEST_FUNC
 #define ELE_PER_BYTE 4
 #define MASK1 3
 #define MASK2 12
@@ -17,10 +17,13 @@
 
 // uint32 + floats
 #define DENSE_FILE_TYPE_1 0
+
 // 16*uint32s + floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s + values) [default]]
 #define DENSE_FILE_TYPE_3 5
+
 // uint32 + uint64_t + uint64_ts + uint32_ts + floats
 #define SPARSE_FILE_TYPE_3F 0x40400000
+
 // 16*uint32s + uint64_t + uint64_ts + uint32_ts + 
 // floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +
 // valnumber+cols+rowids+betases) [default]]
@@ -28,102 +31,280 @@
 
 #define  ALLEL_TYPE(al) ((al == 1)? 'N': ((al == 0)? '2': ((al == 2)? '1': '0')))
 
-struct BIM_NODE{
-    unsigned char chrome;
-    char name[25];
-    double distance;
-    long position;
-    unsigned char al1;
-    unsigned char al2;
-    struct BIM_NODE * next;
 
-};
-
-struct BIM_RES {
-    struct BIM_NODE * bim_data;
-    unsigned long bim_len;
-
-};
-
-struct FAM_NODE{
-    char family_id[10];
-    char individual_id[10];
-    char paternal_id[10];
-    char maternal_id[10];
-    char sex;
-    signed char phenotype;
-    struct FAM_NODE * next;
-
-};
-
+/*
+    fam file contain first six column of ped file, which is:
+        Family_ID, Individual_ID, Paternal_ID, Maternal_ID,
+        Sex(1=male, 2=female, other=unknow), Phenotype 
+ */
+// data structure used to contain fam data.
 struct FAM_RES {
-    struct FAM_NODE * fam_data;
+    struct FAM_NODE {
+        char family_id[10];
+        char individual_id[10];
+        char paternal_id[10];
+        char maternal_id[10];
+        char sex;
+        signed char phenotype;
+        struct FAM_NODE * next;
+
+    } * fam_data;
+
     unsigned long fam_len;
 
 };
 
 
-struct BESD_DATA {
-    int32_t first_16_int[16];
-    uint64_t value_num;
-    uint64_t * value_beta_se_pos;
-    uint32_t * snp_pos;
-    float * value_beta_se;
-
-};
-
-struct TMP_S {
-    unsigned long prob_index;
-    unsigned int snp_contained;
-    struct SNP_DT {
-        unsigned int snp_index;
-        float beta;
-        float se;
-    } * SNP_data_pt;
-};
-
-
-static struct BIM_RES  parse_bim(const char *);
-static struct FAM_RES  parse_fam(const char *);
-static void * parse_bed(const char *, unsigned long, unsigned long);
-static void unpack_byte(unsigned char, unsigned char *);
-static struct BESD_DATA decode_besd_file(const char *);
-
-
-#ifdef UTILITY
-int
-main(int argc, char ** argv)
+// fam file parsing function.
+static struct FAM_RES
+parse_fam(const char * fam_file_name)
 {
-    struct BIM_RES  bim_data;
-    struct FAM_RES  fam_data;
-    const char * bim_file = argv[1];
-    const char * fam_file = argv[2];
-    const char * bed_file = argv[3];
-    const char * besd_file = argv[4];
-    unsigned char (*bed_data)[fam_data.fam_len];
-    struct BESD_DATA besd_data;
+    char family_id[10];
+    char individual_id[10];
+    char paternal_id[10];
+    char maternal_id[10];
+    int sex;
+    int phenotype;
+    struct FAM_NODE * fam_node_data = NULL, * new_node = NULL, * pt = NULL;
+    struct FAM_RES data_out;
+    unsigned long fam_len = 0;
 
-    bim_data = parse_bim(bim_file);
-    fam_data = parse_fam(fam_file);
-    //printf("%ld %ld\n", bim_data.bim_len, fam_data.fam_len);
-    bed_data = parse_bed(bed_file, bim_data.bim_len, fam_data.fam_len); 
-    /*
-    unsigned long i, j;
-    for (i = 0; i < bim_data.bim_len; i++){
-        for (j = 0; j < fam_data.fam_len; j++){
-            printf("%c", bed_data[i][j]);
-        }
-        printf("\n");
+    FILE * f_in = fopen(fam_file_name, "r");
+    if (!f_in){
+        fprintf(stderr, "error, fam file open failed.\n");
+        exit(EXIT_FAILURE);
     }
-    */
 
-    besd_data = decode_besd_file(besd_file); 
+    while(fscanf(f_in, "%s %s %s %s %d %d", family_id, individual_id, \
+        paternal_id, maternal_id, &sex, &phenotype) == 6){
+        new_node = (struct FAM_NODE *)malloc(sizeof(struct FAM_NODE));
+        fam_len++;
+        strcpy(new_node -> family_id, family_id);
+        strcpy(new_node -> individual_id, individual_id);
+        strcpy(new_node -> paternal_id, paternal_id);
+        strcpy(new_node -> maternal_id, maternal_id);
+        new_node ->  sex = (char)sex;
+        new_node -> phenotype = (signed char)phenotype;
+        new_node -> next = NULL;
 
-
-    return 0;
-
+        if (fam_node_data){
+            pt -> next = new_node;
+            pt = new_node;
+        } else{
+            fam_node_data = pt = new_node;
+        }
+    }
+    data_out.fam_data = fam_node_data;
+    data_out.fam_len = fam_len;
+    return data_out;
 }
-#endif
+
+
+/*
+    bim file is extended MAP file, two extra columns is allels name,
+    the columns is described as fllowing:
+        chromosome, rs or snp, Genetic distance, Base pair position, ref allel, alt allel
+    here I conver chromosome to a unsigned int number, 1 - 22 will be itself, and X is 
+    set to 99, Y set to 98, XY set to 97.
+ */
+struct BIM_RES {
+    struct BIM_NODE {
+        unsigned char chrome;
+        char snp_name[25];
+        double distance;
+        unsigned long position;
+        unsigned char al1;
+        unsigned char al2;
+        struct BIM_NODE * next;
+
+    } * bim_data;
+
+    unsigned long bim_len;
+
+};
+
+
+//parse bim file.
+static struct BIM_RES
+parse_bim(const char * bim_file_name)
+{
+    char chrome_tmp[5];
+    char snp_name[25];
+    double distance;
+    unsigned long position;
+    unsigned char al1;
+    unsigned char al2;
+    struct BIM_NODE * bim_node_data = NULL, * new_node = NULL, * pt = NULL;
+    struct BIM_RES data_out;
+    unsigned long bim_len = 0;
+
+    FILE * bim_f_in = fopen(bim_file_name, "r");
+    if (!bim_f_in){
+        fprintf(stderr, "error, bim file not open successesfully.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    while(fscanf(bim_f_in, "%s %s %lf %ld %c %c", chrome_tmp, snp_name, \
+        &distance, &position, &al1, &al2) == 6){
+        new_node = (struct BIM_NODE *)malloc(sizeof(struct BIM_NODE));
+        bim_len++;
+        if (isdigit(chrome_tmp[0])){
+            new_node -> chrome = atoi(chrome_tmp);
+        } else if (strcmp(chrome_tmp, "X")){
+            new_node -> chrome = 99;
+        } else if (strcmp(chrome_tmp, "Y")) {
+            new_node -> chrome = 98;
+        } else if (strcmp(chrome_tmp, "XY")){
+            new_node -> chrome = 97;
+        } else {
+            fprintf(stderr, "error, %s is not recognized\n",chrome_tmp);
+        }
+
+        strcpy(new_node -> snp_name, snp_name);
+        new_node -> distance = distance;
+        new_node -> position = position;
+        new_node -> al1 = al1;
+        new_node -> al2 = al2;
+        new_node -> next = NULL;
+
+        if (bim_node_data){
+            pt -> next = new_node;
+            pt = new_node;
+
+        } else {
+            bim_node_data = pt = new_node;
+        }
+    }
+    data_out.bim_data = bim_node_data;
+    data_out.bim_len = bim_len;
+
+    return data_out;
+}
+
+
+/*
+ * .bed file was generate by plink, it was is a binary file and used to record genotype data.
+ * every allel was recorded using 2bit, the meaning is discriped as follow:
+ *  00 homozygote
+ *  10 heterozygous
+ *  11 homozygote
+ *  01 missing
+ *
+ * When readin the bed file, the very first 3 byte should trimed, it is not belong to item data.
+ * And, the row of data is represent for all individual of a snp/other, if the number of individual
+ * cann't divided by 4 integely, zero using to fill left bit of a byte.
+ *
+ * As reference to Plinks docs and Plink2R, I using follwing character to represent decode results:
+ *
+ *  00 homozygote     -> '2'
+ *  10 heterozygous   -> '1'
+ *  11 homozygote     -> '0'
+ *  01 missing        -> 'N'
+ *
+ * The function reture a 2 dimension char array; row_length = individual_num, 
+ * column_length = snp_amount. In other words, row_number = snp_amount, 
+ * column_number = individual_amount.
+ *
+ * data_out[snp_amount][individual_amount]
+ */
+static void unpack_byte(unsigned char, unsigned char *);
+static void *
+parse_bed(const char * bed_file_name, unsigned long row_num, unsigned long clo_num)
+{
+    unsigned char (* data_out)[clo_num] = (unsigned char (*)[clo_num]) \
+        malloc(sizeof(unsigned char) * row_num * clo_num);
+    //byte length for each raw.
+    unsigned long packed_len = (int)ceil((double)clo_num / ELE_PER_BYTE);
+    unsigned char packed_buffer[packed_len];
+    unsigned char unpacked_buffer[packed_len * ELE_PER_BYTE];
+    unsigned long row_c = 0;
+    unsigned long clo_c = 0;
+    unsigned long i = 0, j = 0, k = 0;
+    unsigned char unpacked_byte[ELE_PER_BYTE];
+
+    FILE * f_in = fopen(bed_file_name, "r");
+    if (!f_in){
+        fprintf(stderr, "error, open bed file failed.\n");
+        exit(1);
+    }
+    //remove first 3 byte.
+    i = 0; 
+    while(fgetc(f_in)){
+        i++;
+        if (i == 3)
+            break;
+    }
+
+    while (fread(packed_buffer, sizeof(unsigned char), packed_len, f_in) == packed_len){
+        j = 0;
+        for (i = 0; i < packed_len; i++){
+            unpack_byte(packed_buffer[i], unpacked_byte);
+            k = 0;
+            while (k < ELE_PER_BYTE){
+                unpacked_buffer[j] = unpacked_byte[k];
+                j++;
+                k++;
+            }
+        } 
+
+        for (clo_c = 0; clo_c < clo_num; clo_c++){
+            data_out[row_c][clo_c] = unpacked_buffer[clo_c];
+        }
+        row_c++;
+    }
+
+    return data_out;
+}
+
+
+static void
+unpack_byte(unsigned char packed_char, unsigned char * unpacked_byte)
+{
+    //the length is ELE_PER_BYTE, which is 4 here.
+    unsigned char f1, f2, f3, f4;
+    f1 = packed_char & MASK1;
+    f1 = ALLEL_TYPE(f1);
+
+    f2 = (packed_char & MASK2) >> 2;
+    f2 = ALLEL_TYPE(f2);
+
+    f3 = (packed_char & MASK3) >> 4;
+    f3 = ALLEL_TYPE(f3);
+
+    f4 = (packed_char & MASK4) >> 6;
+    f4 = ALLEL_TYPE(f4);
+
+    unpacked_byte[0] = f1;
+    unpacked_byte[1] = f2;
+    unpacked_byte[2] = f3;
+    unpacked_byte[3] = f4;
+    return;
+}
+
+
+
+
+/*
+    esi file, which is same as bmi file.
+    The column is following:
+        chromosome, snp name, genetic distance, position,
+        reference allel, alternative allel, frequency of reference allel(effect allel).
+
+    if a field can be NA, then the bigest number of its type will be used to represent
+    the NA condition. For example, ESI_NODE.frequency is unsigned long (minimux is uint32),
+    then (2**32 - 1) will be used represent NA.
+
+ */
+struct ESI_NODE {
+    unsigned char chromosome;
+    char snp_name[25];
+    double distance;
+    unsigned long position;
+    char al1;
+    char al2;
+    unsigned long frequency;    
+
+};
 
 
 /* The besd file is a kind of packed file, which store data 
@@ -154,6 +335,26 @@ main(int argc, char ** argv)
  * float(n)[], float(n+1), ... float(n+p1), float(n+p1+1), float(n+p1+2), ... float(n+2*p1);
  * ...
  */
+struct BESD_DATA {
+    int32_t first_16_int[16];
+    uint64_t value_num;
+    uint64_t * value_beta_se_pos;
+    uint32_t * snp_pos;
+    float * value_beta_se;
+
+};
+
+struct TMP_S {
+    unsigned long prob_index;
+    unsigned int snp_contained;
+    struct SNP_DT {
+        unsigned int snp_index;
+        float beta;
+        float se;
+    } * SNP_data_pt;
+};
+
+
 static struct BESD_DATA
 decode_besd_file(const char * besd_file_name)
 {
@@ -258,198 +459,42 @@ decode_besd_file(const char * besd_file_name)
 }
 
 
-static struct BIM_RES
-parse_bim(const char * bim_file_name)
+
+
+
+
+#ifdef TEST_FUNC
+int
+main(int argc, char ** argv)
 {
-    char chrome_tmp[5];
-    char name[25];
-    double distance;
-    long position;
-    unsigned char al1;
-    unsigned char al2;
-    struct BIM_NODE * data_out_ = NULL, * new_n = NULL, * pt = NULL;
-    struct BIM_RES data_out;
-    unsigned long bim_len = 0;
+    struct BIM_RES  bim_data;
+    struct FAM_RES  fam_data;
+    const char * bim_file = argv[1];
+    const char * fam_file = argv[2];
+    const char * bed_file = argv[3];
+    const char * besd_file = argv[4];
+    unsigned char (*bed_data)[fam_data.fam_len];
+    struct BESD_DATA besd_data;
 
-    FILE * bim_f_in = fopen(bim_file_name, "r");
-    if (!bim_f_in){
-        fprintf(stderr, "error, bim file not open successesfully.\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    while(fscanf(bim_f_in, "%s %s %lf %ld %c %c", chrome_tmp, name, &distance, &position, &al1, &al2) == 6){
-        new_n = (struct BIM_NODE *)malloc(sizeof(struct BIM_NODE));
-        bim_len++;
-        if (isdigit(chrome_tmp[0])){
-            new_n -> chrome = atoi(chrome_tmp);
-        } else if (strcmp(chrome_tmp, "X")){
-            new_n -> chrome = 99;
-        } else if (strcmp(chrome_tmp, "Y")) {
-            new_n -> chrome = 98;
-
-        } else if (strcmp(chrome_tmp, "XY")){
-
-            new_n -> chrome = 97;
-        } else {
-
-            fprintf(stderr, "error, %s is not recognized\n",chrome_tmp);
+    bim_data = parse_bim(bim_file);
+    fam_data = parse_fam(fam_file);
+    //printf("%ld %ld\n", bim_data.bim_len, fam_data.fam_len);
+    bed_data = parse_bed(bed_file, bim_data.bim_len, fam_data.fam_len); 
+    /*
+    unsigned long i, j;
+    for (i = 0; i < bim_data.bim_len; i++){
+        for (j = 0; j < fam_data.fam_len; j++){
+            printf("%c", bed_data[i][j]);
         }
-
-        strcpy(new_n -> name, name);
-        new_n -> distance = distance;
-        new_n -> position = position;
-        new_n -> al1 = al1;
-        new_n -> al2 = al2;
-        new_n -> next =NULL;
-
-        if (data_out_){
-            pt -> next = new_n;
-            pt = new_n;
-
-        } else {
-            data_out_ = pt = new_n;
-        }
+        printf("\n");
     }
-    data_out.bim_data = data_out_;
-    data_out.bim_len = bim_len;
+    */
 
-    return data_out;
+    besd_data = decode_besd_file(besd_file); 
+
+
+    return 0;
+
 }
+#endif
 
-
-static struct FAM_RES
-parse_fam(const char * fam_file_name)
-{
-    char family_id[10];
-    char individual_id[10];
-    char paternal_id[10];
-    char maternal_id[10];
-    int sex;
-    int phenotype;
-    struct FAM_NODE * data_out_ = NULL, * new_ = NULL, * pt = NULL;
-    struct FAM_RES data_out;
-    unsigned long fam_len = 0;
-
-    FILE * f_in = fopen(fam_file_name, "r");
-    if (!f_in){
-        fprintf(stderr, "error, fam file open failed.\n");
-        exit(EXIT_FAILURE);
-
-    }
-
-    while(fscanf(f_in, "%s %s %s %s %d %d", family_id, individual_id, \
-        paternal_id, maternal_id, &sex, &phenotype) == 6){
-        new_ = (struct FAM_NODE *)malloc(sizeof(struct FAM_NODE));
-        fam_len++;
-        strcpy(new_ -> family_id, family_id);
-        strcpy(new_ -> individual_id, individual_id);
-        strcpy(new_ -> paternal_id, paternal_id);
-        strcpy(new_ -> maternal_id, maternal_id);
-        new_ ->  sex = (char)sex;
-        new_ -> phenotype = (signed char)phenotype;
-        new_ -> next = NULL;
-
-        if (data_out_){
-            pt -> next = new_;
-            pt = new_;
-        } else{
-            data_out_ = pt = new_;
-        }
-    }
-    data_out.fam_data = data_out_;
-    data_out.fam_len = fam_len;
-    return data_out;
-}
-
-
-/*
- * .bed file was generate by plink, it was is a binary file and used to record genotype data.
- * every allel was recorded using 2bit, the meaning is discriped as follow:
- *  00 homozygote
- *  10 heterozygous
- *  11 homozygote
- *  01 missing
- *
- * When readin the bed file, the very first 3 byte should trimed, it is not belong to item data.
- * And, the row of data is represent for all individual of a snp/other, if the number of individual
- * cann't divided by 4 integely, zero using to fill left bit of a byte.
- *
- * As reference to Plinks docs and Plink2R, I using follwing character to represent decode results:
- *
- *  00 homozygote     -> '2'
- *  10 heterozygous   -> '1'
- *  11 homozygote     -> '0'
- *  01 missing        -> 'N'
- *
- * The function reture a char 2d array; row_num = indivadual_num, clolum_num = snp_amount.
- * data_out[individual_amount][snp_amount]
- */
-static void *
-parse_bed(const char * bed_file_name, unsigned long row_num, unsigned long clo_num)
-{
-    unsigned char (* data_out)[clo_num] = (unsigned char (*)[clo_num]) \
-        malloc(sizeof(unsigned char) * row_num * clo_num);
-    unsigned long packed_len = (int)ceil((double)clo_num / ELE_PER_BYTE);
-    unsigned char packed_buffer[packed_len];
-    unsigned char unpacked_buffer[packed_len * ELE_PER_BYTE];
-    unsigned long row_c = 0;
-    unsigned long clo_c = 0;
-    unsigned long i = 0, j = 0, k = 0;
-    unsigned char unpacked_byte[ELE_PER_BYTE];
-
-    FILE * f_in = fopen(bed_file_name, "r");
-    if (!f_in){
-        fprintf(stderr, "error, open bed file failed.\n");
-        exit(1);
-    }
-    i = 0; 
-    while(fgetc(f_in)){
-        i++;
-        if (i == 3)
-            break;
-    }
-
-    while (fread(packed_buffer, sizeof(unsigned char), packed_len, f_in) == packed_len){
-        j = 0;
-        for (i = 0; i < packed_len; i++){
-            unpack_byte(packed_buffer[i], unpacked_byte);
-            k = 0;
-            while (k < ELE_PER_BYTE){
-                unpacked_buffer[j] = unpacked_byte[k];
-                j++;
-                k++;
-            }
-        } 
-
-        for (clo_c = 0; clo_c < clo_num; clo_c++){
-            data_out[row_c][clo_c] = unpacked_buffer[clo_c];
-        }
-        row_c++;
-    }
-
-    return data_out;
-}
-
-
-static void
-unpack_byte(unsigned char packed_char, unsigned char * unpacked_byte)
-{
-    unsigned char f1, f2, f3, f4;
-    f1 = packed_char & MASK1;
-    f1 = ALLEL_TYPE(f1);
-
-    f2 = (packed_char & MASK2) >> 2;
-    f2 = ALLEL_TYPE(f2);
-
-    f3 = (packed_char & MASK3) >> 4;
-    f3 = ALLEL_TYPE(f3);
-
-    f4 = (packed_char & MASK4) >> 6;
-    f4 = ALLEL_TYPE(f4);
-
-    unpacked_byte[0] = f1;
-    unpacked_byte[1] = f2;
-    unpacked_byte[2] = f3;
-    unpacked_byte[3] = f4;
-    return;
-}

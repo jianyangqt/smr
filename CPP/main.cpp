@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "SMR_main.hpp"
+#include "calmt.hpp"
 
 
 using namespace std;
@@ -25,23 +26,35 @@ main(int argc, char * argv[])
         "summary-level data from GWAS and expression quantitative\n"
         "trait loci (eQTL) studies.";
 
-    string mesg_help = "--help/-h print: help message and exit.";
-    string mesg_version = "--version/-v: print software version and exit.";
-    string mesg_smr_main = "smr_main: smr main program.";
+    string mesg_help = "--help/-h:    print help message and exit.";
+    string mesg_version = "--version/-v:     print software version and exit.";
+    string mesg_smr_main = "smr_main:    smr main program.";
+    string mesg_calmt = "calmt:    calculate cauchy between moulecular and trait.";
 
-    help_mesg.push_back(prog_name);
+    help_mesg.push_back(version);
     help_mesg.push_back("\n");
     help_mesg.push_back(usage);
     help_mesg.push_back("\n");
-    help_mesg.push_back(version);
     help_mesg.push_back("\n");
     help_mesg.push_back(prog_description);
     help_mesg.push_back("\n");
+    help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_help);
+    help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_version);
+    help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_smr_main);
+    help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_calmt);
     help_mesg.push_back("\n");
 
 
     string argument = "";
     argument = get_args(argc, argv);
+    if (argc > 2){
+        --argc;
+        ++argv;
+    }
     
     if (argument == ""){
         cout << usage << endl;
@@ -61,6 +74,11 @@ main(int argc, char * argv[])
         if (argument == "smr_main") {
             smr_main(argc, argv);
             exit(0);
+
+        } else if (argument == "calmt"){
+            calculate_cauchy(argc, argv);
+            exit(0);
+
         } else {
             cout << argument << " is not a smr command" << endl;
             exit(0);

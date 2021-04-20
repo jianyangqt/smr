@@ -7,7 +7,7 @@ LDLIBS = -lm -lz -lomp
 
 smr: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
 	 CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
-	 CPP/StatFunc.o CPP/StrFunc.o CPP/main.o
+	 CPP/StatFunc.o CPP/StrFunc.o CPP/calmt.o CPP/main.o
 	$(CXX) $(CXXFLAGS)  $?  $(LDLIBS) -o $@
 
 bfile.o: CPP/bfile.cpp
@@ -42,6 +42,9 @@ StatFunc.o: CPP/StatFunc.cpp
 
 StrFunc.o: CPP/StrFunc.cpp 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
+
+calmt.o: CPP/calmt.cpp
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c $?
 
 main.o: CPP/main.cpp
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c $?
