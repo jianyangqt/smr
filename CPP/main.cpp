@@ -3,18 +3,17 @@
 #include <vector>
 
 #include "SMR_main.hpp"
-#include "calmt.hpp"
+#include "../C/calmt.h"
 
 
 using namespace std;
-
-string get_args(int, char *[]);
 
 
 int
 main(int argc, char * argv[])
 {
-    string usage = "Usage: smr [--version/-v] [--help/-h] <command> [<args>]";
+    string usage = "Usage: smr [--version/-v] [--help/-h] <command> [<args>]\n"
+                   "    \"smr command --help\" for command help message.";
     string version = "smr version 1.1.0";
 
     vector<string> help_mesg;
@@ -26,10 +25,10 @@ main(int argc, char * argv[])
         "summary-level data from GWAS and expression quantitative\n"
         "trait loci (eQTL) studies.";
 
-    string mesg_help = "--help/-h:    print help message and exit.";
-    string mesg_version = "--version/-v:     print software version and exit.";
-    string mesg_smr_main = "smr_main:    smr main program.";
-    string mesg_calmt = "calmt:    calculate cauchy between moulecular and trait.";
+    string mesg_smr_main = "main            smr main program.";
+    string mesg_calmt =    "calmt           calculate cauchy between moulecular and trait.";
+    string mesg_help =     "--help/-h       print help message and exit.";
+    string mesg_version =  "--version/-v    print software version and exit.";
 
     help_mesg.push_back(version);
     help_mesg.push_back("\n");
@@ -39,66 +38,60 @@ main(int argc, char * argv[])
     help_mesg.push_back(prog_description);
     help_mesg.push_back("\n");
     help_mesg.push_back("\n");
-    help_mesg.push_back(mesg_help);
-    help_mesg.push_back("\n");
-    help_mesg.push_back(mesg_version);
-    help_mesg.push_back("\n");
     help_mesg.push_back(mesg_smr_main);
     help_mesg.push_back("\n");
     help_mesg.push_back(mesg_calmt);
     help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_help);
+    help_mesg.push_back("\n");
+    help_mesg.push_back(mesg_version);
+    help_mesg.push_back("\n");
 
 
-    string argument = "";
-    argument = get_args(argc, argv);
-    if (argc > 2){
-        --argc;
-        ++argv;
-    }
-    
-    if (argument == ""){
+    if (argc == 1){
         cout << usage << endl;
         exit(0);
-    } else if (argument.substr(0, 1) == "-"){
-        if (argument == "--help" || argument == "-h"){
+    }
+
+    string first_arg = string(argv[1]);
+
+    if (first_arg.substr(0, 1) == "-"){
+        if (first_arg == "--help" || first_arg == "-h"){
             for (string mesg: help_mesg){
                 cout << mesg;
             }
-        } else if (argument == "--version" || argument == "-v"){
+            exit(0);
+
+        } else if(first_arg == "--version" || first_arg == "-h"){
             cout << version << endl;
-        } else {
-            cout << "unknown option: " << argument << endl;
+            exit(0);
+
+        } else if (first_arg == "--usage" || first_arg == "-u"){
             cout << usage << endl;
-        }
-    } else {
-        if (argument == "smr_main") {
-            smr_main(argc, argv);
-            exit(0);
-
-        } else if (argument == "calmt"){
-            calculate_cauchy(argc, argv);
             exit(0);
 
         } else {
-            cout << argument << " is not a smr command" << endl;
+            cerr << "unknow option: " << first_arg << endl;
+            cerr << usage << endl;
             exit(0);
+        }
+
+    } else {
+        
+        if (first_arg == "main"){
+            smr_main(--argc, ++argv);
+            exit(0);
+
+        } else if (first_arg == "calmt"){
+            calculate_cauchy(--argc, ++argv);
+            exit(0);
+
+        } else {
+            cerr << first_arg << " is not smr command." << endl;
+            cerr << usage << endl;
         }
     }
 
-    
     return 0;
 }
-
-
-string
-get_args(int argc, char * argv[])
-{
-    
-    if (argc < 2){
-        return "";
-    } else {
-        return argv[1];
-    }
-}
-
 

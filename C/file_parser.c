@@ -15,6 +15,9 @@
 #define SNP_NUM_INDEX 2
 #define PROB_NUM_INDEX 3
 
+//define for msmr parsing
+#define LINE_BUF_LEN 500
+
 // uint32 + floats
 #define DENSE_FILE_TYPE_1 0
 
@@ -24,7 +27,7 @@
 // uint32 + uint64_t + uint64_ts + uint32_ts + floats
 #define SPARSE_FILE_TYPE_3F 0x40400000
 
-// 16*uint32s + uint64_t + uint64_ts + uint32_ts + 
+// 16*uint32s + uint64_t + uint64_ts + uint32_ts +
 // floats (indicator+samplesize+snpnumber+probenumber+ 6*-9s +
 // valnumber+cols+rowids+betases) [default]]
 #define SPARSE_FILE_TYPE_3 3
@@ -35,7 +38,7 @@
 /*
     fam file contain first six column of ped file, which is:
         Family_ID, Individual_ID, Paternal_ID, Maternal_ID,
-        Sex(1=male, 2=female, other=unknow), Phenotype 
+        Sex(1=male, 2=female, other=unknow), Phenotype
  */
 // data structure used to contain fam data.
 struct FAM_RES {
@@ -104,7 +107,7 @@ parse_fam(const char * fam_file_name)
     bim file is extended MAP file, two extra columns is allels name,
     the columns is described as fllowing:
         chromosome, rs or snp, Genetic distance, Base pair position, ref allel, alt allel
-    here I conver chromosome to a unsigned int number, 1 - 22 will be itself, and X is 
+    here I conver chromosome to a unsigned int number, 1 - 22 will be itself, and X is
     set to 99, Y set to 98, XY set to 97.
  */
 struct BIM_RES {
@@ -143,7 +146,7 @@ parse_bim(const char * bim_file_name)
         fprintf(stderr, "error, bim file not open successesfully.\n");
         exit(EXIT_FAILURE);
     }
-    
+
     while(fscanf(bim_f_in, "%s %s %lf %ld %c %c", chrome_tmp, snp_name, \
         &distance, &position, &al1, &al2) == 6){
         new_node = (struct BIM_NODE *)malloc(sizeof(struct BIM_NODE));
@@ -201,8 +204,8 @@ parse_bim(const char * bim_file_name)
  *  11 homozygote     -> '0'
  *  01 missing        -> 'N'
  *
- * The function reture a 2 dimension char array; row_length = individual_num, 
- * column_length = snp_amount. In other words, row_number = snp_amount, 
+ * The function reture a 2 dimension char array; row_length = individual_num,
+ * column_length = snp_amount. In other words, row_number = snp_amount,
  * column_number = individual_amount.
  *
  * data_out[snp_amount][individual_amount]
@@ -228,7 +231,7 @@ parse_bed(const char * bed_file_name, unsigned long row_num, unsigned long clo_n
         exit(1);
     }
     //remove first 3 byte.
-    i = 0; 
+    i = 0;
     while(fgetc(f_in)){
         i++;
         if (i == 3)
@@ -245,7 +248,7 @@ parse_bed(const char * bed_file_name, unsigned long row_num, unsigned long clo_n
                 j++;
                 k++;
             }
-        } 
+        }
 
         for (clo_c = 0; clo_c < clo_num; clo_c++){
             data_out[row_c][clo_c] = unpacked_buffer[clo_c];
@@ -302,15 +305,15 @@ struct ESI_NODE {
     unsigned long position;
     char al1;
     char al2;
-    unsigned long frequency;    
+    unsigned long frequency;
 
 };
 
 
-/* The besd file is a kind of packed file, which store data 
- * as binary instead of ASCII to reduce size of file. Here we 
+/* The besd file is a kind of packed file, which store data
+ * as binary instead of ASCII to reduce size of file. Here we
  * describe the file as Unit_array.
- * The filestore Beta and SE data. For each prob, there are multi snp which 
+ * The filestore Beta and SE data. For each prob, there are multi snp which
  * asociated with it, and every snp contain a Beta value and SE value
  * (Values is used to describ this two value).
  * In order to associated Values to Prob(epi file) and SNP(esi file) data.
@@ -329,7 +332,7 @@ struct ESI_NODE {
  * int32(0)[file_type], int(1)[-9], int(2)[snp_amount], int(3)[prob_amount],
  * int(4)[-9], ..., int(15)[-9];
  * uint64(16)[number of Values, Values array length];
- * uint64(17)[0], uint64(18)[offset of first prob's Beta values], 
+ * uint64(17)[0], uint64(18)[offset of first prob's Beta values],
  * uint64(20)[offset of first prob's SE value], ...;
  * uint32(m)[], uint32(m+1)[], ...;
  * float(n)[], float(n+1), ... float(n+p1), float(n+p1+1), float(n+p1+2), ... float(n+2*p1);
@@ -458,43 +461,288 @@ decode_besd_file(const char * besd_file_name)
     return data_out;
 }
 
+struct MSMR_DATA_eqtl {
+    struct MSMR_NODE_eqtl {
+        char expo_id[20];
+        unsigned char expo_chr;
+        char expo_gene[20];
+        unsigned int expo_bp;
+        char outco_id[20];
+        unsigned char outco_chr;
+        char outco_gene[20];
+        unsigned int outco_bp;
+        char top_snp[20];
+        unsigned char top_snp_chr;
+        unsigned int top_snp_bp;
+        char a1[10];
+        char a2[10];
+        unsigned char frequence_na;
+        double frequence;
+        unsigned char b_outco_na;
+        double b_outco;
+        unsigned char se_outco_na;
+        double se_outco;
+        unsigned char p_outco_na;
+        double p_outco;
+        unsigned char b_expo_na;
+        double b_expo;
+        unsigned char se_expo_na;
+        double se_expo;
+        unsigned char p_expo_na;
+        double p_expo;
+        unsigned char b_smr_na;
+        double b_smr;
+        unsigned char se_smr_na;
+        double se_smr;
+        unsigned char p_smr_na;
+        double p_smr;
+        unsigned char p_smr_multi_na;
+        double p_smr_multi;
+        unsigned char p_heidi_na;
+        double p_heidi;
+        unsigned char nsnp_heidi_na;
+        unsigned short  nsnp_heidi;
+
+        struct MSMR_NODE_eqtl * next;
+
+    } * msmr_node;
+
+    unsigned int node_len;
+};
 
 
+static int
+convert_chromosome(const char * chromo_str)
+{
+    if (isdigit(chromo_str[0])){
+        return atoi(chromo_str);
+    } else if(strcmp(chromo_str, "X") == 0){
+        return 23;
+    } else if (strcmp(chromo_str, "Y") == 0){
+        return 24;
+    } else{
+        perror("chromosome cann't be covert to intege");
+    }
+}
+
+
+static void
+assign_na_value(unsigned char * na_value, double * value, const char * field)
+{
+    if (strcmp(field, "NA") == 0){
+        *na_value = 0;
+        *value = 0;
+
+    } else{
+        *na_value = 1;
+        *value = atof(field);
+
+    }
+    return;
+}
+
+
+
+struct MSMR_DATA_eqtl
+parse_msmr_file(const char * file_name, bool head)
+{
+    struct MSMR_DATA_eqtl data_out;
+    data_out.msmr_node = NULL;
+    unsigned int node_len = 0;
+    const int field_len = 26;
+    char line_buffer[LINE_BUF_LEN];
+
+    char expo_id[20];
+    char expo_chr_str[5];
+    char expo_gene[20];
+    unsigned int expo_bp;
+
+    char outco_id[20];
+    char outco_chr_str[5];
+    char outco_gene[20];
+    unsigned int outco_bp;
+
+    char top_snp[20];
+    char top_snp_chr_str[5];
+    unsigned int top_snp_bp;
+
+    char a1[10];
+    char a2[10];
+
+    char frequence[20];
+    char b_outco[20];
+    char se_outco[20];
+    char p_outco[20];
+    char b_expo[20];
+    char se_expo[20];
+    char p_expo[20];
+    char b_smr[20];
+    char se_smr[20];
+    char p_smr[20];
+    char p_smr_multi[20];
+    char p_heidi[20];
+    char nsnp_heidi[20];
+
+    struct MSMR_NODE_eqtl * new_node = NULL, * first_node = NULL, * pt = NULL;
+
+
+    FILE * f_in = fopen(file_name, "r");
+    if (!f_in){
+        fprintf(stderr, "error, open msmr file failed.\n");
+        exit(1);
+    }
+
+    if (head){
+        fgets(line_buffer, LINE_BUF_LEN, f_in);
+    }
+
+    node_len = 0;
+    while(fscanf(f_in, "%s %s %s %u %s %s %s %u %s %s %u %s %s \
+        %s %s %s %s %s %s %s %s %s %s %s %s %s", \
+        expo_id, expo_chr_str, expo_gene, &expo_bp, \
+        outco_id, outco_chr_str, outco_gene, &outco_bp, \
+        top_snp, top_snp_chr_str, &top_snp_bp, \
+        a1, a2,\
+        frequence, b_outco, se_outco, p_outco, \
+        b_expo, se_expo, p_expo, b_smr, se_smr, p_smr, \
+        p_smr_multi, p_heidi, nsnp_heidi) == field_len){
+        node_len++;
+
+        new_node = (struct MSMR_NODE_eqtl *)malloc(sizeof(struct MSMR_NODE_eqtl));
+        new_node -> next = NULL;
+        strcpy(new_node -> expo_id, expo_id);
+        new_node -> expo_chr = convert_chromosome(expo_chr_str);
+        strcpy(new_node -> expo_gene, expo_gene);
+        new_node -> expo_bp = expo_bp;
+        strcpy(new_node -> outco_id, outco_id);
+        new_node -> outco_chr = convert_chromosome(outco_chr_str);
+        strcpy(new_node -> outco_gene, outco_gene);
+        new_node -> outco_bp = outco_bp;
+        strcpy(new_node -> top_snp, top_snp);
+        new_node -> top_snp_chr = convert_chromosome(top_snp_chr_str);
+        new_node -> top_snp_bp = top_snp_bp;
+        strcpy(new_node -> a1, a1);
+        strcpy(new_node -> a2, a2);
+
+        assign_na_value(&(new_node -> frequence_na), &(new_node -> frequence), frequence);
+        assign_na_value(&(new_node -> b_outco_na), &(new_node -> b_outco), b_outco);
+        assign_na_value(&(new_node -> se_outco_na), &(new_node -> se_outco), se_outco);
+        assign_na_value(&(new_node -> p_outco_na), &(new_node -> p_outco), p_outco);
+        assign_na_value(&(new_node -> b_expo_na), &(new_node -> b_expo), b_expo);
+        assign_na_value(&(new_node -> se_expo_na), &(new_node -> se_expo), se_expo);
+        assign_na_value(&(new_node -> p_expo_na), &(new_node -> p_expo), p_expo);
+        assign_na_value(&(new_node -> b_smr_na), &(new_node -> b_smr), b_smr);
+        assign_na_value(&(new_node -> se_smr_na), &(new_node -> se_smr), se_smr);
+        assign_na_value(&(new_node -> p_smr_na), &(new_node -> p_smr), p_smr);
+        assign_na_value(&(new_node -> p_smr_multi_na), &(new_node -> p_smr_multi), p_smr_multi);
+        assign_na_value(&(new_node -> p_heidi_na), &(new_node -> p_heidi), p_heidi);
+        if (strcmp(nsnp_heidi, "NA") == 0){
+            new_node -> nsnp_heidi_na = 0;
+            new_node -> nsnp_heidi = 0;
+
+        } else{
+            new_node -> nsnp_heidi_na = 1;
+            new_node -> nsnp_heidi = (unsigned short)atoi(nsnp_heidi);
+        }
+
+        if (first_node){
+            pt -> next = new_node;
+            pt = new_node;
+
+        } else{
+            first_node = pt = new_node;
+        }
+    }
+    if (!feof(f_in)){
+        fclose(f_in);
+        fprintf(stderr, "error, msmr read line exit before read all lines.\n");
+        exit(1);
+    }
+
+    data_out.node_len = node_len;
+    data_out.msmr_node = first_node;
+
+    return data_out;
+}
+
+
+
+struct MSMR_DATA_gwas {
+    struct MSMR_NODE_gwas {
+        char * probe_id[20];
+        unsigned char probe_chr;
+        char * gene[20];
+        unsigned int probe_bp;
+        char * top_snp[20];
+        unsigned char top_snp_chr;
+        unsigned int top_snp_bp;
+        char * a1[10];
+        char * a2[10];
+
+        unsigned char frequence_na;
+        double frequence;
+        unsigned char b_gwas_na;
+        double b_gwas;
+        unsigned char se_gwas_na;
+        double se_gwas;
+        unsigned char p_gwas_na;
+        double p_gwas;
+        unsigned char b_eqtl_na;
+        double b_eqtl;
+        unsigned char se_eqtl_na;
+        double se_eqtl;
+        unsigned char p_eqtl_na;
+        double p_eqtl;
+        unsigned char b_smr_na;
+        double b_smr;
+        unsigned char se_smr_na;
+        double se_smr;
+        unsigned char p_smr_na;
+        double p_smr;
+        unsigned char p_smr_multi_na;
+        double p_smr_multi;
+        unsigned char p_heidi_na;
+        double p_heidi;
+        unsigned char nsnp_heidi_na;
+        unsigned short nsnp_heidi;
+
+    } * msmr_node;
+
+    
+    unsigned int node_len;
+
+};
+
+
+struct MSMR_DATA_gwas
+parse_msmr_file_gwas()
+{
+    struct MSMR_DATA_gwas data_out;
+    struct MSMR_NODE_gwas * first_node, * new_node, * pt;
+
+
+
+}
 
 
 
 #ifdef TEST_FUNC
 int
-main(int argc, char ** argv)
+main(int argc, char * argv[])
 {
-    struct BIM_RES  bim_data;
-    struct FAM_RES  fam_data;
-    const char * bim_file = argv[1];
-    const char * fam_file = argv[2];
-    const char * bed_file = argv[3];
-    const char * besd_file = argv[4];
-    unsigned char (*bed_data)[fam_data.fam_len];
-    struct BESD_DATA besd_data;
 
-    bim_data = parse_bim(bim_file);
-    fam_data = parse_fam(fam_file);
-    //printf("%ld %ld\n", bim_data.bim_len, fam_data.fam_len);
-    bed_data = parse_bed(bed_file, bim_data.bim_len, fam_data.fam_len); 
-    /*
-    unsigned long i, j;
-    for (i = 0; i < bim_data.bim_len; i++){
-        for (j = 0; j < fam_data.fam_len; j++){
-            printf("%c", bed_data[i][j]);
-        }
-        printf("\n");
+    const char * file_name = argv[1];
+    struct MSMR_DATA_eqtl msmr_data;
+    struct MSMR_NODE_eqtl * tmp;
+
+    msmr_data = parse_msmr_file(file_name, true);
+
+    fprintf(stderr, "%u\n", msmr_data.node_len);
+    tmp = msmr_data.msmr_node;
+    while(tmp){
+        printf("%s %u %s %le %u %d\n", tmp -> expo_id, tmp -> expo_bp, tmp -> outco_id,  tmp -> frequence, tmp -> nsnp_heidi_na, tmp -> nsnp_heidi);
+        tmp = tmp -> next;
     }
-    */
-
-    besd_data = decode_besd_file(besd_file); 
-
-
     return 0;
-
 }
 #endif
-

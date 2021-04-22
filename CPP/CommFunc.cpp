@@ -22,6 +22,8 @@ void CommFunc::update_id_map_kp(const vector<string> &id_list, map<string, int> 
     for(iter=id_map.begin(); iter!=id_map.end(); iter++) keep.push_back(iter->second);
     stable_sort(keep.begin(), keep.end());
 }
+
+
 void CommFunc::update_id_map_rm(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep)
 {
     int i = 0;
@@ -32,6 +34,8 @@ void CommFunc::update_id_map_rm(const vector<string> &id_list, map<string, int> 
     for (iter = id_map.begin(); iter != id_map.end(); iter++) keep.push_back(iter->second);
     stable_sort(keep.begin(), keep.end());
 }
+
+
 void CommFunc::read_indi_list(string indi_list_file, vector<string> &indi_list)
 {
     ifstream i_indi_list(indi_list_file.c_str());
@@ -49,6 +53,8 @@ void CommFunc::read_indi_list(string indi_list_file, vector<string> &indi_list)
     }
     i_indi_list.close();
 }
+
+
 void CommFunc::read_msglist(string msglistfile, vector<string> &msglist, string msg)
 {
     // Read msglist file
@@ -64,6 +70,7 @@ void CommFunc::read_msglist(string msglistfile, vector<string> &msglist, string 
     i_msglist.close();
 }
 
+
 string CommFunc::dtos(double value)
 {
     stringstream ss;
@@ -71,18 +78,24 @@ string CommFunc::dtos(double value)
     // ss << fixed << setprecision(400) << __value;
     return(ss.str());
 }
+
+
 string CommFunc::dtosf(double value)
 {
     stringstream ss;
     ss << fixed << value;
     return(ss.str());
 }
+
+
 string CommFunc::itos(int value)
 {
     stringstream ss;
     ss << value;
     return(ss.str());
 }
+
+
 string CommFunc::ltos(long value)
 {
     stringstream ss;
@@ -98,6 +111,7 @@ double CommFunc::Abs(const double &x)
 	return(ldAbs);
 }
 
+
 double CommFunc::sum(const vector<double> &x)
 {
     int size = x.size();
@@ -106,6 +120,7 @@ double CommFunc::sum(const vector<double> &x)
     for(i=0; i<size; i++) d_buf+=x[i];
     return (double)d_buf;
 }
+
 
 double CommFunc::mean(const vector<double> &x)
 {
@@ -117,6 +132,7 @@ double CommFunc::mean(const vector<double> &x)
     return (double)d_buf;
 }
 
+
 double CommFunc::median(const vector<double> &x)
 {
     vector<double> b(x);
@@ -126,6 +142,7 @@ double CommFunc::median(const vector<double> &x)
     if(size%2==1) return b[(size-1)/2];
     else return (b[size/2]+b[size/2-1])/2;
 }
+
 
 double CommFunc::var(const vector<double> &x)
 {
@@ -139,6 +156,7 @@ double CommFunc::var(const vector<double> &x)
     s2/=(double)(size-1);
     return (double)s2;
 }
+
 
 double CommFunc::cov(const vector<double> &x, const vector<double> &y)
 {
@@ -157,11 +175,13 @@ double CommFunc::cov(const vector<double> &x, const vector<double> &y)
     return c;
 }
 
+
 bool CommFunc::FloatEqual(double lhs, double rhs)
 {
 	if (Abs(lhs - rhs) < FloatErr) return true;
 	return false;
 }
+
 
 bool CommFunc::FloatNotEqual(double lhs, double rhs)
 {
@@ -169,25 +189,30 @@ bool CommFunc::FloatNotEqual(double lhs, double rhs)
 	return false;
 }
 
+
 const double CommFunc::Sqr(const double &a)
 {
 	return a*a;
 }
+
 
 const double CommFunc::Max(const double &a, const double &b)
 {
 	return b > a ? (b) : (a);
 }
 
+
 const double CommFunc::Min(const double &a, const double &b)
 {
 	return b < a ? (b) : (a);
 }
 
+
 const double CommFunc::Sign(const double &a, const double &b)
 {
 	return b >= 0 ? (a >= 0 ? a : -a) : (a >= 0 ? -a : a);
 }
+
 
 int CommFunc::rand_seed()
 {
@@ -199,11 +224,14 @@ int CommFunc::rand_seed()
 	return(abs(atoi(seed_str.c_str())));
 }
 
+
 void CommFunc::FileExist(string filename)
 {
     ifstream ifile(filename.c_str());
     if(!ifile) throw("Error: can not open the file ["+filename+"] to read.");
 }
+
+
 int CommFunc::max_abs_id(vector<double> &zsxz)
 {
     int id=0;
@@ -219,6 +247,7 @@ int CommFunc::max_abs_id(vector<double> &zsxz)
     }
     return(id);
 }
+
 
 int CommFunc::max_abs_id(VectorXd &zsxz)
 {
@@ -247,6 +276,8 @@ void CommFunc::getRank(vector<double> &a, vector<int> &b)
         b[i] = count;
     }
 }
+
+
 void CommFunc::getRank(vector<int> &a, vector<int> &b)
 {
     b.resize(a.size());
@@ -257,6 +288,8 @@ void CommFunc::getRank(vector<int> &a, vector<int> &b)
         b[i] = count;
     }
 }
+
+
 void CommFunc::getRank_norep(vector<int> &a, vector<int> &b)
 {
     b.resize(a.size());
@@ -276,12 +309,16 @@ void CommFunc::getRank_norep(vector<int> &a, vector<int> &b)
         b[i] = count;
     }
 }
+
+
 void CommFunc::getUnique(vector<uint32_t> &a)
 {
     sort(a.begin(),a.end());
     vector<uint32_t> ::iterator it=unique(a.begin(),a.end());
     a.erase(it,a.end());
 }
+
+
 void CommFunc::match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB, vector<int> &VecC)
 {
     int i=0;
@@ -296,6 +333,7 @@ void CommFunc::match(const vector<uint32_t> &VecA, const vector<uint32_t> &VecB,
     }    
 }
 
+
 void CommFunc::strcpy2(char** to, string from)
 {
     char* tmp=new char[from.size() + 1];
@@ -303,26 +341,36 @@ void CommFunc::strcpy2(char** to, string from)
     tmp[from.size()]='\0';
     *to=tmp;
 }
+
+
 float CommFunc::readfloat(FILE *f) {
     float v;
     fread((void*)(&v), sizeof(v), 1, f);
     return v;
 }
+
+
 uint64_t CommFunc::readuint64(FILE *f) {
     uint64_t v;
     fread((void*)(&v), sizeof(v), 1, f);
     return v;
 }
+
+
 uint32_t CommFunc::readuint32(FILE *f) {
     uint32_t v;
     fread((void*)(&v), sizeof(v), 1, f);
     return v;
 }
+
+
 int CommFunc::readint(FILE *f) {
     int v;
     fread((void*)(&v), sizeof(v), 1, f);
     return v;
 }
+
+
 double  CommFunc::cor(VectorXd &Y, VectorXd &X, bool centered, bool standardised)
 {
     if(Y.size()!= X.size())
@@ -351,6 +399,7 @@ double  CommFunc::cor(VectorXd &Y, VectorXd &X, bool centered, bool standardised
     }
     return ld;
 }
+
 
 double CommFunc::cor(vector<double> &y, vector<double> &x)
 {
@@ -395,6 +444,8 @@ double CommFunc::cor(vector<double> &y, vector<double> &x)
     
     return (r);
 }
+
+
 void  CommFunc::update_map_kp(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep)
 {
     int i=0;
@@ -407,6 +458,8 @@ void  CommFunc::update_map_kp(const vector<string> &id_list, map<string, int> &i
     for(iter=id_map.begin(); iter!=id_map.end(); iter++) keep.push_back(iter->second);
     stable_sort(keep.begin(), keep.end());
 }
+
+
 void CommFunc::update_map_rm(const vector<string> &id_list, map<string, int> &id_map, vector<int> &keep)
 {
     int i = 0;
@@ -417,6 +470,7 @@ void CommFunc::update_map_rm(const vector<string> &id_list, map<string, int> &id
     for (iter = id_map.begin(); iter != id_map.end(); iter++) keep.push_back(iter->second);
     stable_sort(keep.begin(), keep.end());
 }
+
 
 void CommFunc::progress(int &cur, double &disp, int ttl)
 {

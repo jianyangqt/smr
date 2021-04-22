@@ -1079,7 +1079,6 @@ option(int option_num, char* option_str[])
      */
     if(shownflag) 
         shown(eqtlFileName);
-    
     /*
         make bld file from
      */
@@ -1118,9 +1117,11 @@ option(int option_num, char* option_str[])
             prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, \
             prbwindFlag, genename, snplstName, snplst2exclde, snpchr, snprs, \
             fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, snpwindFlag);
+
     else if (combineFlg && !metaflg)
         combineBesd(eqtlsmaslstName, outFileName, save_dense_flag, cis_itvl, \
             trans_itvl, transThres, restThres, genouni,addn);
+
     else if(save_dense_flag)
         make_full_besd(outFileName, eqtlFileName, snplstName, problstName, \
             bFlag, make_besd_flag, snplst2exclde, problst2exclde, cis_itvl, \
@@ -1128,6 +1129,7 @@ option(int option_num, char* option_str[])
             prbWind, fromprbkb, toprbkb, prbwindFlag, genename, snpchr, \
             snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, \
             snpwindFlag, cis_flag,addn);
+
     else if(make_besd_flag)
         make_sparse_besd(eqtlFileName, outFileName, cis_itvl,trans_itvl, transThres, \
             restThres, genelistName, chr, prbchr, prbname, fromprbname, toprbname, \
@@ -1135,6 +1137,7 @@ option(int option_num, char* option_str[])
             tosnprs, snpWind, fromsnpkb, tosnpkb, snpwindFlag, cis_flag, snplstName, \
             problstName, snplst2exclde,  problst2exclde, qcflag ,qcmtd, z_thresh, \
             extract_cis_only, prbseqregion, ptech, pinsnp, pexsnp, addn);
+
     else if(plotflg && eqtlFileName2 != NULL)
         plot_triple( outFileName, bFileName, gwasFileName, eqtlFileName2, \
             eqtlFileName, maf, indilstName, snplstName, p_hetero, ld_prune, \
@@ -1144,6 +1147,7 @@ option(int option_num, char* option_str[])
             pthres_me2esmr, threshpsmrest, new_het_mth, threshphet, opt_slct_flag, \
             ld_min, sampleoverlap, pmecs, minsnpcor, targetsnpproblstName, \
             diff_freq, diff_freq_ratio);
+
     else if(plotflg)
         plot_newheidi(outFileName, bFileName, gwasFileName, eqtlFileName, maf, \
             indilstName, snplstName, problstName, bFlag, p_hetero, ld_prune, m_hetero, \
@@ -1153,6 +1157,8 @@ option(int option_num, char* option_str[])
             snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, snpwindFlag, \
             cis_flag, geneAnnoName, threshpsmrest, new_het_mth, threshphet, ld_min, \
             sampleoverlap, pmecs, minsnpcor, diff_freq, diff_freq_ratio);
+
+    //step 1, smr_e2e is in SMR_data.cpp
     else if(eqtlFileName2 != NULL)
         smr_e2e(outFileName, bFileName,eqtlFileName2, eqtlFileName, maf, \
             indilstName, snplstName, problstName, oproblstName, eproblstName, \
@@ -1216,20 +1222,25 @@ option(int option_num, char* option_str[])
     else if(count_cis_flag)
         //output top-SNP in the cis-regions
         count_cis(outFileName,eqtlFileName, cisThres, cis_itvl); 
+
     else if(count_trans_flag)
         // output top-SNP in the trans-regions. trans-region is defined as the region aside of the cis_itvl
         count_trans(outFileName,eqtlFileName, transThres, cis_itvl, trans_itvl); 
+
     else if (freqName)
         update_freq(eqtlFileName, freqName);
+
     else if(refepiName || refesiName) {
         if(refepiName) 
             update_epifile(eqtlFileName, refepiName);
         if(refesiName) 
             update_esifile(eqtlFileName, refesiName);
     }
+
     else if(recodeflg)
         make_cojo(outFileName, eqtlFileName, snplstName, snplst2exclde, \
             problstName, problst2exclde, genelistName, bFlag);
+
     else if(ssmrflg)
         smr_multipleSNP(outFileName, bFileName, gwasFileName, eqtlFileName, \
             maf, indilstName, snplstName, problstName, bFlag, p_hetero, \
@@ -1240,6 +1251,7 @@ option(int option_num, char* option_str[])
             snpWind, fromsnpkb, tosnpkb, snpwindFlag, cis_flag, setlstName, \
             geneAnnoName, setWind, ld_min, threshpsmrest, sampleoverlap, \
             pmecs, minsnpcor, ld_prune_multi, diff_freq, diff_freq_ratio);
+
     else if(smr_flag && !smr_trans_flag)
         smr(outFileName, bFileName,bldFileName, gwasFileName, eqtlFileName, \
             maf, indilstName, snplstName, problstName, bFlag, p_hetero, \
@@ -1251,9 +1263,11 @@ option(int option_num, char* option_str[])
             new_het_mth, opt_slct_flag, prbseqregion, ld_min, sampleoverlap, \
             pmecs, minsnpcor, targetsnpproblstName, snpproblstName, \
             diff_freq, diff_freq_ratio);
+
     else if (est_effe_spl_size_flg)
         est_effect_splsize(eqtlsmaslstName, eqtlFileName, snplstName, problstName, \
             snplst2exclde, problst2exclde, p_smr);
+
     else if(smr_flag && smr_trans_flag)
         smr_trans_region(outFileName, bFileName,gwasFileName, eqtlFileName, \
             maf, indilstName, snplstName,problstName, bFlag, p_hetero, ld_prune, \

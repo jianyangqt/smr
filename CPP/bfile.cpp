@@ -57,6 +57,8 @@ namespace SMRDATA
         }
     }
     
+
+
     void update_bim(bInfo* bdata,vector<int> &rsnp) {
         int i = 0;
         
@@ -106,6 +108,7 @@ namespace SMRDATA
         }
     }
     
+
     void update_fam(bInfo* bdata,vector<int> &rindi) {
         //update fam information
         int i = 0;
@@ -144,6 +147,7 @@ namespace SMRDATA
         }
     }
     
+
     void read_bimfile(bInfo* bdata,string bimfile) {
         // Read bim file: recombination rate is defined between SNP i and SNP i-1
         int ibuf = 0;
@@ -200,6 +204,8 @@ namespace SMRDATA
             bdata->_snp_name_map.insert(pair<string, int>(bdata->_snp_name[i], i));
         }
     }
+
+
     // some code are adopted from PLINK with modifications
     void read_bedfile(bInfo* bdata, string bedfile)
     {
@@ -269,6 +275,8 @@ namespace SMRDATA
         update_fam(bdata, rindi);
         update_bim(bdata, rsnp);
     }
+
+
     void keep_indi(bInfo* bdata,string indi_list_file)
     {
         vector<string> indi_list;
@@ -277,6 +285,7 @@ namespace SMRDATA
         cout<<bdata->_keep.size()<<" individuals are kept from ["+indi_list_file+"]."<<endl;
     }
     
+
     void remove_indi(bInfo* bdata, string indi_list_file) {
         vector<string> indi_list;
         read_indi_list(indi_list_file, indi_list);
@@ -284,6 +293,8 @@ namespace SMRDATA
         update_id_map_rm(indi_list, bdata->_id_map, bdata->_keep);
         cout << prev_size - bdata->_keep.size() << " individuals are removed from [" + indi_list_file + "] and there are " << bdata->_keep.size() << " individuals remaining." << endl;
     }
+
+
     void extract_region_bp(bInfo* bdata, int chr, int fromkb, int tokb)
     {
         int frombp=fromkb*1000;
@@ -297,6 +308,8 @@ namespace SMRDATA
         update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
         cout << bdata->_include.size() << " SNPs are extracted from SNP BP: "<<fromkb<<"Kb"<<"to SNP BP: "<<tokb<<"Kb."<< endl;
     }
+
+
     void extract_snp(bInfo* bdata, int chr)
     {
         vector<string> snplist;
@@ -308,6 +321,8 @@ namespace SMRDATA
         update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
         cout << bdata->_include.size() << " SNPs are extracted from chromosome "<<chr<< "."<<endl;
     }
+
+
     void extract_snp(bInfo* bdata,string snplistfile)
     {
         vector<string> snplist;
@@ -316,6 +331,8 @@ namespace SMRDATA
         update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
         cout<<bdata->_include.size()<<" SNPs are extracted from ["+snplistfile+"]."<<endl;
     }
+
+
     void exclude_snp(bInfo* bdata,string snplistfile)
     {
         vector<string> snplist;
@@ -362,6 +379,8 @@ namespace SMRDATA
         maxldnum=2<<n;
         return maxldnum;
     }
+
+
     void mu_func(bInfo* bdata, int j, vector<double> &fac) {
         int i = 0;
         bdata->_dosage_flag = 0;
@@ -386,6 +405,7 @@ namespace SMRDATA
         
         if (fcount > 0.0)bdata->_mu[bdata->_include[j]] /= fcount;
     }
+
 
     void calcu_mu(bInfo* bdata, bool ssq_flag)
     {
@@ -413,6 +433,7 @@ namespace SMRDATA
         }
     }
     
+
     bool make_XMat_subset(bInfo* bdata, MatrixXf &X, vector<int> &snp_indx, bool divid_by_std)
     {
         if(snp_indx.empty()) return false;
@@ -459,6 +480,8 @@ namespace SMRDATA
         */
         return true;
     }
+
+
     void makex_xVec_subset(bInfo* bdata,int j, VectorXf &x, bool resize, bool divid_by_std)
     {
         if (resize) x.resize(bdata->_keep.size());
@@ -503,6 +526,8 @@ namespace SMRDATA
         make_XMat_subset(bdata,X,snpids,true);
         
     }
+
+
     void write_smr_esi(char* outFileName, bInfo* binfo)
     {
         string epiName=string(outFileName)+".esi";
@@ -531,6 +556,8 @@ namespace SMRDATA
         fclose(efile);
         printf("%ld SNPs have been saved in the file %s .\n", binfo->_include.size(), epiName.c_str());
     }
+
+
     void filter_snp_maf(bInfo* bdata,double maf)
     {
         if(bdata->_mu.empty()) calcu_mu(bdata);
@@ -555,6 +582,8 @@ namespace SMRDATA
         }
         
     }
+
+
     void ld_calc_o2m(VectorXd &ld_v,long targetid, MatrixXd &X, bool centered)
     {
         long size=X.cols();
@@ -588,6 +617,8 @@ namespace SMRDATA
         }
         
     }
+
+
     void extract_snp_kb(bInfo* bdata,string rsnames, int windInKb)
     {
         map<string, int>::iterator iter;
@@ -612,6 +643,7 @@ namespace SMRDATA
         update_id_map_kp(snplist, bdata->_snp_name_map, bdata->_include);
         printf("%ld SNPs including %s are extracted.\n",bdata->_include.size(), rsnames.c_str());
     }
+
 
     void ld_report(char* outFileName, char* bFileName,char* indilstName, char* indilst2remove,char* snplstName, char* snplst2exclde,int chr,char* rs, double maf, bool ldr, bool ldr2, int ldWind)
     {
@@ -729,6 +761,8 @@ namespace SMRDATA
         printf("LD information is saved in the binary file %s.\n",bldname.c_str());
 
     }
+
+
     void read_ld_esifile(ldInfo* ldinfo, char* esiFileName)
     {
         vector<string> strlist;
@@ -844,6 +878,8 @@ namespace SMRDATA
         fclose(esifile);
         printf("%llu SNPs to be included from  %s .\n", ldinfo->_snpNum, esiFileName);
     }
+
+
     void extract_ld_esi_by_chr(ldInfo* ldinfo, int snpchr)
     {
         vector<int> newIcld;
@@ -859,6 +895,8 @@ namespace SMRDATA
         ldinfo->_esi_include.swap(newIcld);
         printf("%ld SNPs are extracted from chromosome %d. \n",ldinfo->_esi_include.size(),snpchr);
     }
+
+
     void extract_ld_esi_snps(ldInfo* ldinfo, string snplstName)
     {
         vector<string> snplist;
@@ -867,6 +905,7 @@ namespace SMRDATA
         update_map_kp(snplist, ldinfo->_snp_name_map, ldinfo->_esi_include);
         printf("%ld SNPs are extracted from %s.\n", ldinfo->_esi_include.size() ,snplstName.c_str() );
     }
+
 
     void extract_ld_esi_snps(ldInfo* ldinfo, string snp, int Wind)
     {
@@ -907,6 +946,7 @@ namespace SMRDATA
         printf("%ld SNPs are extracted from the region: %d Kb around SNP %s.\n", ldinfo->_esi_include.size() ,Wind, snp.c_str());
     }
 
+
     void extract_ld_esi_single_snp(ldInfo* ldinfo, string snprs)
     {
         map<string, int>::iterator iter;
@@ -923,6 +963,7 @@ namespace SMRDATA
         ldinfo->_snp_name_map.insert(pair<string,int>(snprs,idx));
         printf("SNP %s is extracted.\n",  snprs.c_str());
     }
+
 
     void extract_ld_esi_snps(ldInfo* ldinfo, string fromsnprs, string tosnprs)
     {
@@ -966,6 +1007,7 @@ namespace SMRDATA
         printf("%ld SNPs are extracted from SNP %s to SNP %s.\n",  ldinfo->_esi_include.size(), fromsnprs.c_str(), tosnprs.c_str());
     }
 
+
     void extract_ld_esi_snps(ldInfo* ldinfo, int chr, int fromsnpkb, int tosnpkb)
     {
         int fromsnpbp=fromsnpkb*1000;
@@ -991,6 +1033,8 @@ namespace SMRDATA
         ldinfo->_esi_include.swap(newIcld);
         printf("%ld SNPs are extracted from SNP BP:  %dKb to SNP BP: %dKb on chromosome %d.\n",ldinfo->_esi_include.size(),fromsnpkb,tosnpkb, chr);
     }
+
+
     void exclude_ld_esi_snp(ldInfo* ldinfo, string snplstName)
     {
         vector<string> snplist;
@@ -1000,6 +1044,8 @@ namespace SMRDATA
         update_map_rm(snplist, ldinfo->_snp_name_map, ldinfo->_esi_include);
         printf("%ld SNPs are excluded from %s and there are %ld SNPs remaining.\n",  pre_num - ldinfo->_esi_include.size(), snplstName.c_str(),ldinfo->_esi_include.size());
     }
+
+
     void exclude_ld_esi_snps(ldInfo* ldinfo, string snprs2exclde)
     {
         vector<string> snplist;
@@ -1007,6 +1053,7 @@ namespace SMRDATA
         update_map_rm(snplist, ldinfo->_snp_name_map, ldinfo->_esi_include);
         printf("SNP %s are excluded and there are %ld probe remaining.\n", snprs2exclde.c_str(), ldinfo->_esi_include.size());
     }
+
 
     void ld_esi_man(ldInfo* ldinfo,char* snplstName, char* snplst2exclde, int chr,char* snprs, char* fromsnprs, char* tosnprs,int snpWind,bool snpwindFlag, int fromsnpkb, int tosnpkb,char* snprs2exclde)
     {
@@ -1067,6 +1114,8 @@ namespace SMRDATA
         if(snprs2exclde!=NULL) exclude_ld_esi_snps(ldinfo,snprs2exclde);
         
     }
+
+
     void get_BlddHeaders(char* blddFileName, vector<int> &headers)//
     {
         headers.resize(RESERVEDUNITS);
@@ -1083,6 +1132,8 @@ namespace SMRDATA
         }
         fclose(bld);
     }
+
+
     void fetch_ld_by_id(ldInfo* ldinfo,FILE* ldfprt, vector<uint32_t> &curId, int sid, vector<float> &ld)
     {
         ld.resize(curId.size());
@@ -1107,6 +1158,7 @@ namespace SMRDATA
         }
     }
 
+
     void fetch_ld_by_id(ldInfo* ldinfo,FILE* ldfprt, int sid, vector<float> &ld)
     {  // only the SNPs with bigger pb would be extracted!
         uint64_t valSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + ldinfo->_snpNum*sizeof(uint64_t);
@@ -1122,6 +1174,8 @@ namespace SMRDATA
         }
 
     }
+
+
     void fetch_ld_by_snps(ldInfo* ldinfo,FILE* ldfprt, string rs, vector<float> &ld)
     {
         map<string,int>::iterator iter;
@@ -1144,6 +1198,8 @@ namespace SMRDATA
             exit(EXIT_FAILURE);
         }
     }
+
+
     void lookup(char* outFileName, char* bldFileName, char* snplstName, char* snplst2exclde,int chr,char* snprs, char* snprs2exclde, char* fromsnprs, char* tosnprs,int snpWind, bool snpWindflg, int fromsnpkb, int tosnpkb, int ld_wind)
     {
         ldInfo ldinfo;
@@ -1281,11 +1337,14 @@ namespace SMRDATA
         
     }
     
+
     void check_autosome(bInfo* bdata) {
         for (int i = 0; i < bdata->_include.size(); i++) {
             if (bdata->_chr[bdata->_include[i]] > bdata->_autosome_num) throw ("Error: this option is for the autosomal SNPs only. Please check the option --autosome.");
         }
     }
+
+
     void get_ld_blk_pnt(bInfo* bdata, vector<int> &brk_pnt1, vector<int> &brk_pnt2, vector<int> &brk_pnt3, int wind_bp, int wind_snp)
     {
         unsigned long i = 0, j = 0, k = 0, m = bdata->_include.size();
@@ -1339,6 +1398,7 @@ namespace SMRDATA
         }
     }
     
+
     void calcu_ld_blk_split(bInfo* bdata, int size, int size_limit, MatrixXf &X_sub, VectorXf &ssx_sqrt_i_sub, double rsq_cutoff, VectorXf &rsq_size, VectorXf &mean_rsq_sub, VectorXf &max_rsq_sub, int s1, int s2, bool second)
     {
         int i = 0, j = 0, k = 0, m = 0, n = bdata->_keep.size();
@@ -1468,6 +1528,7 @@ namespace SMRDATA
         cout<<ttlsize<<endl;
     }
     
+
     void calcu_mean_rsq(char* outFileName, char* bFileName,char* indilstName, char* indilst2remove,char* snplstName, char* snplst2exclde,int chr,double maf, bool ldr, bool ldr2, int ldWind, double rsq_cutoff)
     {
         bInfo bdata;

@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <argp.h>
+#include <stdlib.h>
 
 
 struct arguments {
@@ -61,24 +63,25 @@ static char doc[] = "calculate molecular and trait relation.";
 static struct argp argp = {options, opt_parser, arg_doc, doc};
 
 
-void
+struct arguments
 get_args(int argc, char * argv[])
 {
     struct arguments args;
     argp_parse(&argp, argc, argv, 0, 0, &args);
-    return;
+    return args;
 }
 
 
 int
 calculate_cauchy(int argc, char * argv[])
 {
-    get_args(argc, argv);
+    if (argc < 2){
+        printf("smr calmt --help for more information\n");
+        exit(1);
+    }
+    struct arguments args = get_args(argc, argv);
 
     return 0;
 }
-
-
-
 
 

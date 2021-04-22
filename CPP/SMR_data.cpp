@@ -6677,12 +6677,22 @@ namespace SMRDATA
         }
     }
     
-     void smr_e2e(char* outFileName, char* bFileName,char* eqtlFileName, char* eqtlFileName2, double maf,char* indilstName, char* snplstName,char* problstName, char* oproblstName,char* eproblstName,bool bFlag,double p_hetero,double ld_top,int m_hetero, int opt_hetero,  char* indilst2remove, char* snplst2exclde, char* problst2exclde, char* oproblst2exclde,char* eproblst2exclde,double p_smr,char* refSNP, bool heidioffFlag,int cis_itvl,char* traitlstName,int op_wind, char* oprobe, char* eprobe, char* oprobe2rm, char* eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt, double ld_min,bool cis2all, bool sampleoverlap, double pmecs, int minCor, bool ssmrflag,int expanWind,double ld_top_multi, char* targetsnpproblstName, char* snpproblstName,double afthresh,double percenthresh)
+     void smr_e2e(char * outFileName, char * bFileName, char * eqtlFileName, char * eqtlFileName2, double maf, \
+        char * indilstName, char * snplstName, char * problstName, char * oproblstName, char * eproblstName, \
+        bool bFlag, double p_hetero, double ld_top, int m_hetero, int opt_hetero, char * indilst2remove, \
+        char * snplst2exclde, char * problst2exclde, char * oproblst2exclde, char * eproblst2exclde, double p_smr, \
+        char * refSNP, bool heidioffFlag, int cis_itvl, char * traitlstName, int op_wind, char * oprobe, \
+        char * eprobe, char * oprobe2rm, char * eprobe2rm, double threshpsmrest, bool new_het_mth, bool opt, \
+        double ld_min, bool cis2all, bool sampleoverlap, double pmecs, int minCor, bool ssmrflag, \
+        int expanWind, double ld_top_multi, char * targetsnpproblstName, char * snpproblstName, \
+        double afthresh, double percenthresh)
     {
-        //here eqtlFileName is the outcome and eqtlFileName2 is the exposure. in the main we pass the outcome (eqtlFileName2) to eqtlFileName and the exposure (eqtlFileName) to eqtlFileName2
+        //here eqtlFileName is the outcome and eqtlFileName2 is the exposure. 
+        //in the main we pass the outcome (eqtlFileName2) to eqtlFileName 
+        //and the exposure (eqtlFileName) to eqtlFileName2
         setNbThreads(thread_num);
         string logstr;
-        if(oproblstName!=NULL && oprobe!=NULL)
+        if(oproblstName != NULL && oprobe != NULL)
         {
             logstr="WARNING: --extract-single-outcome-probe is not surpposed to use together with --extract-outcome-probe. --extract-single-outcome-probe will be disabled.\n";
             oprobe=NULL;
@@ -6954,6 +6964,8 @@ namespace SMRDATA
         if(ssmrflag) printf("muti-SNP SMR and HEIDI analyses completed.\nSMR and heterogeneity analysis results of %ld exposure probes ( %ld outcome probes) have been saved in the file %s.\n",itemcount,etraitcount,smrfile.c_str());
         else printf("SMR and HEIDI analyses completed.\nSMR and heterogeneity analysis results of %ld exposure probes ( %ld outcome probes) have been saved in the file %s.\n",itemcount,etraitcount,smrfile.c_str());
     }
+
+
     void update_freq(char* eqtlFileName, char* frqfile)
     {
         eqtlInfo eqtlinfo;
