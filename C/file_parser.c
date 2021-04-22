@@ -6,7 +6,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#define TEST_FUNC
+//#define TEST_FUNC
 #define ELE_PER_BYTE 4
 #define MASK1 3
 #define MASK2 12
@@ -461,6 +461,9 @@ decode_besd_file(const char * besd_file_name)
     return data_out;
 }
 
+
+
+
 struct MSMR_DATA_eqtl {
     struct MSMR_NODE_eqtl {
         char expo_id[20];
@@ -503,6 +506,7 @@ struct MSMR_DATA_eqtl {
         unsigned char nsnp_heidi_na;
         unsigned short  nsnp_heidi;
 
+        struct MSMR_NODE_eqtl * prev;
         struct MSMR_NODE_eqtl * next;
 
     } * msmr_node;
@@ -542,9 +546,8 @@ assign_na_value(unsigned char * na_value, double * value, const char * field)
 }
 
 
-
 struct MSMR_DATA_eqtl
-parse_msmr_file(const char * file_name, bool head)
+parse_msmr_file_eqtl(const char * file_name, bool head)
 {
     struct MSMR_DATA_eqtl data_out;
     data_out.msmr_node = NULL;
@@ -552,17 +555,17 @@ parse_msmr_file(const char * file_name, bool head)
     const int field_len = 26;
     char line_buffer[LINE_BUF_LEN];
 
-    char expo_id[20];
+    char expo_id[50];
     char expo_chr_str[5];
-    char expo_gene[20];
+    char expo_gene[50];
     unsigned int expo_bp;
 
-    char outco_id[20];
+    char outco_id[50];
     char outco_chr_str[5];
-    char outco_gene[20];
+    char outco_gene[50];
     unsigned int outco_bp;
 
-    char top_snp[20];
+    char top_snp[50];
     char top_snp_chr_str[5];
     unsigned int top_snp_bp;
 
@@ -609,6 +612,7 @@ parse_msmr_file(const char * file_name, bool head)
         node_len++;
 
         new_node = (struct MSMR_NODE_eqtl *)malloc(sizeof(struct MSMR_NODE_eqtl));
+        new_node -> prev = NULL;
         new_node -> next = NULL;
         strcpy(new_node -> expo_id, expo_id);
         new_node -> expo_chr = convert_chromosome(expo_chr_str);
@@ -646,6 +650,7 @@ parse_msmr_file(const char * file_name, bool head)
         }
 
         if (first_node){
+            new_node -> prev = pt;
             pt -> next = new_node;
             pt = new_node;
 
@@ -666,18 +671,17 @@ parse_msmr_file(const char * file_name, bool head)
 }
 
 
-
 struct MSMR_DATA_gwas {
     struct MSMR_NODE_gwas {
-        char * probe_id[20];
+        char probe_id[50];
         unsigned char probe_chr;
-        char * gene[20];
+        char gene[50];
         unsigned int probe_bp;
-        char * top_snp[20];
+        char top_snp[50];
         unsigned char top_snp_chr;
         unsigned int top_snp_bp;
-        char * a1[10];
-        char * a2[10];
+        char a1[10];
+        char a2[10];
 
         unsigned char frequence_na;
         double frequence;
@@ -705,9 +709,11 @@ struct MSMR_DATA_gwas {
         double p_heidi;
         unsigned char nsnp_heidi_na;
         unsigned short nsnp_heidi;
+        
+        struct MSMR_NODE_gwas * prev;
+        struct MSMR_NODE_gwas * next;
 
     } * msmr_node;
-
     
     unsigned int node_len;
 
@@ -715,12 +721,227 @@ struct MSMR_DATA_gwas {
 
 
 struct MSMR_DATA_gwas
-parse_msmr_file_gwas()
+parse_msmr_file_gwas(const char * file_name, bool head)
 {
     struct MSMR_DATA_gwas data_out;
-    struct MSMR_NODE_gwas * first_node, * new_node, * pt;
+    data_out.msmr_node = NULL;
+    char line_buffer[LINE_BUF_LEN];
+    const int field_len = 22;
+    unsigned int node_len = 0;
+
+    char probe_id[50];
+    char probe_chr_str[5];
+    char gene[50];
+    unsigned int probe_bp;
+    char top_snp[50];
+    char top_snp_chr_str[5];
+    unsigned int top_snp_bp;
+    char a1[10];
+    char a2[10];
+
+    char frequence[20];
+    char b_gwas[20];
+    char se_gwas[20];
+    char p_gwas[20];
+    char b_eqtl[20];
+    char se_eqtl[20];
+    char p_eqtl[20];
+    char b_smr[20];
+    char se_smr[20];
+    char p_smr[20];
+    char p_smr_multi[20];
+    char p_heidi[20];
+    char nsnp_heidi[20];
+
+    struct MSMR_NODE_gwas * first_node = NULL, * new_node = NULL, * pt = NULL;
+
+    FILE * f_in = fopen(file_name, "r");
+    if(!f_in){
+        fprintf(stderr, "error, open file error.\n");
+        exit(1);
+    }
+    if (head){
+        fgets(line_buffer, LINE_BUF_LEN, f_in);
+    }
+
+    node_len = 0;
+    while(fscanf(f_in, "%s %s %s %u %s %s %u %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s", \
+        probe_id, probe_chr_str, gene, &probe_bp, top_snp, top_snp_chr_str, &top_snp_bp, \
+        a1, a2, frequence, b_gwas, se_gwas, p_gwas, b_eqtl, se_eqtl, p_eqtl, b_smr, se_smr, \
+        p_smr, p_smr_multi, p_heidi, nsnp_heidi) == field_len){
+        
+        node_len ++;
+        //printf("%u\n", node_len);
+
+        new_node = (struct MSMR_NODE_gwas *)malloc(sizeof(struct MSMR_NODE_gwas));
+        //this is the most saft way to store string.
+        new_node -> prev = NULL;
+        new_node -> next = NULL;
+        strncpy(new_node -> probe_id, probe_id, 49);
+        (new_node -> probe_id)[49] = '\0';
+        new_node -> probe_chr = convert_chromosome(probe_chr_str);
+        strncpy(new_node -> gene, gene, 49);
+        (new_node -> gene)[49] = '\0';
+        new_node -> probe_bp = probe_bp;
+        strncpy(new_node -> top_snp, top_snp, 49);
+        (new_node -> top_snp)[49] = '\0';
+        new_node -> top_snp_chr = convert_chromosome(top_snp_chr_str);
+        new_node -> top_snp_bp = top_snp_bp;
+        strcpy(new_node -> a1, a1);
+        strcpy(new_node -> a2, a2);
+
+        assign_na_value(&(new_node -> frequence_na), &(new_node -> frequence), frequence);
+        assign_na_value(&(new_node -> b_gwas_na), &(new_node -> b_gwas), b_gwas);
+        assign_na_value(&(new_node -> se_gwas_na), &(new_node -> se_gwas), se_gwas);
+        assign_na_value(&(new_node -> p_gwas_na), &(new_node -> p_gwas), p_gwas);
+        assign_na_value(&(new_node -> b_eqtl_na), &(new_node -> b_eqtl), b_eqtl);
+        assign_na_value(&(new_node -> se_eqtl_na), &(new_node -> se_eqtl), se_eqtl);
+        assign_na_value(&(new_node -> p_eqtl_na), &(new_node -> p_eqtl), p_eqtl);
+        assign_na_value(&(new_node -> b_smr_na), &(new_node -> b_smr), b_smr);
+        assign_na_value(&(new_node -> se_smr_na), &(new_node -> se_smr), se_smr);
+        assign_na_value(&(new_node -> p_smr_na), &(new_node -> p_smr), p_smr);
+        assign_na_value(&(new_node -> p_smr_multi_na), &(new_node -> p_smr_multi), p_smr_multi);
+        assign_na_value(&(new_node -> p_heidi_na), &(new_node -> p_heidi), p_heidi);
+        if (strcmp(nsnp_heidi, "NA") == 0){
+            new_node -> nsnp_heidi_na = 0;
+            new_node -> nsnp_heidi = 0;
+        } else{
+            new_node -> nsnp_heidi_na = 1;
+            new_node -> nsnp_heidi = (unsigned short)atoi(nsnp_heidi);
+        }
+
+        if (first_node){
+            new_node -> prev = pt;
+            pt -> next = new_node;
+            pt = new_node;
+        } else{
+            first_node = pt = new_node;
+        }
+    }
+
+    if (!feof(f_in)){
+        fprintf(stderr, "error, not all line was readed.\n");
+        exit(1);
+    }
+
+    data_out.node_len = node_len;
+    data_out.msmr_node = first_node;
+
+    return data_out;
+}
 
 
+struct ANNO_DATA {
+    struct ANNO_NODE {
+        unsigned char chr;
+        char gene_id[50];
+        char gene_name[50];
+
+        unsigned char gene_type_na;
+        char gene_type[20];
+        unsigned char gene_start_na;
+        unsigned int gene_start;
+        unsigned char gene_end_na;
+        unsigned int gene_end;
+        unsigned char orientation_na;
+        char orientation;
+
+        struct ANNO_NODE * prev;
+        struct ANNO_NODE * next;
+    } * data_node;
+
+    unsigned int node_len;
+};
+
+
+static void
+assign_na_value_int(unsigned char * na_ptr, unsigned int * value_ptr, const char * field)
+{
+    if (strcmp(field, "NA") == 0){
+        *na_ptr = 0;
+        *value_ptr = 0;
+    } else{
+        *na_ptr = 1;
+        *value_ptr = atoi(field);
+    }
+    return;
+}
+
+
+struct ANNO_DATA
+parse_anno_file_msmr(const char * file_name, bool head)
+{
+    struct ANNO_DATA data_out;
+    data_out.data_node = NULL;
+    const unsigned char field_len = 7;
+    unsigned int node_len = 0;
+    
+    char chr_str[5];
+    char gene_id[50];
+    char gene_name[50];
+    
+    char gene_type[20];
+    char gene_start[20];
+    char gene_end[20];
+    char orientation[5];
+
+    FILE * f_in = fopen(file_name, "r");
+    if (!f_in){
+        fprintf(stderr, "file open error.\n");
+        exit(1);
+    }
+
+    struct ANNO_NODE * first_node, * pt, * new_node;
+    node_len = 0;
+    while(fscanf(f_in, "%s %s %s %s %s %s %s", \
+        chr_str, gene_id, gene_name, gene_type, gene_start, gene_end, orientation) == field_len){
+        
+        node_len ++;
+        new_node = (struct ANNO_NODE *)malloc(sizeof(struct ANNO_NODE));
+        new_node -> prev = NULL;
+        new_node -> next = NULL;
+
+        new_node -> chr = convert_chromosome(chr_str);
+        //here has danger of line buffer overflow.
+        strcpy(new_node -> gene_id, gene_id);
+        strcpy(new_node -> gene_name, gene_name);
+        if (strcmp(gene_type, "NA") == 0){
+            new_node -> gene_type_na = 0;
+            strcpy(new_node -> gene_type, "");
+
+        } else{
+            new_node -> gene_type_na = 1;
+            strcpy(new_node -> gene_type, gene_type);
+        }
+        assign_na_value_int(&(new_node -> gene_start_na), &(new_node -> gene_start), gene_start);
+        assign_na_value_int(&(new_node -> gene_end_na), &(new_node -> gene_end), gene_end);
+        if (strcmp(gene_type, "NA") == 0){
+            new_node -> orientation_na = 0;
+            new_node -> orientation = 0;
+        } else{
+            new_node -> orientation_na = 1;
+            new_node -> orientation = orientation[0];
+        }
+
+        if (first_node){
+            new_node -> prev = pt;
+            pt -> next = new_node;
+
+        } else{
+            first_node = pt = new_node;
+        }
+
+    }
+
+    if (!feof(f_in)){
+        fprintf(stderr, "read line exit early.\n");
+        exit(1);
+    }
+
+    data_out.node_len = node_len;
+    data_out.data_node = first_node;
+
+    return data_out;
 
 }
 
@@ -732,15 +953,15 @@ main(int argc, char * argv[])
 {
 
     const char * file_name = argv[1];
-    struct MSMR_DATA_eqtl msmr_data;
-    struct MSMR_NODE_eqtl * tmp;
+    struct MSMR_DATA_gwas msmr_data;
+    struct MSMR_NODE_gwas * tmp;
 
-    msmr_data = parse_msmr_file(file_name, true);
+    msmr_data = parse_msmr_file_gwas(file_name, true);
 
     fprintf(stderr, "%u\n", msmr_data.node_len);
     tmp = msmr_data.msmr_node;
     while(tmp){
-        printf("%s %u %s %le %u %d\n", tmp -> expo_id, tmp -> expo_bp, tmp -> outco_id,  tmp -> frequence, tmp -> nsnp_heidi_na, tmp -> nsnp_heidi);
+        printf("%s %u %s %le %u %d\n", tmp -> probe_id, tmp -> probe_bp, tmp -> top_snp,  tmp -> frequence, tmp -> nsnp_heidi_na, tmp -> nsnp_heidi);
         tmp = tmp -> next;
     }
     return 0;
