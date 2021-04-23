@@ -283,9 +283,12 @@ namespace SMRDATA
                     exit(EXIT_FAILURE);
                 }
                 int tmpchr;
-                if(vs_buf[0]=="X" || vs_buf[0]=="x") tmpchr=23;
-                else if(vs_buf[0]=="Y" || vs_buf[0]=="y") tmpchr=24;
-                else tmpchr=atoi(vs_buf[0].c_str());
+                if(vs_buf[0]=="X" || vs_buf[0]=="x")
+                    tmpchr=23;
+                else if(vs_buf[0]=="Y" || vs_buf[0]=="y") 
+                    tmpchr=24;
+                else 
+                    tmpchr=atoi(vs_buf[0].c_str());
                 eqtlinfo->_esi_chr.push_back(tmpchr);
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
                     printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+1);
@@ -3721,11 +3724,12 @@ namespace SMRDATA
     void read_smaslist(vector<string> &smasNames, string eqtlsmaslstName)
     {
         ifstream smas(eqtlsmaslstName.c_str());
-        if (!smas) throw ("Error: can not open the file [" + eqtlsmaslstName + "] to read.");
+        if (!smas) 
+            throw ("Error: can not open the file [" + eqtlsmaslstName + "] to read.");
         cout << "Reading eQTL summary file names from [" + eqtlsmaslstName + "]." << endl;
         char buf[MAX_LINE_SIZE];
         map<string, int> probe_map;
-        long mapsize=0;
+        long mapsize = 0;
         while (smas.getline(buf, MAX_LINE_SIZE))
         {
             if(buf[0]!='\0')

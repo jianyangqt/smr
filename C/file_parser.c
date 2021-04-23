@@ -947,23 +947,44 @@ parse_anno_file_msmr(const char * file_name, bool head)
 
 
 
+//Hash function using short.
+#define HASH_LEN_STR 10
+unsigned short
+hash_func(const char * short_str)
+{
+    unsigned short dt_out = 0;
+    unsigned char j = 0;
+    for (int i = 0; i < strlen(short_str); i++){
+        if (j == 0){
+            j = 1;
+            dt_out ^= short_str[i] << 8;
+
+        } else{
+            j = 0;
+            dt_out ^= short_str[i];
+        }
+    }
+
+    return dt_out;
+}
+
+
 #ifdef TEST_FUNC
 int
 main(int argc, char * argv[])
 {
+    FILE * f_in = fopen(argv[1], "r");
+    unsigned short hv;
+    char a[50], b[50], c[50], d[50], e[50], f[50], g[50];
 
-    const char * file_name = argv[1];
-    struct MSMR_DATA_gwas msmr_data;
-    struct MSMR_NODE_gwas * tmp;
+    while(fscanf(f_in, "%s %s %s %s %s %s %s", a, b, c, d, e, f, g) == 7){
 
-    msmr_data = parse_msmr_file_gwas(file_name, true);
+        hv = hash_func(b);
+        printf("%hu\n", hv);
 
-    fprintf(stderr, "%u\n", msmr_data.node_len);
-    tmp = msmr_data.msmr_node;
-    while(tmp){
-        printf("%s %u %s %le %u %d\n", tmp -> probe_id, tmp -> probe_bp, tmp -> top_snp,  tmp -> frequence, tmp -> nsnp_heidi_na, tmp -> nsnp_heidi);
-        tmp = tmp -> next;
+
     }
+
     return 0;
 }
 #endif

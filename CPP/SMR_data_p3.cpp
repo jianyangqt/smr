@@ -10,16 +10,58 @@
 
 namespace SMRDATA
 {
-    void combine_esi(vector<snpinfolst> &snpinfo, vector<string> &smasNames, bool genouni)
+    void combine_esi(vector<snpinfolst>& snpinfo, vector<string>& smasNames, bool genouni)
     {
         long counter = 0;
         map<string, int> rs_map;
         map<string, int> rsbp_map;
-        long f2r=smasNames.size();
-        if(genouni) f2r=1;
+        long f2r = smasNames.size();
+        if(genouni) 
+            f2r=1;
      
         for (int i = 0; i < f2r; i++)
         {
+//        typedef struct{
+//            vector<int> _esi_chr;
+//            vector<string> _esi_rs;
+//            vector<int> _esi_gd;
+//            vector<int> _esi_bp;
+//            vector<string> _esi_allele1;
+//            vector<string> _esi_allele2;
+//            vector<int> _esi_include; // initialized in the readesi
+//            map<string,int> _snp_name_map;
+//            vector<float> _esi_freq;
+//            
+//            vector<int> _epi_chr;
+//            vector<string> _epi_prbID;
+//            vector<int> _epi_gd;
+//            vector<int> _epi_bp;
+//            vector<string> _epi_gene;
+//            vector<char> _epi_orien;
+//            vector<int> _include; // initialized in the readepi
+//            map<string,int> _probe_name_map;
+//            vector<double> _epi_var;
+//            /* if no probe sequence region input, its size should be 0. 
+//               for the probe not for probe sequence file, the value should be 
+//               set as -9, no technical eQTL would be removed from this probe.
+//             */
+//            vector<int> _epi_start; 
+//            vector<int> _epi_end;
+//            
+//            //for sparse
+//            vector<uint64_t> _cols;
+//            vector<uint32_t> _rowid;
+//            vector<float> _val;
+//            // for dense
+//            vector< vector<float> > _bxz; // first dimension is probe, second is snp
+//            vector< vector<float> > _sexz;
+//            
+//            uint64_t _probNum;
+//            uint64_t _snpNum;
+//            uint64_t _valNum;
+//            
+//        } eqtlInfo;
+
             eqtlInfo etmp;
             string esifile = smasNames[i]+".esi";
             read_esifile(&etmp, esifile);
@@ -52,7 +94,9 @@ namespace SMRDATA
         }
         printf("Total %ld SNPs to be included from %ld esi files.\n",snpinfo.size(),f2r);
     }
-    void combine_epi(vector<probeinfolst2> &probeinfo, vector<string> &smasNames)
+
+
+    void combine_epi(vector<probeinfolst2>& probeinfo, vector<string> &smasNames)
     {
         long counter = 0;
         map<string, int> prb_map;
@@ -106,37 +150,49 @@ namespace SMRDATA
                 }
             }
         }
+
         printf("Total %ld probes to be included from %ld epi files.\n",probeinfo.size(),smasNames.size());
     }
     
-    uint64_t countNotNullNum(vector<string> &smasNames, int &densefnum, int &sparsefnum)
+
+/*
+    
+
+ */
+    uint64_t countNotNullNum(vector<string>& smasNames, int& densefnum, int& sparsefnum)
     {
         uint64_t count=0;
         for (int i = 0; i < smasNames.size(); i++)
         {
             eqtlInfo etmp;
             string besdfile = smasNames[i]+".besd";
-            FILE *fptr=fopen(besdfile.c_str(), "rb");
+            FILE * fptr = fopen(besdfile.c_str(), "rb");
             if(!fptr)
             {
                 printf ( "ERROR: Couldn't open file %s\n", besdfile.c_str());
                 exit (EXIT_FAILURE);
             }
-            uint32_t filetype=readuint32(fptr);
-            uint64_t valnum=0;
-            if(filetype==SPARSE_FILE_TYPE_3F || filetype==0x40000000) {valnum=readuint64(fptr); sparsefnum++;}
-            if(filetype==SPARSE_FILE_TYPE_3) {
-                for(int j=1;j<RESERVEDUNITS;j++) readint(fptr);
-                valnum=readuint64(fptr);
+            uint32_t filetype = readuint32(fptr);
+            uint64_t valnum = 0;
+            if(filetype == SPARSE_FILE_TYPE_3F || filetype==0x40000000){
+                valnum = readuint64(fptr);
                 sparsefnum++;
             }
-            if(filetype==0x3f800000) {valnum=(uint64_t)readfloat(fptr);sparsefnum++;}
-            if(filetype==DENSE_FILE_TYPE_1) {
+            if(filetype == SPARSE_FILE_TYPE_3){
+                for(int j = 1; j < RESERVEDUNITS; j++) 
+                    readint(fptr);
+                valnum = readuint64(fptr);
+                sparsefnum++;
+            }
+            if(filetype == 0x3f800000) 
+                {valnum=(uint64_t)readfloat(fptr);sparsefnum++;}
+            if(filetype == DENSE_FILE_TYPE_1) {
                 densefnum++;
                 while(!feof(fptr))
                 {
-                    float tmpfloat=readfloat(fptr);
-                    if(fabs(tmpfloat+9)>1e-6) valnum++;
+                    float tmpfloat = readfloat(fptr);
+                    if(fabs(tmpfloat+9)>1e-6) 
+                        valnum++;
                 }
             }
             if(filetype==DENSE_FILE_TYPE_3) {
@@ -153,11 +209,13 @@ namespace SMRDATA
                 densefnum++;
             }
            fclose(fptr);
-           count+=(valnum>>1);
+           count += (valnum >> 1);
         }
         
         return count;
     }
+
+
     void save_besds_dbesd(char* outFileName, vector<snpinfolst> &snpinfo, vector<probeinfolst2> &probeinfo, vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2, int addn)
     {
         map<string, int> esi_map;
@@ -1547,80 +1605,112 @@ namespace SMRDATA
         cout<<"Effect sizes (beta) and SE for "<<epiNum<<" probes and "<<esiNum<<" SNPs have been saved in a file [" + esdfile + "]." <<endl;
     }
     
-    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
+
+    void 
+    save_slct_besds_sbesd(char * outFileName, vector<probeinfolst2>& probeinfo, \
+        vector<string>& esi_rs, vector<string>& esi_a1, vector<string>& esi_a2, \
+        int cis_itvl, int trans_itvl, float transThres, float restThres, \
+        vector<string>& smasNames, int addn)
     {
         map<string, int> esi_map;
-        for(int j=0;j<esi_rs.size();j++)
+        for(int j = 0; j < esi_rs.size(); j++)
         {
             esi_map.insert(pair<string,int>(esi_rs[j],j));
         }
+
+        /*for(map<string, int>::iterator ele = esi_map.begin(); ele != esi_map.end(); ele++){
+            cerr << ele -> first << "=> " << ele -> second << endl;
+
+        }*/
         map<string, int> epi_map;
         map<string,int>::iterator iter;
-        for(int j=0;j<probeinfo.size();j++)
+        for(int j = 0; j < probeinfo.size(); j++)
         {
-            epi_map.insert(pair<string,int>(probeinfo[j].probeId,j));
+            epi_map.insert(pair<string,int>(probeinfo[j].probeId, j));
+        }
+        
+        /*for(auto& x: epi_map){
+            cerr << x.first << "=> " << x.second << endl;
+
+        }*/
+
+
+        for (probeinfolst2 x: probeinfo){
+            cerr << x.probeId << endl;
+            for (string y: x.besdpath){
+                cerr << y << endl;
+
+            }
+            
+
         }
 
+
+
         // get esd info
-        long epiNum=probeinfo.size();
-        string esdfile=string(outFileName)+string(".besd");
+        long epiNum = probeinfo.size();
+        string esdfile = string(outFileName) + string(".besd");
         FILE * smr1;
-        smr1 = fopen (esdfile.c_str(), "wb");
+        smr1 = fopen(esdfile.c_str(), "wb");
         if (!(smr1)) {
             printf("ERROR: failed to open file %s.\n",esdfile.c_str());
             exit(EXIT_FAILURE);
         }
-        uint32_t ft2save=SPARSE_FILE_TYPE_3;
+        uint32_t ft2save = SPARSE_FILE_TYPE_3;
         
         vector<uint64_t> cols((epiNum<<1)+1);;
         vector<uint32_t> rowids;
         vector<float> val;
-        cols[0]=0;
-        bool prtscr=false;
+        cols[0] = 0;
+        bool prtscr = false;
        
         
         // log file
         FILE* logfile=NULL;
         string logfname = string(outFileName)+".summary";
-        logfile=fopen(logfname.c_str(), "w");
+        logfile = fopen(logfname.c_str(), "w");
         if (!(logfile)) {
             printf("Error: Failed to open log file.\n");
             exit(1);
         }
-        string logstr="cis-window:\t"+itos(cis_itvl)+"Kb\ntrans-window:\t"+itos(trans_itvl)+"Kb\np-value threshold of trans:\t"+dtos(transThres)+"\np-value threshold of others:\t"+dtos(restThres)+"\n";
-        logstr+="\ncis region is indicated by [Chr, Start bp, End bp, nsnp];\ntrans region is indicated by <Chr, Start bp, End bp, nsnp>;\nthe number of other SNPs selected is indicated by (NumSNPs beyond cis and trans).\n";
-        
+        string logstr = "cis-window:\t" + itos(cis_itvl) + "Kb\ntrans-window:\t"+itos(trans_itvl) + \
+            "Kb\np-value threshold of trans:\t"+dtos(transThres)+"\np-value threshold of others:\t"+dtos(restThres)+"\n";
+        logstr += "\ncis region is indicated by [Chr, Start bp, End bp, nsnp];\ntrans region is indicated \
+            by <Chr, Start bp, End bp, nsnp>;\nthe number of other SNPs selected is indicated by (NumSNPs beyond cis and trans).\n";
         logstr+="\n{ProbeID, ProbeChr, ProbeBP}\t[Chr,cis_startBP,cis_endBP,NumSNPs]\t<Chr,trans_startBP,trans_endBP,NumSNPs>\t(NumSNPs)\n";
         fputs(logstr.c_str(),logfile);
         fflush(logfile);
-        cis_itvl=cis_itvl*1000;
-        trans_itvl=trans_itvl*1000;
+
+        cis_itvl = cis_itvl*1000;
+        trans_itvl = trans_itvl*1000;
+
         vector<snpinfolst> snpinfo;
         eqtlInfo eqtlinfo;
-        int ssck=-9;
-        double disp=0;
-        for(int j=0;j<epiNum;j++)
+        int ssck = -9;
+        double disp = 0;
+
+        for(int j = 0; j < epiNum; j++)
         {
             progress(j, disp, (int)epiNum);
-            string prbname=probeinfo[j].probeId;
+
+            string prbname = probeinfo[j].probeId;
             vector<uint32_t> tmprid;
             vector<float> tmpse;
             
             snpinfo.clear();
-            map<string,int> snp_map;
-            long snpmapsize=0;
-            for(int k=0;k<probeinfo[j].besdpath.size();k++)
+            map<string, int> snp_map;
+            long snpmapsize = 0;
+            for(int k = 0; k < probeinfo[j].besdpath.size(); k++)
             {
-                
-                    read_epifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".epi", prtscr);
-                    extract_eqtl_single_probe(&eqtlinfo, prbname, prtscr);
-                    read_esifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".esi", prtscr);
-                int tmp=shown(string(probeinfo[j].besdpath[k]));
-                if(tmp!=-9)
+                read_epifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".epi", prtscr);
+                extract_eqtl_single_probe(&eqtlinfo, prbname, prtscr);
+                read_esifile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".esi", prtscr);
+                int tmp = shown(string(probeinfo[j].besdpath[k]));
+                if(tmp != -9)
                 {
                     printf("The sample size is %d.\n",tmp);
-                    if(ssck==-9) {
-                        ssck=tmp;
+                    if(ssck == -9) {
+                        ssck = tmp;
                     }
                     else
                     {
@@ -1632,10 +1722,9 @@ namespace SMRDATA
                     }
                 }
 
-                    read_besdfile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".besd", prtscr);
+                read_besdfile(&eqtlinfo, string(probeinfo[j].besdpath[k])+".besd", prtscr);
                 
-                if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
-                {
+                if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty()){
                     //No data included of this file of the current probe does not mean no data in other files of the current probe;
                     continue;
                     
@@ -1822,6 +1911,9 @@ namespace SMRDATA
             }
             free_snplist(snpinfo);
         }
+        exit(0);
+
+
         vector<int> ten_ints(RESERVEDUNITS);
         ten_ints[0]=ft2save;
         if(addn!=-9)
@@ -1850,6 +1942,8 @@ namespace SMRDATA
         fclose(logfile);
 
     }
+
+
     void save_slct_sparses_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,vector<string> &esi_rs,vector<string> &esi_a1,vector<string> &esi_a2,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
     {
         map<string, int> esi_map;
@@ -2275,7 +2369,11 @@ namespace SMRDATA
         fclose(logfile);
         
     }
-    void save_slct_besds_sbesd(char* outFileName, vector<probeinfolst2> &probeinfo,int cis_itvl,int trans_itvl,float transThres,float restThres,vector<string> &smasNames, int addn)
+
+
+    void 
+    save_slct_besds_sbesd(char * outFileName, vector<probeinfolst2>& probeinfo, int cis_itvl, \
+        int trans_itvl, float transThres, float restThres, vector<string>& smasNames, int addn)
     {
        
         map<string, int> epi_map;
@@ -2724,32 +2822,77 @@ namespace SMRDATA
         fclose(logfile);
         
     }
-    void combineBesd(char* eqtlsmaslstName, char* outFileName,bool save_dense_flag, int cis_itvl, int trans_itvl, float transThres, float restThres, bool genouni, int addn)
+
+
+    void combineBesd(char * eqtlsmaslstName, char * outFileName, bool save_dense_flag, \
+        int cis_itvl, int trans_itvl, float transThres, float restThres, bool genouni, int addn)
     {
         vector<string> smasNames;
+
+        /*typedef struct{
+            char* snprs;
+            char* a1;
+            char* a2;
+            int snpchr;
+            int gd;
+            int bp;
+            float beta;
+            float se;
+            float freq;
+            float estn;
+        } snpinfolst;*/
         vector<snpinfolst> snpinfo;
+
+        /*typedef struct{
+            vector<string> besdpath;        
+            char* probeId;
+            char* genename;
+            int probechr;
+            int gd;
+            int bp;
+            char orien;
+            uint64_t vnum;
+            uint32_t* rowid;
+            float* beta_se;
+            snpinfolst* sinfo;
+            
+        } probeinfolst2;*/
         vector<probeinfolst2> probeinfo;
+
+
         if(genouni) {
             printf("WARNING: --geno-uni is enable. Please ensure the SNPs and their alleles identical across all the text files.\n");
         }
+
+        //read beqtl-summary list.
         read_smaslist(smasNames, string(eqtlsmaslstName));
-        if(smasNames.size()==0) throw("No eqtl summary file list in [ "+ string(eqtlsmaslstName)  +" ]");
+        for (string ss: smasNames){
+            cout << ss << endl;
+        }
+        if(smasNames.size()==0) 
+            throw("No eqtl summary file list in [ "+ string(eqtlsmaslstName)  +" ]");
+
+
         combine_esi(snpinfo, smasNames, genouni);
         if(snpinfo.size()==0)
         {
             printf("ERROR: No SNP to be included!\n");
             exit(EXIT_FAILURE);
         }
-        snpinfolst* esiptr=&snpinfo[0];
-        qsort(esiptr,snpinfo.size(),sizeof(snpinfolst),comp_esi);
+        snpinfolst * esiptr = &snpinfo[0];
+        qsort(esiptr,snpinfo.size(), sizeof(snpinfolst), comp_esi);
+
+
         combine_epi(probeinfo, smasNames);
         if(probeinfo.size()==0)
         {
             printf("ERROR: No probe to be included!\n");
             exit(EXIT_FAILURE);
         }
-        probeinfolst2* epiptr=&probeinfo[0];
-        qsort(epiptr,probeinfo.size(),sizeof(probeinfolst2),comp2);
+
+
+        probeinfolst2 * epiptr = &probeinfo[0];
+        qsort(epiptr, probeinfo.size(), sizeof(probeinfolst2), comp2);
         
         printf("\nGenerating the .epi file...\n");       
         string epifile = string(outFileName)+string(".epi");
@@ -2762,20 +2905,23 @@ namespace SMRDATA
         printf("%ld probes have been saved in the file %s.\n",probeinfo.size(),epifile.c_str());
         
         printf("\nGenerating the .esi file...\n");
-        vector<string> esi_rs,esi_a1,esi_a2;
+
+        vector<string> esi_rs, esi_a1, esi_a2;
         if(!genouni)
         {
             esi_rs.resize(snpinfo.size());
             esi_a1.resize(snpinfo.size());
             esi_a2.resize(snpinfo.size());
         }
+
         string esifile =  string(outFileName)+string(".esi");
         ofstream esi(esifile.c_str());
         if (!esi) throw ("Error: can not open the ESI file to save!");
-        for (long j = 0;j <snpinfo.size(); j++) {
-            esi<<snpinfo[j].snpchr<<'\t'<<snpinfo[j].snprs<<'\t'<<snpinfo[j].gd<<'\t'<<snpinfo[j].bp<<'\t'<<snpinfo[j].a1<<'\t'<<snpinfo[j].a2<<'\t'<<(fabs(snpinfo[j].freq+9)>1e-6?atos(snpinfo[j].freq):"NA")<<'\n';
-            if(!genouni)
-            {
+        for (long j = 0; j <snpinfo.size(); j++) {
+            esi << snpinfo[j].snpchr << '\t' << snpinfo[j].snprs << '\t' \
+                << snpinfo[j].gd << '\t' << snpinfo[j].bp << '\t' << snpinfo[j].a1 \
+                << '\t' << snpinfo[j].a2 << '\t' << (fabs(snpinfo[j].freq+9)>1e-6?atos(snpinfo[j].freq):"NA") << '\n';
+            if(!genouni){
                 esi_rs[j]=snpinfo[j].snprs;
                 esi_a1[j]=snpinfo[j].a1;
                 esi_a2[j]=snpinfo[j].a2;
@@ -2783,43 +2929,63 @@ namespace SMRDATA
             
         }
         esi.close();
+
         printf("%ld SNPs have been saved in the file %s.\n",snpinfo.size(),esifile.c_str());
-        int densefnum=0;
-        int sparsefnum=0;
+
+
+        int densefnum = 0;
+        int sparsefnum = 0;
         printf("\nGenerating the .besd file...\n");
-        uint64_t valnum=countNotNullNum(smasNames,densefnum,sparsefnum);
+        
+        //count dense besd file amount and sparse besd file num, and return totall value number. 
+        uint64_t valnum = countNotNullNum(smasNames, densefnum, sparsefnum);
+        printf(">>%d %d \n", densefnum, sparsefnum);
+
         if(save_dense_flag)
         {
-            double sparsity=1.0*valnum/(probeinfo.size()*snpinfo.size());
-            if(sparsity>=0.4)
+            double sparsity = 1.0 * valnum / (probeinfo.size() * snpinfo.size());
+            if(sparsity >= 0.4)
             {
-                //printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
-                if(genouni) save_besds_dbesd(outFileName, snpinfo, probeinfo, addn);
-                else save_besds_dbesd(outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2, addn);
+                printf("The density of your data is %f. The data will be saved in dense format.\n", sparsity);
+                if(genouni) 
+                    save_besds_dbesd(outFileName, snpinfo, probeinfo, addn);
+                else 
+                    save_besds_dbesd(outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2, addn);
                 
             } else {
-                //printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
-                if(genouni) save_besds_sbesd( outFileName, snpinfo, probeinfo,smasNames, addn);
-                else save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
+                printf("The density of your data is %f. The data will be saved in sparse format.\n", sparsity);
+                if(genouni) 
+                    save_besds_sbesd( outFileName, snpinfo, probeinfo,smasNames, addn);
+                else 
+                    save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
             }
         }
         else
         {
-            long esiNum=snpinfo.size();
-            if(genouni) save_slct_besds_sbesd(outFileName, probeinfo, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames, addn);
-            else {
-                if(sparsefnum==smasNames.size()) save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
-                //save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
-                else save_slct_besds_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
+            long esiNum = snpinfo.size();
+            if(genouni) 
+                save_slct_besds_sbesd(outFileName, probeinfo, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames, addn);
+            else{
+                    if(sparsefnum == smasNames.size()) 
+                        save_besds_sbesd( outFileName, snpinfo, probeinfo,esi_rs,esi_a1,esi_a2,smasNames, addn);
+                        //save_slct_sparses_sbesd(outFileName, probeinfo,esi_rs,esi_a1,esi_a2, cis_itvl,  trans_itvl,  transThres,  restThres,smasNames,addn);
+                    else 
+                        printf("hererheher\n");
+                        save_slct_besds_sbesd(outFileName, probeinfo, esi_rs, esi_a1, esi_a2, cis_itvl, trans_itvl, transThres, restThres, smasNames, addn);
             }
         }
+
         free_snplist(snpinfo);
         free_probelist(probeinfo);
     }
+
+
     float est_sample_size(float freq, float beta, float se)
     {
         return (1.0-2*freq*(1-freq)*beta*beta)/(2*freq*(1-freq)*se*se);
     }
+
+
     void get_snpinfo_cur_prb_sparse(vector<snpinfolst> &snpinfo,FILE* fptr,  uint64_t pid, uint64_t* ptr, uint64_t rowSTART,uint64_t valSTART,eqtlInfo* etmp,map<int, int> &_incld_id_map, bool qcflag,bool rmTechnicaleQTL,bool &techHit, double pTech, double pinsnp, double pexsnp)
     {
         uint64_t pos=*(ptr+(pid<<1)); //BETA START

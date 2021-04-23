@@ -6,7 +6,7 @@
 
 #include "file_parser.h"
 
-#define TEST_FUNC
+//#define TEST_FUNC
 
 struct arguments {
     const char * bfile;
