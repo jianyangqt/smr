@@ -3,13 +3,22 @@ CC = gcc
 CFLAGS = -g -O2
 CXX = g++
 CXXFLAGS = -g -O2
-CPPFLAGS ?= 
-LDLIBS = -lm -lz -lomp
+
+CPPFLAGS = 
+LDFLAGS = 
+LIBS =  -lm -lz -lomp -lpthread -ldl
+
+all: smr smr_static
 
 smr: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
 	 CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
 	 CPP/StatFunc.o CPP/StrFunc.o C/calmt.o C/file_parser.o CPP/main.o
-	$(CXX) $(CXXFLAGS)  $?  $(LDLIBS) -o $@
+	$(CXX) $(CXXFLAGS)  $?  $(LIBS) -o $@
+
+smr_static: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
+	 CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
+	 CPP/StatFunc.o CPP/StrFunc.o C/calmt.o C/file_parser.o CPP/main.o
+	$(CXX) $(CXXFLAGS) -static  $?  $(LIBS) -o $@
 
 bfile.o: CPP/bfile.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
@@ -52,6 +61,7 @@ file_parser: C/file_parser.c
 
 main.o: CPP/main.cpp
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c $?
+
 
 clean:
 	@rm C/*.o
