@@ -249,17 +249,19 @@ namespace SMRDATA
     void read_esifile(eqtlInfo* eqtlinfo, string esifile, bool prtscr)
     {
         ifstream esi(esifile.c_str());
-        if (!esi) throw ("ERROR: can not open the file [" + esifile + "] to read.");
-        if(prtscr) cout << "Reading eQTL SNP information from [" + esifile + "]." << endl;
-        eqtlinfo->_esi_chr.clear();
-        eqtlinfo->_esi_rs.clear();
-        eqtlinfo->_esi_gd.clear();
-        eqtlinfo->_esi_bp.clear();
-        eqtlinfo->_esi_allele1.clear();
-        eqtlinfo->_esi_allele2.clear();
-		eqtlinfo->_esi_include.clear();
-        eqtlinfo->_snp_name_map.clear();
-        eqtlinfo->_esi_freq.clear();
+        if (!esi) 
+            throw ("ERROR: can not open the file [" + esifile + "] to read.");
+        if(prtscr) 
+            cout << "Reading eQTL SNP information from [" + esifile + "]." << endl;
+        eqtlinfo -> _esi_chr.clear();
+        eqtlinfo -> _esi_rs.clear();
+        eqtlinfo -> _esi_gd.clear();
+        eqtlinfo -> _esi_bp.clear();
+        eqtlinfo -> _esi_allele1.clear();
+        eqtlinfo -> _esi_allele2.clear();
+		eqtlinfo -> _esi_include.clear();
+        eqtlinfo -> _snp_name_map.clear();
+        eqtlinfo -> _esi_freq.clear();
 
         char buf[MAX_LINE_SIZE];
         vector<string> vs_buf;
@@ -289,7 +291,9 @@ namespace SMRDATA
                     tmpchr=24;
                 else 
                     tmpchr=atoi(vs_buf[0].c_str());
+                //add esi chrome infor into _esi_chr int vector.
                 eqtlinfo->_esi_chr.push_back(tmpchr);
+
                 if(vs_buf[1]=="NA" || vs_buf[1]=="na"){
                     printf("ERROR: the SNP name is \'NA\' in row %d.\n", lineNum+1);
                     exit(EXIT_FAILURE);
@@ -301,14 +305,20 @@ namespace SMRDATA
                     vs_buf[1] = ss.str();
                     cout<<"has been changed to \"" + vs_buf[1] + "\".\n";
                 }
-                eqtlinfo->_snp_name_map.insert(pair<string, int>(vs_buf[1], lineNum));
-                eqtlinfo->_esi_rs.push_back(vs_buf[1]);
+                //add (esi_name => lineNum_index) pair into map, for future duplication check.
+                eqtlinfo -> _snp_name_map.insert(pair<string, int>(vs_buf[1], lineNum));
+                //add esi name into string vector.
+                eqtlinfo -> _esi_rs.push_back(vs_buf[1]);
+                //add third colomn into string vector.
                 eqtlinfo->_esi_gd.push_back(atoi(vs_buf[2].c_str()));
+
                 if(vs_buf[3]=="NA" || vs_buf[3]=="na"){
                     printf("ERROR: SNP BP is \'NA\' in row %d.\n", lineNum+1);
                     exit(EXIT_FAILURE);
                 }
-                eqtlinfo->_esi_bp.push_back(atoi(vs_buf[3].c_str()));
+                //add esi position infor into int vector.
+                eqtlinfo -> _esi_bp.push_back(atoi(vs_buf[3].c_str()));
+                
                 if(vs_buf[4]=="NA" || vs_buf[4]=="na") if(!warn1) { printf("WARNING: at least one allele1 is \"NA\".\n"); warn1=true;}
                 to_upper(vs_buf[4]);
                 eqtlinfo->_esi_allele1.push_back(vs_buf[4]);
@@ -316,27 +326,31 @@ namespace SMRDATA
                 to_upper(vs_buf[5]);
                 eqtlinfo->_esi_allele2.push_back(vs_buf[5]);
                 
-                    if(col_num==7)
-                    {
-                        if(vs_buf[6]=="NA" || vs_buf[6]=="na"){
-                            if(!ptrnullfrq){
-                                printf("WARNING: frequency is \"NA\" in one or more rows.\n");
-                                ptrnullfrq=true;
-                            }
-                            eqtlinfo->_esi_freq.push_back(-9);
-                        } else {
-                            eqtlinfo->_esi_freq.push_back(atof(vs_buf[6].c_str()));
+                //the seventh column is frequence, and if it is missing, using -9 to indicate.
+                if(col_num==7)
+                {
+                    if(vs_buf[6]=="NA" || vs_buf[6]=="na"){
+                        if(!ptrnullfrq){
+                            printf("WARNING: frequency is \"NA\" in one or more rows.\n");
+                            ptrnullfrq=true;
                         }
-                    } else {
-                        //printf("WARNING: frequency column missing.\n");
                         eqtlinfo->_esi_freq.push_back(-9);
+                    } else {
+                        eqtlinfo->_esi_freq.push_back(atof(vs_buf[6].c_str()));
                     }
+                } else {
+                    //printf("WARNING: frequency column missing.\n");
+                    eqtlinfo->_esi_freq.push_back(-9);
+                }
                 
                 
                 eqtlinfo->_esi_include.push_back(lineNum);
                 lineNum++;
             }
         }
+        //esi file reading loop is ended here.
+
+
         eqtlinfo->_snpNum=lineNum;
         if(prtscr) cout << eqtlinfo->_snpNum << " SNPs to be included from [" + esifile + "]." << endl;
         esi.close();
@@ -367,6 +381,7 @@ namespace SMRDATA
 
         char buf[MAX_LINE_SIZE];
         int lineNum(0);
+        //conuting effect line amount.
         while(!epi.eof())
         {
             epi.getline(buf, MAX_LINE_SIZE);
@@ -379,6 +394,8 @@ namespace SMRDATA
         if(prtscr) 
             cout << eqtlinfo -> _probNum << " Probes to be included from [" + epifile + "]." << endl;
         
+
+
         eqtlinfo -> _epi_chr.resize(lineNum);
         eqtlinfo -> _epi_prbID.resize(lineNum);
         eqtlinfo -> _epi_gd.resize(lineNum);
@@ -397,7 +414,7 @@ namespace SMRDATA
             epi.getline(buf, MAX_LINE_SIZE);
             istringstream iss(buf);
 
-            //read first field.
+            //read first field, chromsome, and it cann't be NA.
             iss >> tmpStr;
             if(tmpStr == "NA" || tmpStr == "na" || tmpStr == "-9") {
                 printf("ERROR: chromosome is \"NA\" in row %d.\n", i + 1);
@@ -413,7 +430,7 @@ namespace SMRDATA
                 tmpchr=atoi(tmpStr.c_str());
             eqtlinfo -> _epi_chr[i] = tmpchr;
             
-            //read second field.
+            //read second field. the probe id.
             iss >> tmpStr;
             eqtlinfo -> _include[i] = i; //record probe line be parsed in data structure.
             //check probe id duplication.
@@ -6644,18 +6661,35 @@ namespace SMRDATA
 
     //sort in ascend order
     int comp(const void *a,const void *b){ return (((*(probeinfolst *)a).probechr>(*(probeinfolst *)b).probechr) || ( ((*(probeinfolst *)a).probechr ==(*(probeinfolst *)b).probechr) && ((*(probeinfolst *)a).bp > (*(probeinfolst *)b).bp) ))?1:-1; }
-    int comp2(const void *a,const void *b){ return (((*(probeinfolst2 *)a).probechr>(*(probeinfolst2 *)b).probechr) || ( ((*(probeinfolst2 *)a).probechr ==(*(probeinfolst2 *)b).probechr) && ((*(probeinfolst2 *)a).bp > (*(probeinfolst2 *)b).bp) ))?1:-1; }
-    int comp_esi(const void *a,const void *b){ return (((*(snpinfolst *)a).snpchr >(*(snpinfolst *)b).snpchr) || ( ((*(snpinfolst *)a).snpchr ==(*(snpinfolst *)b).snpchr) && ((*(snpinfolst *)a).bp > (*(snpinfolst *)b).bp) ))?1:-1; }
+
+
+    int
+    comp2(const void *a,const void *b)
+    { return (((*(probeinfolst2 *)a).probechr>(*(probeinfolst2 *)b).probechr) || ( ((*(probeinfolst2 *)a).probechr ==(*(probeinfolst2 *)b).probechr) && ((*(probeinfolst2 *)a).bp > (*(probeinfolst2 *)b).bp) ))?1:-1; }
+
+
+    int
+    comp_esi(const void * a, const void * b)
+    { return (((*(snpinfolst *)a).snpchr >(*(snpinfolst *)b).snpchr) || ( ((*(snpinfolst *)a).snpchr ==(*(snpinfolst *)b).snpchr) && ((*(snpinfolst *)a).bp > (*(snpinfolst *)b).bp) ))?1:-1; }
+
     int comp_i4tran(const void *a,const void *b){ return (((*(info4trans *)a).snpchr >(*(info4trans *)b).snpchr) || ( ((*(info4trans *)a).snpchr ==(*(info4trans *)b).snpchr) && ((*(info4trans *)a).bp > (*(info4trans *)b).bp) ))?1:-1; }
-    int comp_estn(const void *a,const void *b){ return ((*(snpinfolst *)a).estn >(*(snpinfolst *)b).estn)?1:-1; }
+
+
+    int 
+    comp_estn(const void *a,const void *b)
+    { return ((*(snpinfolst *)a).estn >(*(snpinfolst *)b).estn)?1:-1; }
+
+
     void free_snplist(vector<snpinfolst> &a){
-        for(int i=0;i<a.size();i++)
+        for(int i = 0; i < a.size(); i++)
         {
             if(a[i].snprs) free2(&a[i].snprs);
             if(a[i].a1) free2(&a[i].a1);
             if(a[i].a2) free2(&a[i].a2);
         }
     }
+
+
     void free_probelist(vector<probeinfolst> &a){
         for(int i=0;i<a.size();i++)
         {
@@ -6665,6 +6699,8 @@ namespace SMRDATA
             if(a[i].bfilepath) free2(&a[i].bfilepath);
         }
     }
+
+
     void free_snplist(vector<info4trans> &a){
         for(int i=0;i<a.size();i++)
         {
@@ -6673,6 +6709,8 @@ namespace SMRDATA
            if(a[i].a2) free2(&a[i].a2);
         }
     }
+
+
     void free_probelist(vector<probeinfolst2> &a){
         for(int i=0;i<a.size();i++)
         {

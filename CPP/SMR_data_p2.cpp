@@ -3100,7 +3100,7 @@ namespace SMRDATA
 
 /*
     snpiflst: vector of snpinfolst, which used to store snp infor.
-    _ttl_res: string vector vector, store snp name/rs of a prob per vector.
+    _ttl_rs: string vector vector, store snp name/rs of a prob per vector.
     _ttl_beta: float vector vector, store beta value of a prob per vector.
     _ttl_se: float vector vector, store se value of a prob per vector.
     varible below is as same meaning as above.
@@ -3492,12 +3492,10 @@ namespace SMRDATA
         // different from each other.
         double sparsity = 1.0 * lineNum / (esiNum * epiNum);
         printf("\nGenerating the .besd file...\n");
-        if(save_dense_flag)
-        {
-            if(sparsity > 0.4)
-            {
+        if(save_dense_flag){
+            if(sparsity > 0.4){
                 //The data will be saved in dense format
-                string esdfile = string(outFileName)+string(".besd");
+                string esdfile = string(outFileName) + string(".besd");
                 FILE * smr1;
                 smr1 = fopen (esdfile.c_str(), "wb");
                 if (!(smr1)) {
