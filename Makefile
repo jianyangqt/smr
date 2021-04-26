@@ -6,7 +6,7 @@ CXXFLAGS = -g -O2
 
 CPPFLAGS = 
 LDFLAGS = 
-LIBS =  -lm -lz -lomp -lpthread -ldl
+LIBS =  -lm -lz -lomp
 
 all: smr smr_static
 
@@ -18,7 +18,7 @@ smr: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
 smr_static: CPP/bfile.o CPP/CommFunc.o CPP/dcdflib.o CPP/SMR.o CPP/SMR_data.o \
 	 CPP/SMR_data_p1.o CPP/SMR_data_p2.o CPP/SMR_data_p3.o CPP/SMR_plot.o \
 	 CPP/StatFunc.o CPP/StrFunc.o C/calmt.o C/file_parser.o CPP/main.o
-	$(CXX) $(CXXFLAGS) -static  $?  $(LIBS) -o $@
+	$(CXX) $(CXXFLAGS) $? $(LIBS) -static -ldl -lpthread -o $@
 
 bfile.o: CPP/bfile.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $?
