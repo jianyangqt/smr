@@ -693,7 +693,7 @@ namespace SMRDATA
             // clear datastruct for sparse befor read dense
             if(gflag==DENSE_FILE_TYPE_3)
             {
-                int length=(RESERVEDUNITS-1)*sizeof(int);
+                int length = (RESERVEDUNITS - 1) * sizeof(int);
                 char* indicators=new char[length];
                 besd.read(indicators,length);
                 int* tmp=(int *)indicators;
@@ -714,6 +714,7 @@ namespace SMRDATA
                 }
                 delete[] indicators;
             }
+
             int infoLen=sizeof(uint32_t);
             if(gflag==DENSE_FILE_TYPE_3) infoLen=RESERVEDUNITS*sizeof(int);
             eqtlinfo->_cols.clear();
@@ -2149,7 +2150,10 @@ namespace SMRDATA
         eqtlinfo->_include=newIcld;
         cout << eqtlinfo->_include.size() << " probes are extracted from the region: " +atos(prbWind)+" Kb around [" + prbname + "]." << endl;
     }
-    void extract_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname, bool prtscr)
+
+
+    void
+    extract_eqtl_single_probe(eqtlInfo* eqtlinfo, string prbname, bool prtscr)
     {
         string logstr;
         int idx=find(eqtlinfo->_epi_prbID.begin(), eqtlinfo->_epi_prbID.end(), prbname)-eqtlinfo->_epi_prbID.begin();
@@ -2164,6 +2168,8 @@ namespace SMRDATA
         eqtlinfo->_include.push_back(idx);
         if(prtscr) cout << prbname << " is extracted. " << endl;
     }
+
+
     void extract_eqtl_prob(eqtlInfo* eqtlinfo, string fromprbname, string toprbname)
     {
         string logstr;
