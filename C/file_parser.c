@@ -948,7 +948,6 @@ parse_anno_file_msmr(const char * file_name, bool head)
 
 
 //Hash function using short.
-#define HASH_LEN_STR 10
 unsigned short
 hash_func(const char * short_str)
 {
