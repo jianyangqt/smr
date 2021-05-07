@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "my_functions.h"
 
@@ -81,6 +82,14 @@ struct BESD_DATA{
 };
 
 
+struct snp_index_btree{
+        unsigned long index;
+        uint64_t pointer_num;
+        struct snp_index_btree * left;
+        struct snp_index_btree * right;
+};
+
+
 static struct EPI_DATA_LIST_NODE * read_epi_file(const char *);
 static struct ESI_DATA_LIST_NODE * read_esi_file(const char *);
 static struct BESD_DATA read_besd_file_dense(const char *);
@@ -88,8 +97,17 @@ static struct BESD_DATA read_besd_file_sparse(const char *);
 static struct BESD_DATA read_besd_file(const char *);
 static void union_besd_data(struct EPI_DATA_LIST_NODE *, struct ESI_DATA_LIST_NODE *, struct BESD_DATA);
 static struct BESD_DATA structure_besd_data(const char *);
-static void add_besd_data(void **, struct BESD_DATA);
+static void add_besd_data(void **, struct BESD_DATA *);
 static void ** merge_multi_besd_data(const char *);
+static void reindex_probe(void **);
+static struct snp_index_btree * make_btree(struct snp_index_btree *, uint64_t, unsigned long *);
+static void count_treenode(struct snp_index_btree *, void *);
+static void make_btree_hash(struct snp_index_btree *, void *);
+static void look_up_btree(struct snp_index_btree *, void (*)(struct snp_index_btree *, void *), void *);
+static struct snp_index_btree * reindex_snp(void **);
+static void print_epi_res(void **, const char *);
+static void print_esi_res(struct snp_index_btree *, const char *);
+static void print_besd_res(void **, const char *);
 
 int
 main(int argc, char * argv[])
@@ -146,10 +164,264 @@ main(int argc, char * argv[])
     add_besd_data(hash_table, besd_dt);
 */
     void ** hash_table;
+    struct snp_index_btree * index_btree;
+    struct BESD_PROBE_NODE * probe_ptr;
+    struct PROBE_SNP_NODE * snp_ptr;
+    struct ESI_DATA_LIST_NODE * esi_node;
+
     hash_table = merge_multi_besd_data(argv[1]);
+    reindex_probe(hash_table);
+
+
+    index_btree = reindex_snp(hash_table);
+/*
+    unsigned int i = 0;
+    for (i = 0; i < HASH_TABLE_LEN; i++){
+        probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
+        while(probe_ptr){
+            snp_ptr = probe_ptr -> snp_contained;
+            while(snp_ptr){
+                esi_node = snp_ptr -> snp_infor_node;
+                printf("%s\n", esi_node -> snp_id);
+                snp_ptr = snp_ptr -> next;
+            }
+            printf(">%p\n", probe_ptr);
+            probe_ptr = probe_ptr -> next;
+        }
+    }
+*/
+    //print_epi_res(hash_table, "test.epi");
+    //print_esi_res(index_btree, "test.esi");
 
     return 0;
 }
+
+
+static void
+print_epi_res(void ** hash_table, const char * file_name)
+{
+    unsigned int i = 0;
+    struct BESD_PROBE_NODE * probe_ptr;
+    struct EPI_DATA_LIST_NODE * epi_ptr;
+    char chromo_str[5];
+    unsigned char chromo;
+    char distance[32];
+    char position_str[32];
+    char gene_id[64];
+    char orientation[32];
+
+
+    FILE * f_out = fopen(file_name, "w");
+    if (!f_out){
+        fprintf(stderr, "open epi out file error\n");
+        exit(1);
+    }
+
+    for (i = 0; i < HASH_TABLE_LEN; i++){
+        probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
+        while(probe_ptr){
+            epi_ptr = (struct EPI_DATA_LIST_NODE *)probe_ptr -> probe_infor_node;
+            chromo = epi_ptr -> chromo;
+            if (chromo == 23){
+                strcpy(chromo_str, "X");
+            } else if (chromo == 24){
+                strcpy(chromo_str, "Y");
+            } else{
+                sprintf(chromo_str, "%d", chromo);
+            }
+
+            if ((epi_ptr -> gene_distance)[0] == 0){
+                strcpy(distance, "NA");
+            } else{
+                strcpy(distance, epi_ptr -> gene_distance);
+            }
+            if ((epi_ptr -> position & MASK_INT) == 0){
+                strcpy(position_str, "NA");
+            } else{
+                sprintf(position_str, "%d", epi_ptr -> position);
+            }
+
+            if ((epi_ptr -> gene_id)[0] == 0){
+                strcpy(gene_id, "NA");
+            } else{
+                strcpy(gene_id, epi_ptr -> gene_id);
+            }
+
+            if (epi_ptr -> orientation == 0){
+                strcpy(orientation, "NA");
+            } else{
+                orientation[0] = epi_ptr -> orientation;
+            }
+
+            fprintf(f_out, "%s\t%s\t%s\t%s\t%s\t%s\n", chromo_str, epi_ptr -> probe_id, distance, \
+                position_str, gene_id, orientation);
+            probe_ptr = probe_ptr -> next;
+        }
+    }
+    fclose(f_out);
+
+}
+
+
+static void
+print_esi_res(struct snp_index_btree * btree, const char * file_name)
+{
+    unsigned long tree_node_amount = 0;
+    unsigned long i = 0;
+    struct ESI_DATA_LIST_NODE * esi_infor;
+
+    FILE * f_out = fopen(file_name, "w");
+    if (!f_out){
+        fprintf(stderr, "error, open esi out file failed.\n");
+        exit(1);
+    }
+
+    look_up_btree(btree, count_treenode, &tree_node_amount);
+
+/*
+    uint64_t * tree_node_hash_list = (uint64_t *)malloc(sizeof(uint64_t) * tree_node_amount);
+    look_up_btree(btree, make_btree_hash, tree_node_hash_list);
+    for (i = 1; i < tree_node_amount; i++){
+        esi_infor = (struct ESI_DATA_LIST_NODE *)tree_node_hash_list[i];
+        fprintf(f_out, "%s", esi_infor -> snp_id);
+    }
+    free(tree_node_hash_list);
+
+*/
+}
+
+static void
+print_besd_res(void ** hash_table, const char * file_name)
+{
+
+}
+
+
+static struct snp_index_btree *
+reindex_snp(void ** hash_table)
+{
+    struct snp_index_btree * index_tree = NULL;
+    struct snp_index_btree * found_tree_node = NULL;
+    struct BESD_PROBE_NODE * probe_ptr = NULL;
+    struct PROBE_SNP_NODE * snp_ptr = NULL;
+    unsigned int i = 0;
+    uint64_t snp_infor_pointer_num = 0;
+    unsigned long node_index = 0;
+    index_tree = (struct snp_index_btree *)malloc(sizeof(struct snp_index_btree));
+    index_tree -> index = 0;
+    index_tree -> pointer_num = 0;
+    index_tree -> left = NULL;
+    index_tree -> right = NULL;
+
+    for (i = 0; i < HASH_TABLE_LEN; i++){
+        probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
+        while (probe_ptr){
+            snp_ptr = probe_ptr -> snp_contained;
+            while(snp_ptr){
+                snp_infor_pointer_num = (uint64_t)snp_ptr -> snp_infor_node;
+                printf(">>%lu\n", snp_infor_pointer_num);
+                found_tree_node = make_btree(index_tree, snp_infor_pointer_num, &node_index);
+                snp_ptr = snp_ptr -> next;
+            }
+            probe_ptr = probe_ptr -> next;
+        }
+
+    }
+
+    return index_tree;
+}
+
+
+static void
+look_up_btree(struct snp_index_btree * btree, void (* func)(struct snp_index_btree *, void *), void * container)
+{
+    struct snp_index_btree * left_node = NULL, * right_node = NULL;
+    if (btree){
+        left_node = btree -> left;
+        right_node = btree -> right;
+        func(btree, container);
+        look_up_btree(left_node, func, container);
+        look_up_btree(right_node, func, container);
+    }
+    return;
+}
+
+
+static void
+count_treenode(struct snp_index_btree * btree, void * container)
+{
+    unsigned long * tmp;
+    tmp = (unsigned long *)container;
+    (*tmp)++;
+    return;
+}
+
+
+static void
+make_btree_hash(struct snp_index_btree * btree, void * container)
+{
+    uint64_t * tmp;
+    tmp = (uint64_t *)container;
+    tmp[btree -> index] = btree -> pointer_num;
+    return;
+}
+
+
+static struct snp_index_btree *
+make_btree(struct snp_index_btree * btree, uint64_t snp_pointer_num, unsigned long * node_index)
+{
+    struct snp_index_btree * keep = NULL;
+    //printf("+++++++++++++++++++++++\n");
+    while (btree){
+        keep = btree;
+        //printf("%lu\n", btree -> pointer_num);
+        if (snp_pointer_num > (btree -> pointer_num)){
+            btree = btree -> right;
+        } else if (snp_pointer_num < (btree -> pointer_num)){
+            btree = btree -> left;
+        } else{
+            printf("here\n");
+            return btree;
+        }
+    }
+
+    struct snp_index_btree * new_tree_node = (struct snp_index_btree *)malloc(sizeof(struct snp_index_btree));
+    new_tree_node -> left = NULL;
+    new_tree_node -> right = NULL;
+    new_tree_node -> index = *node_index;
+    (*node_index)++;
+    new_tree_node -> pointer_num = snp_pointer_num;
+    if (keep){
+        if (snp_pointer_num > (keep -> pointer_num)){
+            keep -> right = new_tree_node;
+        } else{
+            keep -> left = new_tree_node;
+        }
+    }
+    return new_tree_node;
+}
+
+
+static void
+reindex_probe(void ** hash_table)
+{
+    struct BESD_PROBE_NODE * probe_node_ptr = NULL;
+    unsigned int i = 0;
+    unsigned long j = 0;
+
+    j = 0;
+    for (i = 0; i < HASH_TABLE_LEN; i++){
+        //printf(">>%u\n", i);
+        probe_node_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
+        while(probe_node_ptr){
+                probe_node_ptr -> probe_index = j;
+                j++;
+                probe_node_ptr = probe_node_ptr -> next;
+        }
+    }
+    return;
+}
+
 
 static void **
 merge_multi_besd_data(const char * besd_file_name_list)
@@ -165,9 +437,7 @@ merge_multi_besd_data(const char * besd_file_name_list)
     while(fscanf(f_in, "%s", besd_file_name) == 1){
         printf("%s\n", besd_file_name);
         besd_dt = structure_besd_data(besd_file_name);
-
-
-        add_besd_data(hash_table, besd_dt);
+        add_besd_data(hash_table, &besd_dt);
     }
 
     return hash_table;
@@ -212,8 +482,6 @@ structure_besd_data(const char * file_name_prefix)
 */
 
     union_besd_data(epi_dt, esi_dt, besd_dt);
-
-
 
     return besd_dt;
 }
@@ -749,7 +1017,10 @@ union_besd_data(struct EPI_DATA_LIST_NODE * epi_dt, \
             free(esi_index_table[i]);
         }
     }
-
+    free(epi_index_table);
+    free(epi_refed);
+    free(esi_index_table);
+    free(esi_refed);
     return;
 }
 
@@ -758,15 +1029,15 @@ static void add_probe_node_of_slot(void **, unsigned short, struct BESD_PROBE_NO
 static void merge_besd_probe_node(struct BESD_PROBE_NODE *, struct BESD_PROBE_NODE *);
 
 static void
-add_besd_data(void ** hash_table, struct BESD_DATA besd_dt)
+add_besd_data(void ** hash_table, struct BESD_DATA * besd_dt)
 {
     struct BESD_PROBE_NODE * besd_probe_ptr, * probe_ptr;
     struct EPI_DATA_LIST_NODE * epi_node;
     unsigned short probe_hash_index = 0;
     char * probe_id;
 
-    besd_probe_ptr = besd_dt.probe_node;
-    besd_dt.probe_node = NULL;
+    besd_probe_ptr = besd_dt -> probe_node;
+    besd_dt -> probe_node = NULL;
     while (besd_probe_ptr){
         probe_ptr = besd_probe_ptr -> next;
         besd_probe_ptr -> next = NULL;
@@ -811,7 +1082,10 @@ add_probe_node_of_slot(void ** hash_table, unsigned short probe_hash_index, stru
 
             if (strcmp(probe_id_a, probe_id_b) == 0){
                 if ((probe_chromo_a == probe_chromo_b) && (probe_position_a == probe_position_b || probe_position_a == 0 || probe_position_b == 0)){
+                    besd_probe_ptr -> probe_infor_node = NULL;
+                    free(epi_node);
                     merge_besd_probe_node(besd_probe_ptr, probe_ptr);
+                    free(besd_probe_ptr);
                     return;
                 } else{
                     fprintf(stderr, "error, same probe id shoude located at same \
@@ -832,7 +1106,7 @@ add_probe_node_of_slot(void ** hash_table, unsigned short probe_hash_index, stru
 static void
 merge_besd_probe_node(struct BESD_PROBE_NODE * node_a, struct BESD_PROBE_NODE * node_b)
 {
-    struct PROBE_SNP_NODE * snp_node_a, * snp_node_b, * snp_node_b_keep;
+    struct PROBE_SNP_NODE * snp_node_a, * snp_node_a_tmp, * snp_node_b, * snp_node_b_keep;
     struct ESI_DATA_LIST_NODE * esi_node_a, * esi_node_b;
     char * snp_id_a, * snp_id_b;
     uint32_t snp_positon_a, snp_positon_b;
@@ -840,10 +1114,13 @@ merge_besd_probe_node(struct BESD_PROBE_NODE * node_a, struct BESD_PROBE_NODE * 
     unsigned char merged_marke = 0;
 
     snp_node_a = node_a -> snp_contained;
+    node_a -> snp_contained = NULL;
     snp_node_b = node_b -> snp_contained;
     snp_node_b_keep = snp_node_b;
     //here is really a time consumming step.
     while(snp_node_a){
+        snp_node_a_tmp = snp_node_a -> next;
+        snp_node_a -> next = NULL;
         esi_node_a = (struct ESI_DATA_LIST_NODE *)snp_node_a -> snp_infor_node;
         snp_id_a = esi_node_a -> snp_id;
         snp_chromo_a = esi_node_a -> chromo;
@@ -857,6 +1134,9 @@ merge_besd_probe_node(struct BESD_PROBE_NODE * node_a, struct BESD_PROBE_NODE * 
             if (strcmp(snp_id_a, snp_id_b) == 0){
                 if ((snp_chromo_a == snp_chromo_b) && (snp_positon_a == snp_positon_b || snp_positon_a == 0 || snp_positon_b == 0)){
                     merged_marke = 1;
+                    snp_node_a -> snp_infor_node = NULL;
+                    free(esi_node_a);
+                    free(snp_node_a);
                     break;
                 } else{
                     fprintf(stderr, "snp have same id shoude located in same \
@@ -873,7 +1153,7 @@ merge_besd_probe_node(struct BESD_PROBE_NODE * node_a, struct BESD_PROBE_NODE * 
         }
 
         snp_node_b = snp_node_b_keep;
-        snp_node_a = snp_node_a -> next;
+        snp_node_a = snp_node_a_tmp;
     }
 
     return;
