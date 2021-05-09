@@ -443,7 +443,7 @@ traverse_tree_h(struct tree_node * tree)
     return;
 }
 
-#define AVL_TEST
+
 #ifdef AVL_TEST
 int
 main(int argc, char * argv[])
