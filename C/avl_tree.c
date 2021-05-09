@@ -201,22 +201,27 @@ make_avl_tree(struct tree_node ** const tree_node_c, uint64_t value, unsigned lo
 
 
     if (balance_type == LL){
+        printf("A_node: %lu\n", A_node -> value);
         A_node = balance_LL(A_node);
         if (!A_node -> parent){
+            printf("here\n");
             *tree_node_c = A_node;
         }
     } else if (balance_type == LR){
+        printf("A_node: %lu\n", A_node -> value);
         A_node = balance_LR(A_node);
         if (!A_node -> parent){
             *tree_node_c = A_node;
         }
 
     } else if (balance_type == RR){
+        printf("A_node: %lu\n", A_node -> value);
         A_node = balance_RR(A_node);
         if (!A_node -> parent){
             *tree_node_c = A_node;
         }
     } else if (balance_type == RL){
+        printf("A_node: %lu\n", A_node -> value);
         A_node = balance_RL(A_node);
         if (!A_node -> parent){
             *tree_node_c = A_node;
@@ -236,6 +241,10 @@ balance_LL(struct tree_node * A_node)
     B_node = A_node -> left;
     parent = A_node -> parent;
     branch = A_node -> branch;
+    printf("B_node: %lu\n", B_node -> value);
+    printf("parent: %lu\n", parent -> value);
+    printf("branch: %c\n", branch);
+
     A_node -> left = B_node -> right;
     A_node -> parent = B_node;
     A_node -> branch = 'r';
@@ -330,6 +339,10 @@ balance_RL(struct tree_node * A_node)
     C_node = B_node -> left;
     parent = A_node -> parent;
     branch = A_node -> branch;
+    printf("B_node: %lu\n", B_node -> value);
+    printf("C_node: %lu\n", C_node -> value);
+    printf("parent: %lu\n", parent -> value);
+    printf("branch: %c\n", branch);
 
     B_node -> left = C_node -> right;
     B_node -> parent = C_node;
@@ -340,6 +353,7 @@ balance_RL(struct tree_node * A_node)
     C_node -> left = A_node;
     C_node -> right = B_node;
     C_node -> parent = parent;
+    printf("C_node parent: %lu\n", C_node -> parent -> value);
     C_node -> branch = branch;
     if (branch == 'l'){
         parent -> left = C_node;
@@ -374,6 +388,42 @@ traverse_tree(struct tree_node * tree)
     return;
 }
 
+static void
+traverse_tree_h(struct tree_node * tree)
+{
+
+    unsigned long head = 0;
+    unsigned long tail = 0;
+    unsigned int i = 0;
+    unsigned int queue_len = 65536;
+    struct tree_node * out_node = NULL;
+    struct tree_node * queue[queue_len];
+    for (i = 0; i < queue_len; i++){
+        queue[i] = NULL;
+    }
+
+    queue[tail] = tree;
+    tail++;
+    while((out_node = queue[head])){
+        printf("out_node: %lu %lu\n", out_node -> value, out_node -> index);
+        if(out_node -> left){
+            queue[tail] = out_node -> left;
+            tail++;
+            tail %= queue_len;
+        }
+        if (out_node -> right){
+            queue[tail] = out_node -> right;
+            tail++;
+            tail %= queue_len;
+        }
+        head++;
+        head %= queue_len;
+    }
+
+    return;
+}
+
+
 int
 main(int argc, char * argv[])
 {
@@ -384,14 +434,27 @@ main(int argc, char * argv[])
     struct tree_node * res_node;
     tree_pt_pt = &tree_pt;
     tree_pt = NULL;
+
     for (i = 0; i < 10; i++){
-        printf("%lu\n", i);
+        printf(">%lu\n", i);
         res_node = make_avl_tree(tree_pt_pt, i, &index);
+        traverse_tree_h(tree_pt);
         printf("res_value:%lu\n", res_node -> value);
         printf("res_index:%lu\n", res_node -> index);
     }
 
-    traverse_tree(tree_pt);
+
+
+    for (i = 19; i >= 6; i--){
+        printf(">%lu\n", i);
+        res_node = make_avl_tree(tree_pt_pt, i, &index);
+        traverse_tree_h(tree_pt);
+        printf("res_value:%lu\n", res_node -> value);
+        printf("res_index:%lu\n", res_node -> index);
+    }
+
+
+
 
 
     return 0;
