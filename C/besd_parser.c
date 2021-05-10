@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "my_functions.h"
+#include "avl_tree.h"
 
 
 #define MAX_POSITION_VALUE 0x7fffffff
@@ -104,10 +105,13 @@ static struct snp_index_btree * make_btree(struct snp_index_btree *, uint64_t, u
 static void count_treenode(struct snp_index_btree *, void *);
 static void make_btree_hash(struct snp_index_btree *, void *);
 static void look_up_btree(struct snp_index_btree *, void (*)(struct snp_index_btree *, void *), void *);
-static struct snp_index_btree * reindex_snp(void **);
+static struct tree_node * reindex_snp(void **);
 static void print_epi_res(void **, const char *);
 static void print_esi_res(struct snp_index_btree *, const char *);
 static void print_besd_res(void **, const char *);
+static void add_probe_node_of_slot(void **, unsigned short, struct BESD_PROBE_NODE *);
+static void merge_besd_probe_node(struct BESD_PROBE_NODE *, struct BESD_PROBE_NODE *);
+
 
 int
 main(int argc, char * argv[])
@@ -164,7 +168,7 @@ main(int argc, char * argv[])
     add_besd_data(hash_table, besd_dt);
 */
     void ** hash_table;
-    struct snp_index_btree * index_btree;
+    struct tree_node * index_tree;
     struct BESD_PROBE_NODE * probe_ptr;
     struct PROBE_SNP_NODE * snp_ptr;
     struct ESI_DATA_LIST_NODE * esi_node;
@@ -172,25 +176,10 @@ main(int argc, char * argv[])
     hash_table = merge_multi_besd_data(argv[1]);
     reindex_probe(hash_table);
 
+    index_tree = reindex_snp(hash_table);
+    //traverse_tree_h(index_tree);
 
-    index_btree = reindex_snp(hash_table);
-/*
-    unsigned int i = 0;
-    for (i = 0; i < HASH_TABLE_LEN; i++){
-        probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
-        while(probe_ptr){
-            snp_ptr = probe_ptr -> snp_contained;
-            while(snp_ptr){
-                esi_node = snp_ptr -> snp_infor_node;
-                printf("%s\n", esi_node -> snp_id);
-                snp_ptr = snp_ptr -> next;
-            }
-            printf(">%p\n", probe_ptr);
-            probe_ptr = probe_ptr -> next;
-        }
-    }
-*/
-    //print_epi_res(hash_table, "test.epi");
+    print_epi_res(hash_table, "test.epi");
     //print_esi_res(index_btree, "test.esi");
 
     return 0;
@@ -297,38 +286,38 @@ print_besd_res(void ** hash_table, const char * file_name)
 }
 
 
-static struct snp_index_btree *
+static struct tree_node *
 reindex_snp(void ** hash_table)
 {
-    struct snp_index_btree * index_tree = NULL;
-    struct snp_index_btree * found_tree_node = NULL;
+    struct tree_node ** tree_pt_pt = NULL;
+    struct tree_node * tree_pt = NULL;
+    struct tree_node * res_node = NULL;
     struct BESD_PROBE_NODE * probe_ptr = NULL;
     struct PROBE_SNP_NODE * snp_ptr = NULL;
     unsigned int i = 0;
+    unsigned int j = 0;
     uint64_t snp_infor_pointer_num = 0;
     unsigned long node_index = 0;
-    index_tree = (struct snp_index_btree *)malloc(sizeof(struct snp_index_btree));
-    index_tree -> index = 0;
-    index_tree -> pointer_num = 0;
-    index_tree -> left = NULL;
-    index_tree -> right = NULL;
+
+    tree_pt_pt = &tree_pt;
 
     for (i = 0; i < HASH_TABLE_LEN; i++){
         probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
         while (probe_ptr){
+            j++;
             snp_ptr = probe_ptr -> snp_contained;
             while(snp_ptr){
                 snp_infor_pointer_num = (uint64_t)snp_ptr -> snp_infor_node;
-                printf(">>%lu\n", snp_infor_pointer_num);
-                found_tree_node = make_btree(index_tree, snp_infor_pointer_num, &node_index);
+                //printf(">>%lu\n", snp_infor_pointer_num);
+                res_node = make_avl_tree(tree_pt_pt, snp_infor_pointer_num, &node_index);
+                snp_ptr -> snp_index = res_node -> index;
                 snp_ptr = snp_ptr -> next;
             }
             probe_ptr = probe_ptr -> next;
         }
-
     }
-
-    return index_tree;
+    //printf(">>%lu\n", node_index);
+    return tree_pt;
 }
 
 
@@ -430,7 +419,7 @@ merge_multi_besd_data(const char * besd_file_name_list)
     char besd_file_name[1024];
     struct BESD_DATA besd_dt;
     unsigned int i = 0;
-    void ** hash_table = (void **)malloc(8 * HASH_TABLE_LEN);
+    void ** hash_table = (void **)malloc(sizeof(void *) * HASH_TABLE_LEN);
     for (i = 0; i < HASH_TABLE_LEN; i++){
         hash_table[i] = NULL;
     }
@@ -968,8 +957,8 @@ union_besd_data(struct EPI_DATA_LIST_NODE * epi_dt, \
     }
 
     struct EPI_DATA_LIST_NODE ** epi_index_table = (struct EPI_DATA_LIST_NODE **)\
-        malloc(8 * epi_len);
-    char * epi_refed = (char *)malloc(1 * epi_len);
+        malloc(sizeof(struct EPI_DATA_LIST_NODE *) * epi_len);
+    char * epi_refed = (char *)malloc(sizeof(char) * epi_len);
     epi_node_ptr = epi_dt;
     for (i = 0; i < epi_len; i++){
         epi_refed[i] = 0;
@@ -978,8 +967,8 @@ union_besd_data(struct EPI_DATA_LIST_NODE * epi_dt, \
     }
 
     struct ESI_DATA_LIST_NODE ** esi_index_table = (struct ESI_DATA_LIST_NODE **)\
-        malloc(8 * esi_len);
-    char * esi_refed = (char *)malloc(1 * esi_len);
+        malloc(sizeof(struct ESI_DATA_LIST_NODE *) * esi_len);
+    char * esi_refed = (char *)malloc(sizeof(char) * esi_len);
     esi_node_ptr = esi_dt;
     for (i = 0; i < esi_len; i++){
         esi_refed[i] = 0;
@@ -1017,6 +1006,7 @@ union_besd_data(struct EPI_DATA_LIST_NODE * epi_dt, \
             free(esi_index_table[i]);
         }
     }
+
     free(epi_index_table);
     free(epi_refed);
     free(esi_index_table);
@@ -1024,9 +1014,6 @@ union_besd_data(struct EPI_DATA_LIST_NODE * epi_dt, \
     return;
 }
 
-
-static void add_probe_node_of_slot(void **, unsigned short, struct BESD_PROBE_NODE *);
-static void merge_besd_probe_node(struct BESD_PROBE_NODE *, struct BESD_PROBE_NODE *);
 
 static void
 add_besd_data(void ** hash_table, struct BESD_DATA * besd_dt)
@@ -1044,13 +1031,14 @@ add_besd_data(void ** hash_table, struct BESD_DATA * besd_dt)
         epi_node = (struct EPI_DATA_LIST_NODE *)(besd_probe_ptr -> probe_infor_node);
         probe_id = epi_node -> probe_id;
         probe_hash_index = hash_func(probe_id);
-        printf("hash_index:%s %hu\n", probe_id, probe_hash_index);
+        //printf("hash_index:%s %hu\n", probe_id, probe_hash_index);
         add_probe_node_of_slot(hash_table, probe_hash_index, besd_probe_ptr);
         besd_probe_ptr = probe_ptr;
         //exit(0);
     }
     return;
 }
+
 
 static void
 add_probe_node_of_slot(void ** hash_table, unsigned short probe_hash_index, struct BESD_PROBE_NODE * besd_probe_ptr)
@@ -1068,11 +1056,11 @@ add_probe_node_of_slot(void ** hash_table, unsigned short probe_hash_index, stru
 
     if (hash_table[probe_hash_index] == NULL){
         hash_table[probe_hash_index] = (void *)besd_probe_ptr;
-        printf("new\n");
+        //printf("new\n");
         return;
     } else{
         probe_ptr = (struct BESD_PROBE_NODE *)hash_table[probe_hash_index];
-        printf("slot merged\n");
+        //printf("slot merged\n");
         while(probe_ptr){
             probe_ptr_keep = probe_ptr;
             epi_node = probe_ptr -> probe_infor_node;
