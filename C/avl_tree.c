@@ -2,12 +2,12 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
-
 #define LL 1
 #define LR 2
 #define RR 3
 #define RL 4
 
+#define QUEUE_LEN 3000000
 
 struct tree_node {
     uint64_t value;
@@ -23,7 +23,7 @@ static struct tree_node * balance_RR(struct tree_node *);
 static struct tree_node * balance_LR(struct tree_node *);
 static struct tree_node * balance_RL(struct tree_node *);
 static void traverse_tree(struct tree_node *);
-static void traverse_tree_h(struct tree_node *);
+void traverse_tree_h(struct tree_node *);
 struct tree_node * make_avl_tree(struct tree_node ** const, uint64_t, unsigned long *);
 
 
@@ -105,7 +105,7 @@ make_avl_tree(struct tree_node ** const tree_node_c, uint64_t value, unsigned lo
 
 
     if (!A_node){
-        printf("value: %lu\n", value);
+        //printf("value: %lu\n", value);
         balance_type = 0;
         child_node = new_node;
         while(keep){
@@ -404,42 +404,44 @@ traverse_tree(struct tree_node * tree)
     return;
 }
 
-static void
+
+void
 traverse_tree_h(struct tree_node * tree)
 {
 
     unsigned long head = 0;
     unsigned long tail = 0;
     unsigned int i = 0;
-    unsigned int queue_len = 65536;
     struct tree_node * out_node = NULL;
-    struct tree_node * queue[queue_len];
-    for (i = 0; i < queue_len; i++){
+    struct tree_node ** queue = (struct tree_node **)malloc(sizeof(struct tree_node *) * QUEUE_LEN);
+    for (i = 0; i < QUEUE_LEN; i++){
         queue[i] = NULL;
     }
 
     queue[tail] = tree;
     tail++;
+    i = 0;
     while((out_node = queue[head])){
+        queue[head] = NULL;
+        i += 1;
         if (out_node -> parent){
-            printf("out_node: %lu %p |%lu %p\n", out_node -> value, out_node, out_node -> parent -> value, out_node -> parent);
+            printf("out_node:%u %lu %p |%lu %p\n", i, out_node -> value, out_node, out_node -> parent -> value, out_node -> parent);
         } else{
-            printf("out_node: %lu %p|N N\n", out_node -> value, out_node);
+            printf("out_node:%u %lu %p|N N\n", i, out_node -> value, out_node);
         }
         if(out_node -> left){
             queue[tail] = out_node -> left;
             tail++;
-            tail %= queue_len;
+            tail %= QUEUE_LEN;
         }
         if (out_node -> right){
             queue[tail] = out_node -> right;
             tail++;
-            tail %= queue_len;
+            tail %= QUEUE_LEN;
         }
         head++;
-        head %= queue_len;
+        head %= QUEUE_LEN;
     }
-
     return;
 }
 

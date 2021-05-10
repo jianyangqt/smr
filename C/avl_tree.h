@@ -8,6 +8,7 @@
 #define RR 3
 #define RL 4
 
+#define QUEUE_LEN 3000000
 
 struct tree_node {
     uint64_t value;
@@ -18,5 +19,6 @@ struct tree_node {
 };
 
 struct tree_node * make_avl_tree(struct tree_node ** const, uint64_t, unsigned long *);
+void traverse_tree_h(struct tree_node *);
 
 #endif
