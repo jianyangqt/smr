@@ -83,14 +83,6 @@ struct BESD_DATA{
 };
 
 
-struct snp_index_btree{
-        unsigned long index;
-        uint64_t pointer_num;
-        struct snp_index_btree * left;
-        struct snp_index_btree * right;
-};
-
-
 static struct EPI_DATA_LIST_NODE * read_epi_file(const char *);
 static struct ESI_DATA_LIST_NODE * read_esi_file(const char *);
 static struct BESD_DATA read_besd_file_dense(const char *);
@@ -100,17 +92,21 @@ static void union_besd_data(struct EPI_DATA_LIST_NODE *, struct ESI_DATA_LIST_NO
 static struct BESD_DATA structure_besd_data(const char *);
 static void add_besd_data(void **, struct BESD_DATA *);
 static void ** merge_multi_besd_data(const char *);
-static void reindex_probe(void **);
-static struct snp_index_btree * make_btree(struct snp_index_btree *, uint64_t, unsigned long *);
-static void count_treenode(struct snp_index_btree *, void *);
-static void make_btree_hash(struct snp_index_btree *, void *);
-static void look_up_btree(struct snp_index_btree *, void (*)(struct snp_index_btree *, void *), void *);
-static struct tree_node * reindex_snp(void **);
+static unsigned long reindex_probe(void **);
+static struct tree_data_info reindex_snp(void **);
 static void print_epi_res(void **, const char *);
-static void print_esi_res(struct snp_index_btree *, const char *);
-static void print_besd_res(void **, const char *);
+static void print_esi_res(struct tree_data_info, const char *);
+static void print_besd_res(void **, unsigned long, unsigned long, int, const char *);
 static void add_probe_node_of_slot(void **, unsigned short, struct BESD_PROBE_NODE *);
 static void merge_besd_probe_node(struct BESD_PROBE_NODE *, struct BESD_PROBE_NODE *);
+static void traverse_tree(struct tree_node *, struct tree_node **);
+static void print_besd_res_dense(void **, unsigned long, unsigned long, const char *);
+
+
+struct tree_data_info {
+        struct tree_node * tree;
+        unsigned long  tree_size;
+};
 
 
 int
@@ -168,19 +164,18 @@ main(int argc, char * argv[])
     add_besd_data(hash_table, besd_dt);
 */
     void ** hash_table;
-    struct tree_node * index_tree;
-    struct BESD_PROBE_NODE * probe_ptr;
-    struct PROBE_SNP_NODE * snp_ptr;
-    struct ESI_DATA_LIST_NODE * esi_node;
+    struct tree_data_info tree_info;
+    unsigned long epi_size = 0;
 
     hash_table = merge_multi_besd_data(argv[1]);
-    reindex_probe(hash_table);
+    epi_size = reindex_probe(hash_table);
 
-    index_tree = reindex_snp(hash_table);
+    tree_info = reindex_snp(hash_table);
     //traverse_tree_h(index_tree);
 
     print_epi_res(hash_table, "test.epi");
-    //print_esi_res(index_btree, "test.esi");
+    print_esi_res(tree_info, "test.esi");
+    print_besd_res(hash_table, tree_info.tree_size, epi_size, DENSE_FILE_TYPE_3, "test.besd");
 
     return 0;
 }
@@ -240,6 +235,7 @@ print_epi_res(void ** hash_table, const char * file_name)
                 strcpy(orientation, "NA");
             } else{
                 orientation[0] = epi_ptr -> orientation;
+                orientation[1] = '\0';
             }
 
             fprintf(f_out, "%s\t%s\t%s\t%s\t%s\t%s\n", chromo_str, epi_ptr -> probe_id, distance, \
@@ -253,40 +249,171 @@ print_epi_res(void ** hash_table, const char * file_name)
 
 
 static void
-print_esi_res(struct snp_index_btree * btree, const char * file_name)
+traverse_tree(struct tree_node * tree, struct tree_node ** index_array)
 {
-    unsigned long tree_node_amount = 0;
-    unsigned long i = 0;
-    struct ESI_DATA_LIST_NODE * esi_infor;
+    if (tree){
+        index_array[tree -> index] = tree;
+        traverse_tree(tree -> left, index_array);
+        traverse_tree(tree -> right, index_array);
+    }
+    return;
+}
 
+
+static void
+print_esi_res(struct tree_data_info tree_info, const char * file_name)
+{
+    unsigned long tree_size = tree_info.tree_size;
+    struct tree_node * tree = tree_info.tree;
+    struct tree_node * tree_pt = NULL;
+    struct tree_node ** index_array = NULL;
+
+    struct ESI_DATA_LIST_NODE * esi_pt;
+    unsigned long i = 0;
+
+    char chromo_str[5];
+    char distance[32];
+    char position_str[32];
+    char al1[32];
+    char al2[32];
+    char frequence_str[32];
+
+
+    index_array = (struct tree_node **)malloc(sizeof(struct tree_node *) * tree_size);
     FILE * f_out = fopen(file_name, "w");
-    if (!f_out){
-        fprintf(stderr, "error, open esi out file failed.\n");
+    if(!f_out){
+        fprintf(stderr, "open esi out file failed\n");
         exit(1);
     }
 
-    look_up_btree(btree, count_treenode, &tree_node_amount);
-
-/*
-    uint64_t * tree_node_hash_list = (uint64_t *)malloc(sizeof(uint64_t) * tree_node_amount);
-    look_up_btree(btree, make_btree_hash, tree_node_hash_list);
-    for (i = 1; i < tree_node_amount; i++){
-        esi_infor = (struct ESI_DATA_LIST_NODE *)tree_node_hash_list[i];
-        fprintf(f_out, "%s", esi_infor -> snp_id);
+    for (i = 0; i < tree_size; i++){
+        index_array[i] = NULL;
     }
-    free(tree_node_hash_list);
+    traverse_tree(tree, index_array);
+    for(i = 0; i < tree_size; i++){
+        tree_pt = index_array[i];
+        esi_pt = (struct ESI_DATA_LIST_NODE *)tree_pt -> value;
+        if (esi_pt -> chromo == 23){
+            strcpy(chromo_str, "X");
+        } else if(esi_pt -> chromo == 24){
+            strcpy(chromo_str, "Y");
+        } else{
+            sprintf(chromo_str, "%u", esi_pt -> chromo);
+        }
+        if (esi_pt -> gene_distance[0] == 0){
+            strcpy(distance, "NA");
+        } else{
+            strcpy(distance, esi_pt -> gene_distance);
+        }
+        if ((esi_pt -> position & MASK_INT) == 0){
+            strcpy(position_str, "NA");
+        } else{
+            sprintf(position_str, "%u", esi_pt -> position);
+        }
+        if ((esi_pt -> al1)[0] == 0){
+            strcpy(al1, "NA");
+        } else{
+            strcpy(al1, esi_pt -> al1);
+        }
+        if ((esi_pt -> al2)[0] == 0){
+            strcpy(al2, "NA");
+        } else{
+            strcpy(al2, esi_pt -> al2);
+        }
+        if (esi_pt -> frequence == -1){
+            strcpy(frequence_str, "NA");
+        } else{
+            sprintf(frequence_str, "%lf", esi_pt -> frequence);
+        }
 
-*/
+        fprintf(f_out, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", chromo_str, esi_pt -> snp_id, \
+            distance, position_str, al1, al2, frequence_str);
+    }
+    fclose(f_out);
+    return;
 }
 
+
 static void
-print_besd_res(void ** hash_table, const char * file_name)
+print_besd_res(void ** hash_table, unsigned long esi_size, unsigned long epi_size, \
+    int file_type, const char * file_name)
+{
+    if (file_type == DENSE_FILE_TYPE_3){
+        print_besd_res_dense(hash_table, esi_size, epi_size, file_name);
+    } else if (file_type == SPARSE_FILE_TYPE_3){
+        fprintf(stderr, "the file type not support until yet\n");
+        exit(0);
+    } else{
+        fprintf(stderr, "file type not recognized\n");
+        exit(1);
+    }
+}
+
+
+static void
+print_besd_res_dense(void ** hash_table, unsigned long esi_size, unsigned long epi_size, \
+    const char * file_name)
+{
+    unsigned int i = 0;
+    unsigned long j = 0;
+    unsigned long snp_index = 0;
+    int first_16_int[16];
+    struct BESD_PROBE_NODE * probe_ptr = NULL;
+    struct PROBE_SNP_NODE * snp_ptr = NULL;
+    float beta = 0;
+    float se = 0;
+
+    first_16_int[0] = 5;
+    first_16_int[1] = -9;
+    first_16_int[2] = esi_size;
+    first_16_int[3] = epi_size;
+
+    for (i = 4; i < 16; i++){
+        first_16_int[i] = -9;
+    }
+
+    FILE * f_out = fopen(file_name, "w");
+    if (!f_out){
+        fprintf(stderr, "can not open besd out file.\n");
+        exit(1);
+    }
+
+    fwrite(first_16_int, sizeof(int), 16, f_out);
+
+    float * probe_infor_buffer = (float *)malloc(sizeof(float) * esi_size * 2);
+    for (i = 0; i < HASH_TABLE_LEN; i++){
+        probe_ptr = (struct BESD_PROBE_NODE *)hash_table[i];
+        while (probe_ptr){
+            for (j = 0; j < esi_size * 2; j++){
+                probe_infor_buffer[j] = -9;
+            }
+            snp_ptr = probe_ptr -> snp_contained;
+            while (snp_ptr){
+                snp_index = snp_ptr -> snp_index;
+                beta = snp_ptr -> beta;
+                se = snp_ptr -> se;
+                probe_infor_buffer[snp_index] = beta;
+                probe_infor_buffer[snp_index + esi_size] = se;
+                snp_ptr = snp_ptr -> next;
+            }
+            fwrite(probe_infor_buffer, sizeof(float), esi_size * 2, f_out);
+            probe_ptr = probe_ptr -> next;
+        }
+
+    }
+    fclose(f_out);
+
+}
+
+
+static void
+print_besd_res_sparse()
 {
 
 }
 
 
-static struct tree_node *
+static struct tree_data_info
 reindex_snp(void ** hash_table)
 {
     struct tree_node ** tree_pt_pt = NULL;
@@ -317,81 +444,14 @@ reindex_snp(void ** hash_table)
         }
     }
     //printf(">>%lu\n", node_index);
-    return tree_pt;
+    struct tree_data_info data_out;
+    data_out.tree = tree_pt;
+    data_out.tree_size = node_index;
+    return data_out;
 }
 
 
-static void
-look_up_btree(struct snp_index_btree * btree, void (* func)(struct snp_index_btree *, void *), void * container)
-{
-    struct snp_index_btree * left_node = NULL, * right_node = NULL;
-    if (btree){
-        left_node = btree -> left;
-        right_node = btree -> right;
-        func(btree, container);
-        look_up_btree(left_node, func, container);
-        look_up_btree(right_node, func, container);
-    }
-    return;
-}
-
-
-static void
-count_treenode(struct snp_index_btree * btree, void * container)
-{
-    unsigned long * tmp;
-    tmp = (unsigned long *)container;
-    (*tmp)++;
-    return;
-}
-
-
-static void
-make_btree_hash(struct snp_index_btree * btree, void * container)
-{
-    uint64_t * tmp;
-    tmp = (uint64_t *)container;
-    tmp[btree -> index] = btree -> pointer_num;
-    return;
-}
-
-
-static struct snp_index_btree *
-make_btree(struct snp_index_btree * btree, uint64_t snp_pointer_num, unsigned long * node_index)
-{
-    struct snp_index_btree * keep = NULL;
-    //printf("+++++++++++++++++++++++\n");
-    while (btree){
-        keep = btree;
-        //printf("%lu\n", btree -> pointer_num);
-        if (snp_pointer_num > (btree -> pointer_num)){
-            btree = btree -> right;
-        } else if (snp_pointer_num < (btree -> pointer_num)){
-            btree = btree -> left;
-        } else{
-            printf("here\n");
-            return btree;
-        }
-    }
-
-    struct snp_index_btree * new_tree_node = (struct snp_index_btree *)malloc(sizeof(struct snp_index_btree));
-    new_tree_node -> left = NULL;
-    new_tree_node -> right = NULL;
-    new_tree_node -> index = *node_index;
-    (*node_index)++;
-    new_tree_node -> pointer_num = snp_pointer_num;
-    if (keep){
-        if (snp_pointer_num > (keep -> pointer_num)){
-            keep -> right = new_tree_node;
-        } else{
-            keep -> left = new_tree_node;
-        }
-    }
-    return new_tree_node;
-}
-
-
-static void
+static unsigned long
 reindex_probe(void ** hash_table)
 {
     struct BESD_PROBE_NODE * probe_node_ptr = NULL;
@@ -408,7 +468,7 @@ reindex_probe(void ** hash_table)
                 probe_node_ptr = probe_node_ptr -> next;
         }
     }
-    return;
+    return j;
 }
 
 
