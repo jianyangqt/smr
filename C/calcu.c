@@ -15,7 +15,7 @@ struct Anno_data{
 
 //data structure used to contain eqtl and gwas data.
 struct eqtl_gwas_data{
-    //to eqtl feature.
+    //eqtl value.
     char Expo_ID[256];
     unsigned char Outco_Chr;
     char Outco_Gene[256];
@@ -23,11 +23,12 @@ struct eqtl_gwas_data{
     float p_SMR_multi;
     float p_HEIDI;
     char gene_name[256];
-    // to gwas freature.
+    //gwas value.
     char probeID[256];
     float b_SMR;
     float p_SMR;
     float p_SMR_multi_gwas;
+    //new generated value
     float p_ACAT;
     float b_SMR_weight;
     struct eqtl_gwas_data * next;
@@ -38,6 +39,8 @@ struct eqtl_gwas_data{
 //eqtl need search anno to get gene name but pqtl needed.
 struct gwas_data{
     char probeID[256];
+    unsigned char ProbeChr;
+    unsigned int Probe_bp;
     char Gene[256];
     float b_SMR;
     float p_SMR;
@@ -103,7 +106,9 @@ static void value_link_2(struct linker *, float *, float *, struct value_list **
 static float acat_func(struct value_list *);
 static float acat_weight_func(struct value_list *, struct value_list *);
 
-
+static void trav_gene_data(struct linker *, struct value_list **, struct value_list **, \
+    struct value_list **, struct value_list **, struct value_list **, struct value_list **, \
+    unsigned char *, unsigned int *, float *, float *, int);
 
 
 static void
@@ -116,6 +121,38 @@ trav_tree(struct Anno_data * tree)
     }
     return;
 }
+
+
+static void
+print_dt1(struct eqtl_gwas_data * dt, const char * file)
+{
+    FILE * f_out = fopen(file, "w");
+    while(dt){
+        fprintf(f_out, "%s  %u  %s  %u  %e  %e  %s  %e  %e  %e  %s\n", dt -> Expo_ID, dt -> Outco_Chr, dt -> Outco_Gene, \
+            dt -> Outco_bp, dt -> p_SMR_multi, dt -> p_HEIDI, dt -> probeID, \
+            dt -> b_SMR, dt -> p_SMR_multi_gwas, dt -> p_ACAT, dt -> gene_name);
+        dt = dt -> next;
+    }
+    fclose(f_out);
+    return;
+}
+
+
+static void
+print_dt2(struct gwas_data * dt, const char * file)
+{
+    FILE * f_out = fopen(file, "w");
+    while(dt){
+        fprintf(f_out, "%s  %s  %e  %e  %e  %e  %s\n", dt -> probeID, dt -> Gene, dt -> b_SMR, dt -> p_SMR, \
+            dt -> p_SMR_multi, dt -> p_ACAT, dt -> gene_name);
+
+        dt = dt -> next;
+    }
+    fclose(f_out);
+    return;
+}
+
+
 
 int
 main(int argc, char * argv[])
@@ -250,13 +287,10 @@ main(int argc, char * argv[])
     union_eqtl_and_gwas(k4me1_eqtl, &k4me1_gwas);
 
 
-
     struct gwas_data * eqtl_gwas = NULL;
     eqtl_gwas = read_gwas_file(eqtl_gwas_f);
     add_gene_name_to_gwas(eqtl_gwas, anno_dt);
     calculate_p_ACAT(eqtl_gwas);
-
-
 
 
     struct gwas_data * pqtl_gwas = NULL, * pqtl_gwas_tmp;
@@ -269,7 +303,6 @@ main(int argc, char * argv[])
     }
 
 
-
     caqtl_eqtl = wash_eqtl(caqtl_eqtl);
     mqtl_eqtl = wash_eqtl(mqtl_eqtl);
     h27ac_eqtl = wash_eqtl(h27ac_eqtl);
@@ -278,13 +311,26 @@ main(int argc, char * argv[])
     pqtl_gwas = wash_gwas(pqtl_gwas);
 
 /*
+    print_dt1(caqtl_eqtl, "caqtl");
+    print_dt1(mqtl_eqtl, "mqtl");
+    print_dt1(h27ac_eqtl, "h27ac");
+    print_dt1(k4me1_eqtl, "k4me1");
+    print_dt2(eqtl_gwas, "eqtl");
+    print_dt2(pqtl_gwas, "pqtl");
+
+
+
+    exit(0);
+*/
+/*
     struct eqtl_gwas_data * ttp;
     ttp = k4me1_eqtl;
     while(ttp){
-        printf("%s %s %s %e %e\n", ttp -> Expo_ID, ttp -> gene_name, ttp -> probeID, \
-            ttp -> p_SMR_multi, ttp -> p_ACAT);
+        printf("%s %u %s %u %e %e %s %e %e\n", ttp -> Expo_ID, ttp -> Outco_Chr, ttp -> Outco_Gene, \
+            ttp -> Outco_bp, ttp -> p_SMR_multi, ttp -> p_HEIDI, ttp -> probeID, ttp -> b_SMR, ttp -> p_ACAT);
         ttp = ttp -> next;
     }
+
     exit(0);
 */
 
@@ -311,8 +357,8 @@ main(int argc, char * argv[])
         printf("%s\n", gene_mapper_chain -> gene_name);
         gene_mapper_chain = gene_mapper_chain -> next;
     }
+    exit(0);
 */
-
 
 
     collect_gene_blongs(gene_mapper_chain, caqtl_eqtl, 1);
@@ -332,7 +378,7 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> caqtl;
         while (linker_tmp){
             eqtl_tmp = (struct eqtl_gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  eqtl_tmp -> gene_name);
+            printf("%s %s\n",  eqtl_tmp -> Expo_ID, eqtl_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
@@ -340,7 +386,7 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> mqtl;
         while (linker_tmp){
             eqtl_tmp = (struct eqtl_gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  eqtl_tmp -> gene_name);
+            printf("%s %s\n",  eqtl_tmp -> Expo_ID, eqtl_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
@@ -348,7 +394,7 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> h27ac;
         while (linker_tmp){
             eqtl_tmp = (struct eqtl_gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  eqtl_tmp -> gene_name);
+            printf("%s %s\n",  eqtl_tmp -> Expo_ID, eqtl_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
@@ -356,7 +402,7 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> k4me1;
         while (linker_tmp){
             eqtl_tmp = (struct eqtl_gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  eqtl_tmp -> gene_name);
+            printf("%s %s\n",  eqtl_tmp -> Expo_ID, eqtl_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
@@ -364,7 +410,7 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> eqtl;
         while (linker_tmp){
             gwas_tmp = (struct gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  gwas_tmp -> gene_name);
+            printf("%s %s\n", gwas_tmp -> probeID, gwas_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
@@ -372,14 +418,14 @@ main(int argc, char * argv[])
         linker_tmp = gene_mapper_chain -> pqtl;
         while (linker_tmp){
             gwas_tmp = (struct gwas_data *)linker_tmp -> ptr;
-            printf("%s\n",  gwas_tmp -> gene_name);
+            printf("%s %s\n", gwas_tmp -> probeID, gwas_tmp -> gene_name);
             linker_tmp = linker_tmp -> next;
         }
 
         gene_mapper_chain = gene_mapper_chain -> next;
     }
+    exit(0);
 */
-
 
     print_res(gene_mapper_chain, "res.csv");
 }
@@ -522,7 +568,7 @@ read_eqtl_file(const char * file_name)
         new_node -> p_ACAT = -1;
         new_node -> b_SMR_weight = -1;
         strcpy(new_node -> Expo_ID, Expo_ID);
-        if (!strcmp(Outco_Chr, "NA")){
+        if (strcmp(Outco_Chr, "NA")){
             if (strlen(Outco_Chr) == 1){
                 if (Outco_Chr[0] == 'X' || Outco_Chr[0] == 'x')
                     new_node -> Outco_Chr = 23;
@@ -621,6 +667,24 @@ read_gwas_file(const char * file_name)
         strcpy(new_node -> gene_name, "NA");
         strcpy(new_node -> probeID, probeID);
         strcpy(new_node -> Gene, Gene);
+
+        if (!strcmp(ProbeChr, "NA")){
+            new_node -> ProbeChr = 0;
+        } else{
+            if (!strcmp(ProbeChr, "X") || !strcmp(ProbeChr, "x")){
+                new_node -> ProbeChr = 23;
+            } else if (!strcmp(ProbeChr, "Y") || !strcmp(ProbeChr, "y")){
+                new_node -> ProbeChr = 24;
+            } else{
+                new_node -> ProbeChr = atoi(ProbeChr);
+            }
+        }
+        if (!strcmp(Probe_bp, "NA")){
+            new_node -> Probe_bp = 0;
+        } else{
+            new_node -> Probe_bp = atoi(Probe_bp);
+        }
+
         if (!strcmp(b_SMR, "NA")){
             new_node -> b_SMR = -1;
         } else{
@@ -662,7 +726,7 @@ filter_eqtl_data(struct eqtl_gwas_data * eqtl_dt, float p_HEIDI_thr)
         counter++;
         dt_out = dt_out -> next;
     }
-    float p_SMR_multi_thr = 0.5 / counter;
+    float p_SMR_multi_thr = 0.05 / counter;
     dt_out = ptr = eqtl_dt;
     eqtl_dt = eqtl_dt -> next;
     dt_out -> next = NULL;
@@ -773,12 +837,9 @@ union_eqtl_and_gwas(struct eqtl_gwas_data * eqtl_dt, struct gwas_data ** gwas_dt
     *gwas_dt = NULL;
 
     while(gwas_dt_pt){
-        //printf("%s\n", gwas_dt_pt -> probeID);
         eqtl_pt = eqtl_dt;
         while(eqtl_pt){
-            //printf("%s\n", eqtl_pt -> Expo_ID);
             if (!strcmp(eqtl_pt -> Expo_ID, gwas_dt_pt -> probeID)){
-                //printf(">heer\n");
                 strcpy(eqtl_pt -> probeID, gwas_dt_pt -> probeID);
                 eqtl_pt -> b_SMR = gwas_dt_pt -> b_SMR;
                 eqtl_pt -> p_SMR = gwas_dt_pt -> p_SMR;
@@ -1176,157 +1237,366 @@ wash_gwas(struct gwas_data * dt_in)
 }
 
 
+static void trans_chr(unsigned char, char *);
+static void decide_min_value(float, float, char *, char *);
+static struct value_list * make_weight_list(struct value_list *);
+
 static void
 print_res(struct gene_mapper * gene_chain, const char * file_name)
 {
-    struct gene_mapper * keeper = NULL;
-    keeper = gene_chain;
     FILE * f_out = fopen(file_name, "w");
     if (!f_out){
         fprintf(stderr, "error, %s open failed.\n", file_name);
         exit(1);
     }
-    fprintf(f_out, "gene\tChr\tPos\tp_ACAT_gene\tp_ACAT_multi\tp_ACAT_gene_weight \
-        \tp_ACAT_multi_weight\tP_caQTL_SMR_top\tP_mQTL_SMR_top\tP_eQTL_SMR_top\t \
-        P_pQTL_SMR_top\tP_caQTL_SMR_multiP_mQTL_SMR_multi\tP_eQTL_SMR_multi\tP_pQTL_SMR_multi\n");
+    fprintf(f_out, "gene\tChr\tPos\tp_ACAT_gene\tp_ACAT_multi\tp_ACAT_gene_weight"
+        "\tp_ACAT_multi_weight\tP_caQTL_SMR_top\tP_mQTL_SMR_top\tP_eQTL_SMR_top\t"
+        "P_pQTL_SMR_top\tP_caQTL_SMR_multiP_mQTL_SMR_multi\tP_eQTL_SMR_multi\tP_pQTL_SMR_multi\n");
 
+    struct value_list * b_SMR = NULL, *p1 = NULL;
+    struct value_list * p_ACAT = NULL, *p2 = NULL;
+    struct value_list * p_SMR_multi = NULL, *p3 = NULL;
+    struct linker * linker_p;
 
-    float sum_bxy2 = 0;
-    int gene_chr = 0;
-    unsigned int gene_bp = 0;
-    float caqtl_smr_top = 2;
-    float caqtl_smr_multi = 2;
-    float mqtl_smr_top = 2;
-    float mqtl_smr_multi = 2;
-    float h27ac_smr_top = 2;
-    float h27ac_smr_multi = 2;
-    float k4me1_smr_top = 2;
-    float k4me1_smr_multi = 2;
-    float eqtl_smr_top = 2;
-    float eqtl_smr_multi = 2;
-    float pqtl_smr_top = 2;
-    float pqtl_smr_multi = 2;
+    unsigned char caqlt_chr = 0;
+    unsigned int caqtl_bp = 0;
+    float caqtl_min_p_SMR = 10;
+    float caqtl_min_p_SMR_multi = 10;
 
-    struct linker * linker_ptr = NULL;
-    //add sum_bxy2 up.
+    unsigned char mqtl_chr = 0;
+    unsigned int mqtl_bp = 0;
+    float mqtl_min_p_SMR = 10;
+    float mqtl_min_p_SMR_multi = 10;
+
+    unsigned char h27ac_chr = 0;
+    unsigned int h27ac_bp = 0;
+    float h27ac_min_p_SMR = 10;
+    float h27ac_min_p_SMR_multi = 10;
+
+    unsigned char k4me1_chr = 0;
+    unsigned int k4me1_bp = 0;
+    float k4me1_min_p_SMR = 10;
+    float k4me1_min_p_SMR_multi = 10;
+
+    unsigned char eqtl_chr = 0;
+    unsigned int eqtl_bp = 0;
+    float eqtl_min_p_SMR = 10;
+    float eqtl_min_p_SMR_multi = 10;
+
+    unsigned char pqtl_chr = 0;
+    unsigned int pqtl_bp = 0;
+    float pqtl_min_p_SMR = 10;
+    float pqtl_min_p_SMR_multi = 10;
+
+    float p_ACAT_gene = 0;
+    float p_ACAT_multi = 0;
+    float p_ACAT_gene_weight = 0;
+    float p_ACAT_multi_weight = 0;
+
     while(gene_chain){
-        sum_bxy2 = 0;
-        linker_ptr = gene_chain -> caqtl;
-        sum_bxy2 += trav_linker(linker_ptr, 1);
-        linker_ptr = gene_chain -> mqtl;
-        sum_bxy2 += trav_linker(linker_ptr, 1);
-        linker_ptr = gene_chain -> h27ac;
-        sum_bxy2 += trav_linker(linker_ptr, 1);
-        linker_ptr = gene_chain -> k4me1;
-        sum_bxy2 += trav_linker(linker_ptr, 1);
-        linker_ptr = gene_chain -> eqtl;
-        sum_bxy2 += trav_linker(linker_ptr, 2);
-        linker_ptr = gene_chain -> pqtl;
-        sum_bxy2 += trav_linker(linker_ptr, 2);
-        gene_chain = gene_chain -> next;
+        b_SMR = p1 = NULL;
+        p_ACAT = p2 = NULL;
+        p_SMR_multi = p3 = NULL;
+        caqlt_chr = 0;
+        caqtl_bp = 0;
+        caqtl_min_p_SMR = 10;
+        caqtl_min_p_SMR_multi = 10;
 
-    }
+        mqtl_chr = 0;
+        mqtl_bp = 0;
+        mqtl_min_p_SMR = 10;
+        mqtl_min_p_SMR_multi = 10;
 
-    //calculate weight value.
-    gene_chain = keeper;
-    while(gene_chain){
-        sum_bxy2 = 0;
-        linker_ptr = gene_chain -> caqtl;
-        trav_linker_2(linker_ptr, 1, sum_bxy2);
-        linker_ptr = gene_chain -> mqtl;
-        trav_linker_2(linker_ptr, 1, sum_bxy2);
-        linker_ptr = gene_chain -> h27ac;
-        trav_linker_2(linker_ptr, 1, sum_bxy2);
-        linker_ptr = gene_chain -> k4me1;
-        trav_linker_2(linker_ptr, 1, sum_bxy2);
-        linker_ptr = gene_chain -> eqtl;
-        trav_linker_2(linker_ptr, 2, sum_bxy2);
-        linker_ptr = gene_chain -> pqtl;
-        trav_linker_2(linker_ptr, 2, sum_bxy2);
+        h27ac_chr = 0;
+        h27ac_bp = 0;
+        h27ac_min_p_SMR = 10;
+        h27ac_min_p_SMR_multi = 10;
 
-        gene_chain = gene_chain -> next;
+        k4me1_chr = 0;
+        k4me1_bp = 0;
+        k4me1_min_p_SMR = 10;
+        k4me1_min_p_SMR_multi = 10;
 
-    }
+        eqtl_chr = 0;
+        eqtl_bp = 0;
+        eqtl_min_p_SMR = 10;
+        eqtl_min_p_SMR_multi = 10;
 
-    gene_chain = keeper;
-    struct value_list weight_list;
-    weight_list.value = -1;
-    weight_list.next = NULL;
-    struct value_list p_ACAT_list;
-    p_ACAT_list.value = -1;
-    p_ACAT_list.next = NULL;
-    struct value_list multi_p_list;
-    multi_p_list.value = -1;
-    multi_p_list.next = NULL;
-    struct value_list * ptr_1 = NULL, * ptr_2 = NULL, * ptr_3 = NULL;
-    ptr_1 = &weight_list;
-    ptr_2 = &p_ACAT_list;
-    ptr_3 = &multi_p_list;
-    while(gene_chain){
-        gene_chr = 0;
-        gene_bp = 0;
+        pqtl_chr = 0;
+        pqtl_bp = 0;
+        pqtl_min_p_SMR = 10;
+        pqtl_min_p_SMR_multi = 10;
 
-        caqtl_smr_top = 2;
-        caqtl_smr_multi = 2;
-        linker_ptr = gene_chain -> caqtl;
-        value_link(linker_ptr, &gene_chr, &gene_bp, &caqtl_smr_top, &caqtl_smr_multi, \
-            &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> caqtl;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &caqlt_chr, \
+            &caqtl_bp, &caqtl_min_p_SMR, &caqtl_min_p_SMR_multi, 1);
 
-        mqtl_smr_top = 2;
-        mqtl_smr_multi = 2;
-        linker_ptr = gene_chain -> mqtl;
-        value_link(linker_ptr, &gene_chr, &gene_bp, &mqtl_smr_top, &mqtl_smr_multi, \
-            &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> mqtl;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &mqtl_chr, \
+            &mqtl_bp, &mqtl_min_p_SMR, &mqtl_min_p_SMR_multi, 1);
 
-        h27ac_smr_top = 2;
-        h27ac_smr_multi = 2;
-        linker_ptr = gene_chain -> h27ac;
-        value_link(linker_ptr, &gene_chr, &gene_bp, &h27ac_smr_top, &h27ac_smr_multi, \
-            &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> h27ac;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &h27ac_chr, \
+            &h27ac_bp, &h27ac_min_p_SMR, &h27ac_min_p_SMR_multi, 1);
 
-        k4me1_smr_top = 2;
-        k4me1_smr_multi = 2;
-        linker_ptr = gene_chain -> k4me1;
-        value_link(linker_ptr, &gene_chr, &gene_bp, &k4me1_smr_top, &k4me1_smr_multi, \
-            &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> k4me1;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &k4me1_chr, \
+            &k4me1_bp, &k4me1_min_p_SMR, &k4me1_min_p_SMR_multi, 1);
 
-        eqtl_smr_top = 2;
-        eqtl_smr_multi = 2;
-        linker_ptr = gene_chain -> eqtl;
-        value_link_2(linker_ptr, &eqtl_smr_top, &eqtl_smr_multi, &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> eqtl;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &eqtl_chr, \
+            &eqtl_bp, &eqtl_min_p_SMR, &eqtl_min_p_SMR_multi, 2);
 
-        pqtl_smr_top = 2;
-        pqtl_smr_multi = 2;
-        linker_ptr = gene_chain -> pqtl;
-        value_link_2(linker_ptr, &pqtl_smr_top, &pqtl_smr_multi, &ptr_1, &ptr_2, &ptr_3);
+        linker_p = gene_chain -> pqtl;
+        trav_gene_data(linker_p, &b_SMR, &p1, &p_ACAT, &p2, &p_SMR_multi, &p3, &pqtl_chr, \
+            &pqtl_bp, &pqtl_min_p_SMR, &pqtl_min_p_SMR_multi, 2);
 
 
-        float p_ACAT_p = acat_func(p_ACAT_list.next);
-        float p_multi_p = acat_func(multi_p_list.next);
-        float p_ACAT_p_w = acat_weight_func(weight_list.next, p_ACAT_list.next);
-        float p_multi_p_w = acat_weight_func(weight_list.next, multi_p_list.next);
-        char chr_str[5];
-        if (gene_chr == 23){
-            strcpy(chr_str, "X");
-        } else if(gene_chr == 24){
-            strcpy(chr_str, "Y");
+        char chr_choose[5];
+        //here memoary leak.
+        if (caqlt_chr != 0){
+            trans_chr(caqlt_chr, chr_choose);
+        } else if (mqtl_chr != 0){
+            trans_chr(mqtl_chr, chr_choose);
+        } else if (h27ac_chr != 0){
+            trans_chr(h27ac_chr, chr_choose);
+        } else if (k4me1_chr != 0){
+            trans_chr(k4me1_chr, chr_choose);
+        } else if(eqtl_chr != 0){
+            trans_chr(eqtl_chr, chr_choose);
+        } else if(pqtl_chr != 0){
+            trans_chr(pqtl_chr, chr_choose);
         } else{
-            sprintf(chr_str, "%u", gene_chr);
+            strcpy(chr_choose, "NA");
         }
-        fprintf(f_out, "%s\t%s\t%u\t%f\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", \
-            gene_chain -> gene_name, chr_str, gene_bp, p_ACAT_p, p_multi_p, \
-            p_ACAT_p_w, p_multi_p_w, caqtl_smr_top, mqtl_smr_top, eqtl_smr_top, pqtl_smr_top, \
-            caqtl_smr_multi, mqtl_smr_multi, eqtl_smr_multi, pqtl_smr_multi);
+
+        unsigned int bp_choose = 0;
+        if (caqtl_bp != 0){
+            bp_choose = caqtl_bp;
+        } else if (mqtl_bp != 0){
+            bp_choose = mqtl_bp;
+        } else if (h27ac_bp != 0){
+            bp_choose = h27ac_bp;
+        } else if (k4me1_bp != 0){
+            bp_choose = k4me1_bp;
+        } else if(eqtl_bp != 0){
+            bp_choose = eqtl_bp;
+        } else if(pqtl_bp != 0){
+            bp_choose = pqtl_bp;
+        } else {
+            bp_choose = 0;
+        }
+
+        char bp_choose_str[32];
+        if (bp_choose != 0){
+            sprintf(bp_choose_str, "%u", bp_choose);
+        } else{
+            strcpy(bp_choose_str, "NA");
+        }
+
+        char caqtl_min_p_SMR_str[32];
+        char caqtl_min_p_SMR_multi_str[32];
+        decide_min_value(caqtl_min_p_SMR, caqtl_min_p_SMR_multi, caqtl_min_p_SMR_str, caqtl_min_p_SMR_multi_str);
+
+        char mqtl_min_p_SMR_str[32];
+        char mqtl_min_p_SMR_multi_str[32];
+        decide_min_value(mqtl_min_p_SMR, mqtl_min_p_SMR_multi, mqtl_min_p_SMR_str, mqtl_min_p_SMR_multi_str);
+
+        char h27ac_min_p_SMR_str[32];
+        char h27ac_min_p_SMR_multi_str[32];
+        decide_min_value(h27ac_min_p_SMR, h27ac_min_p_SMR_multi, h27ac_min_p_SMR_str, h27ac_min_p_SMR_multi_str);
+
+        char k4me1_min_p_SMR_str[32];
+        char k4me1_min_p_SMR_multi_str[32];
+        decide_min_value(k4me1_min_p_SMR, k4me1_min_p_SMR_multi, k4me1_min_p_SMR_str, k4me1_min_p_SMR_multi_str);
+
+        char eqtl_min_p_SMR_str[32];
+        char eqtl_min_p_SMR_multi_str[32];
+        decide_min_value(eqtl_min_p_SMR, eqtl_min_p_SMR_multi, eqtl_min_p_SMR_str, eqtl_min_p_SMR_multi_str);
+
+        char pqtl_min_p_SMR_str[32];
+        char pqtl_min_p_SMR_multi_str[32];
+        decide_min_value(pqtl_min_p_SMR, pqtl_min_p_SMR_multi, pqtl_min_p_SMR_str, pqtl_min_p_SMR_multi_str);
+
+        struct value_list * weight_list = NULL;
+        weight_list = make_weight_list(b_SMR);
+
+        p_ACAT_gene = acat_func(p_ACAT);
+        p_ACAT_multi = acat_func(p_SMR_multi);
+        p_ACAT_gene_weight = acat_weight_func(weight_list, p_ACAT);
+        p_ACAT_multi_weight = acat_weight_func(weight_list, p_SMR_multi);
+
+        fprintf(f_out, "%s\t%s\t%s\t%e\t%e\t%e\t%e\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", \
+            gene_chain -> gene_name, chr_choose, bp_choose_str, \
+            p_ACAT_gene, p_ACAT_multi, p_ACAT_gene_weight, p_ACAT_multi_weight, \
+            caqtl_min_p_SMR_str, mqtl_min_p_SMR_str, eqtl_min_p_SMR_str, pqtl_min_p_SMR_str, \
+            caqtl_min_p_SMR_multi_str, mqtl_min_p_SMR_multi_str, eqtl_min_p_SMR_multi_str, pqtl_min_p_SMR_multi_str);
 
         gene_chain = gene_chain -> next;
-
     }
 
 
-
-    printf("%f\n", sum_bxy2);
 
     fclose(f_out);
+    return;
+}
+
+static struct value_list *
+make_weight_list(struct value_list * dt)
+{
+    float b_SMR_sum = 0;
+    struct value_list * dt_out = NULL;
+    dt_out = dt;
+    while(dt){
+        b_SMR_sum += pow(dt -> value, 2);
+        dt = dt -> next;
+    }
+    dt = dt_out;
+    while(dt){
+        dt -> value = pow(dt -> value, 2) / b_SMR_sum;
+        dt = dt -> next;
+    }
+    return dt_out;
+}
+
+
+static void
+decide_min_value(float min_smr, float min_smr_multi, char * smr_str, char * smr_multi_str)
+{
+    if (min_smr != 10){
+        sprintf(smr_str, "%e", min_smr);
+    } else{
+        strcpy(smr_str, "NA");
+    }
+    if (min_smr_multi != 10){
+        sprintf(smr_multi_str, "%e", min_smr_multi);
+    } else{
+        strcpy(smr_multi_str, "NA");
+    }
+    return;
+}
+
+
+static void
+trans_chr(unsigned char chr, char * str){
+    if (chr == 23){
+        strcpy(str, "X");
+    } else if (chr == 24){
+        strcpy(str, "Y");
+    } else{
+        sprintf(str, "%u", chr);
+    }
+    return;
+}
+
+
+static void
+trav_gene_data(struct linker * lik, struct value_list ** b_SMR_l, struct value_list ** b_SMR_h, \
+    struct value_list ** p_ACAT_l, struct value_list ** p_ACAT_h, \
+    struct value_list ** p_SMR_multi_l, struct value_list ** p_SMR_multi_h, \
+    unsigned char * chr, unsigned int * bp, float * min_p_smr, float * min_p_smr_multi, int type)
+{
+    struct value_list *n1, *n2, *n3;
+    struct eqtl_gwas_data * qtl_d;
+    struct gwas_data * gwas_d;
+    if (type == 1){
+        while(lik){
+            qtl_d = (struct eqtl_gwas_data *)lik -> ptr;
+            n1 = (struct value_list *)malloc(sizeof(struct value_list));
+            n1 -> next = NULL;
+            n2 = (struct value_list *)malloc(sizeof(struct value_list));
+            n2 -> next = NULL;
+            n3 = (struct value_list *)malloc(sizeof(struct value_list));
+            n3 -> next = NULL;
+            n1 -> value = qtl_d -> b_SMR;
+            n2 -> value = qtl_d -> p_ACAT;
+            n3 -> value = qtl_d -> p_SMR_multi_gwas;
+            if (*b_SMR_l){
+                (*b_SMR_h) -> next = n1;
+                (*b_SMR_h) = n1;
+            } else{
+                (*b_SMR_l) = (*b_SMR_h) = n1;
+            }
+            if (*p_ACAT_l){
+                (*p_ACAT_h) -> next = n2;
+                (*p_ACAT_h) = n2;
+
+            } else{
+                (*p_ACAT_l) = (*p_ACAT_h) = n2;
+            }
+
+            if (*p_SMR_multi_l){
+                (*p_SMR_multi_h) -> next = n3;
+                (*p_SMR_multi_h) = n3;
+            } else{
+                (*p_SMR_multi_l) = (*p_SMR_multi_h) = n3;
+            }
+            if (qtl_d -> Outco_Chr != 0){
+                *chr = qtl_d -> Outco_Chr;
+            }
+            if (qtl_d -> Outco_bp != 0){
+                *bp = qtl_d -> Outco_bp;
+            }
+            if (qtl_d -> p_SMR < *min_p_smr){
+                *min_p_smr = qtl_d -> p_SMR;
+            }
+            if (qtl_d -> p_SMR_multi_gwas < *min_p_smr_multi){
+                *min_p_smr_multi = qtl_d -> p_SMR_multi_gwas;
+            }
+            lik = lik -> next;
+        }
+
+    } else if (type == 2){
+
+        while(lik){
+            gwas_d = (struct gwas_data *)lik -> ptr;
+            n1 = (struct value_list *)malloc(sizeof(struct value_list));
+            n1 -> next = NULL;
+            n2 = (struct value_list *)malloc(sizeof(struct value_list));
+            n2 -> next = NULL;
+            n3 = (struct value_list *)malloc(sizeof(struct value_list));
+            n3 -> next = NULL;
+            n1 -> value = gwas_d -> b_SMR;
+            n2 -> value = gwas_d -> p_ACAT;
+            n3 -> value = gwas_d -> p_SMR_multi;
+            if (*b_SMR_l){
+                (*b_SMR_h) -> next = n1;
+                (*b_SMR_h) = n1;
+            } else{
+                (*b_SMR_l) = (*b_SMR_h) = n1;
+            }
+            if (*p_ACAT_l){
+                (*p_ACAT_h) -> next = n2;
+                (*p_ACAT_h) = n2;
+
+            } else{
+                (*p_ACAT_l) = (*p_ACAT_h) = n2;
+            }
+
+            if (*p_SMR_multi_l){
+                (*p_SMR_multi_h) -> next = n3;
+                (*p_SMR_multi_h) = n3;
+            } else{
+                (*p_SMR_multi_l) = (*p_SMR_multi_h) = n3;
+            }
+            if (gwas_d -> ProbeChr != 0){
+                *chr = gwas_d -> ProbeChr;
+            }
+            if (gwas_d -> Probe_bp != 0){
+                *bp = gwas_d -> Probe_bp;
+            }
+            if (gwas_d -> p_SMR < *min_p_smr){
+                *min_p_smr = gwas_d -> p_SMR;
+            }
+            if (gwas_d -> p_SMR_multi < *min_p_smr_multi){
+                *min_p_smr_multi = gwas_d -> p_SMR_multi;
+            }
+
+            lik = lik -> next;
+        }
+
+    }
+
     return;
 }
 
