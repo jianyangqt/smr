@@ -1,8 +1,8 @@
 #Makfile for linux
 CC = gcc
-CFLAGS = -g -O2
+CFLAGS = -O3
 CXX = g++
-CXXFLAGS = -g -O2
+CXXFLAGS = -O3
 
 CPPFLAGS = 
 LDFLAGS = 
