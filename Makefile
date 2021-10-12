@@ -1,8 +1,8 @@
 #Makfile for linux
 CC = gcc
-CFLAGS = -O3
+CFLAGS = -O3 -Wall
 CXX = g++
-CXXFLAGS = -O3
+CXXFLAGS = -O3 -Wall
 
 CPPFLAGS = 
 LDFLAGS = 
@@ -71,6 +71,4 @@ clean:
 
 install:
 	@echo The binary is under building directory named smr.
-
-
 
