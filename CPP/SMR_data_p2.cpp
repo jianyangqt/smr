@@ -3046,21 +3046,12 @@ namespace SMRDATA
     }
 
 
-/*
-    The function need six arguments:
-    qfileName; outFileName; save_dense_flag; cis interval length, in kilo
-    basepair; trans interval lengtn, in kilo basepair unit; transThres?;
-    resThres?;addn?.
- */
+
     void
     make_besd_byQfile(char* qfileName, char* outFileName,bool save_dense_flag, \
         int cis_itvl, int trans_itvl, float transThres, float restThres,int addn)
     {
-/*      //print arguments inputed.
-        cout << "qfileName:" << qfileName << " outFileName:"<< outFileName << " save_dense_flag:" << save_dense_flag \
-            << " cis_itvl:" << cis_itvl << " trans_itvl:" << trans_itvl << " transThres:" <<transThres \
-            << " restThres:" << restThres << " addn:" <<addn << endl;
-*/
+
         FILE * qfile = fopen(qfileName, "r");
         if (!qfile) {
             printf("ERROR: Can't open file %s.\n ", qfileName);
@@ -3068,44 +3059,9 @@ namespace SMRDATA
         }
         printf("Reading eQTL summary data from %s ...\n", qfileName);
 
-/* probeinfolst structure, which is included in SMR_data.h:
-    typedef struct{
-        char* probeId;
-        char* genename;
-        char* esdpath;
-        char* bfilepath;
-        int probechr;
-        int gd;
-        int bp;
-        char orien;
-        int start;
-        int end;
-    } probeinfolst;
-*/
+
         vector<probeinfolst> prbiflst;
-/*  snpinfolst structure, which is included in SMR_data.h:
-    typedef struct{
-        char* snprs;
-        char* a1;
-        char* a2;
-        int snpchr;
-        int gd;
-        int bp;
-        float beta;
-        float se;
-        float freq;
-        float estn;
-    } snpinfolst;
-*/
 
-/*
-    snpiflst: vector of snpinfolst, which used to store snp infor.
-    _ttl_rs: string vector vector, store snp name/rs of a prob per vector.
-    _ttl_beta: float vector vector, store beta value of a prob per vector.
-    _ttl_se: float vector vector, store se value of a prob per vector.
-    varible below is as same meaning as above.
-
- */
         vector<snpinfolst> snpiflst;
         vector< vector<string> > _ttl_rs;
         vector< vector<float> > _ttl_beta;
@@ -3149,7 +3105,7 @@ namespace SMRDATA
         map<string, int> epi_map; // epi map, using to store prob uniquely, and index it first show up.
         map<string, int> rs_prb_map; // snp_prob conctenated string map, using to check snp_prob uniqueness.
         map<string, int>::iterator iter;
-        
+
         long rsprbmapsize(0);
         while(fgets(buf, MAX_LINE_SIZE, qfile))
         {
@@ -3255,7 +3211,7 @@ namespace SMRDATA
                 exit(EXIT_FAILURE);
             }
 
-             
+
             iter = esi_map.find(vs_buf[0]);
             //if snp not show up first time, check if its information is
             // consistent with previous.
@@ -3317,8 +3273,8 @@ namespace SMRDATA
                 prbchr=24;
             else
                 prbchr=atoi(vs_buf[7].c_str());
-            
-            // check if prob id have been showed up before, if 
+
+            // check if prob id have been showed up before, if
             // it is not first time show up, check the consistence
             // of it's information with previous, and push snp information
             // into associating _ttl vector, which is 2d vector, very line
@@ -3341,7 +3297,7 @@ namespace SMRDATA
 
                 _ttl_rs[idx].push_back(vs_buf[0].c_str());
                 _ttl_beta[idx].push_back(atof(vs_buf[11].c_str()));
-                
+
                 // Ajust SE value according condiations.
                 if(vs_buf[13] == "NA")
                     _ttl_se[idx].push_back(atof(vs_buf[12].c_str()));
@@ -3372,7 +3328,7 @@ namespace SMRDATA
                     _ttl_bp[idx].push_back(atoi(vs_buf[2].c_str()));
                 }
             // If the prob is show up first time. add prob id and it's index into
-            // epi_map. Create probeinfolist structure and store it's information and 
+            // epi_map. Create probeinfolist structure and store it's information and
             // push it into prob infor list.
             // for every snp information store vector list, creat new vector and push
             // it into list _ttl.
@@ -3463,7 +3419,7 @@ namespace SMRDATA
         epi.close();
         printf("%ld probes have been saved in the file %s.\n", epiNum, epifile.c_str());
 
-        
+
         //print esi(snp) information into file, and the order of snp is resorted
         // by chromosome bp location.
         printf("\nGenerating the .esi file...\n");
@@ -3513,7 +3469,7 @@ namespace SMRDATA
                 ten_ints[1] = addn;
                 ten_ints[2] = (int)esiNum;
                 ten_ints[3] = (int)epiNum;
-                for(int i = 4; i < RESERVEDUNITS; i++) 
+                for(int i = 4; i < RESERVEDUNITS; i++)
                     ten_ints[i] = -9;
                 fwrite (&ten_ints[0], sizeof(int), RESERVEDUNITS, smr1);
 
@@ -3533,8 +3489,8 @@ namespace SMRDATA
 					int pkey = prbiflst[j].gd;
 
                     //init with -9
-                    for(int k = 0; k < bsize; k++) 
-                        buffer[k] = -9; 
+                    for(int k = 0; k < bsize; k++)
+                        buffer[k] = -9;
 
                     //vector length is equal to snp amout of this prob.
                     unsigned int  snp_num_this_prob = _ttl_rs[pkey].size();
@@ -3553,7 +3509,7 @@ namespace SMRDATA
                     /*
                         for every prob, the double size of snp float was cearted, and every
                         unit was fill by -9 at begin. And then, at index of snp(esi file) positon,
-                        the beta was stored if this prob contain the snp, and index of snp after 
+                        the beta was stored if this prob contain the snp, and index of snp after
                         esiNum offset, the SE value was stored if this prob contain the snp.
                      */
                     for(int l = 0; l < rsid.size(); l++){
@@ -3569,7 +3525,7 @@ namespace SMRDATA
                 cout << "Effect sizes (beta) and SE for " << epiNum << " probes and " \
                     << esiNum << " SNPs have been saved in a binary file [" + esdfile + "]." << endl;
 
-            //if sparsity less equal than 0.4 
+            //if sparsity less equal than 0.4
             } else {
                 //The data will be saved in sparse format
 
@@ -3594,7 +3550,7 @@ namespace SMRDATA
                     ten_ints[i] = -9;
                 fwrite(&ten_ints[0], sizeof(int), RESERVEDUNITS, smr1);
 
-                // cols is used to record Beta SE value and SNP index offset for 
+                // cols is used to record Beta SE value and SNP index offset for
                 // every Prob along Value array.
                 vector<uint64_t> cols((epiNum << 1) + 1);
                 uint64_t valNum = 0;
@@ -3623,7 +3579,7 @@ namespace SMRDATA
 					vector<uint32_t> rowids(snp_num_this_prob);
 					for (int l = 0; l < snp_num_this_prob; l++){
 						iter = esi_map.find(_ttl_rs[pkey][l]);
-                        if (iter != esi_map.end()) 
+                        if (iter != esi_map.end())
                             rowids[l] = iter -> second;
                         else {
                             printf("ERROR: SNP is not in SNP map. Please report this bug.\n");
@@ -3659,7 +3615,7 @@ namespace SMRDATA
                 printf("ERROR: failed to open file %s.\n",esdfile.c_str());
                 exit(EXIT_FAILURE);
             }
-            
+
             // Wirte first 16 int.
             uint32_t filetype = SPARSE_FILE_TYPE_3; //the micro value is 3 as defined in CommFunc.h
             vector<int> ten_ints(RESERVEDUNITS); // the micro value is 16 as defined in CommFunc.h
@@ -3689,7 +3645,7 @@ namespace SMRDATA
                 printf("Error: Failed to open log file.\n");
                 exit(1);
             }
-            
+
             //write log file head.
             string logstr = "cis-window:\t" + itos(cis_itvl) + "Kb\ntrans-window:\t" \
                 +itos(trans_itvl) + "Kb\np-value threshold of trans:\t" + \
@@ -3713,7 +3669,7 @@ namespace SMRDATA
                 vector<uint32_t> tmprid;
                 vector<float> tmpse;
                 snpinfoperprb.clear();
-                
+
                 // store all snp of a prob into snpinfoperprb list
 				for (int k = 0; k < _ttl_beta[pkey].size(); k++)
                 {
@@ -3729,7 +3685,7 @@ namespace SMRDATA
 
                     snpinfoperprb.push_back(tmpinfo);
                 }
-                
+
                 // resort the snp list
                 snpinfolst * sortptr = &snpinfoperprb[0];
                 qsort(sortptr, snpinfoperprb.size(), sizeof(snpinfolst), comp_esi);
@@ -3737,7 +3693,7 @@ namespace SMRDATA
                 probeinfolst prbifo = prbiflst[j];
                 vector<int> slct_idx;
 
-                /*select snp of every prob, and the index is save in slct_idx. 
+                /*select snp of every prob, and the index is save in slct_idx.
                  *by the way the log file is prined in this function too.slct_idx with no order if there are trans-rgeions
                  */
                 slct_sparse_per_prb(slct_idx, &prbifo, snpinfoperprb, cis_itvl, trans_itvl, transThres, restThres, logfile, false);
@@ -3745,7 +3701,7 @@ namespace SMRDATA
 
                 vector<string> _rs(slct_idx.size()), _a1(slct_idx.size()), _a2(slct_idx.size());
                 vector<float> _beta(slct_idx.size()), _se(slct_idx.size());
-                
+
                 // collect snp information of a prob, which was filter by slct_sparse_per_prb function
                 // the index of pass filter is stored in slct_idx list.
                 for(int l = 0; l < slct_idx.size(); l++) {
@@ -3760,7 +3716,7 @@ namespace SMRDATA
                 vector<int> rsid(_rs.size());
                 for (int l = 0; l < _rs.size(); l++){
                     iter = esi_map.find(_rs[l]);
-                    if (iter != esi_map.end()) 
+                    if (iter != esi_map.end())
                         rsid[l] = iter -> second;
                     else {
                         printf("ERROR: SNP is not in SNP map. Please report this bug.");
@@ -3800,17 +3756,17 @@ namespace SMRDATA
 
                 free_snplist(snpinfoperprb);
             }
-            
+
             //write value num into file
             uint64_t valNum = val.size();
             fwrite(&valNum, sizeof(uint64_t), 1, smr1);
-            
+
             // write Beta SE offset and SNP offset into file.
             fwrite(&cols[0], sizeof(uint64_t), cols.size(), smr1);
 
             // write snp index of esi file into file. start with zero
             fwrite(&rowids[0], sizeof(uint32_t), rowids.size(), smr1);
-            
+
             // write value into file.
             fwrite(&val[0], sizeof(float), val.size(), smr1);
             fclose(smr1);
