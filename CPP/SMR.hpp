@@ -45,7 +45,7 @@ FLAGS_VALID_CK(int option_num, char* option_str[])
         "--update-esi", "--cis-to-all", "--mecs", "--pmecs", "--mmecs", "--sample-overlap", \
         "--ld-multi-snp", "--extract-target-snp-probe", "--extract-snp-probe", "--disable-freq-ck", \
         "--diff-freq", "--diff-freq-prop", "--r", "--r2", "--ld-wind", "--bld", "--make-bld", \
-        "--snp-rm", "--qtltools-nominal-format", "--qtltools-permu-format", "--nmecs"
+        "--snp-rm", "--qtltools-nominal-format", "--qtltools-permu-format", "--nmecs", "--outcome-wind"
     };
 
     // define varible flags, using start pointer and end pointer.  
