@@ -3938,9 +3938,9 @@ namespace SMRDATA
                     {
                         if(esdata->_epi_end[i]==-9 || (snpbp>esdata->_epi_end[i] && snpbp<esdata->_epi_start[i]))
                         {
-                            smrwk->bxz.push_back(esdata->_val[beta_start+j]);
-                            smrwk->sexz.push_back(esdata->_val[se_start+j]);
-                            smrwk->zxz.push_back(esdata->_val[beta_start+j]/esdata->_val[se_start+j]);
+                            smrwk->bxz.push_back((double)esdata->_val[beta_start+j]);
+                            smrwk->sexz.push_back((double)esdata->_val[se_start+j]);
+                            smrwk->zxz.push_back((double)esdata->_val[beta_start+j] / (double)esdata->_val[se_start+j]);
                             smrwk->byz.push_back(gdata->byz[ge_rowid]);
                             smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
                             smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
@@ -3963,9 +3963,9 @@ namespace SMRDATA
                         }
                         
                     } else {
-                        smrwk->bxz.push_back(esdata->_val[beta_start+j]);
-                        smrwk->sexz.push_back(esdata->_val[se_start+j]);
-                        smrwk->zxz.push_back(esdata->_val[beta_start+j]/esdata->_val[se_start+j]);
+                        smrwk->bxz.push_back((double)esdata->_val[beta_start+j]);
+                        smrwk->sexz.push_back((double)esdata->_val[se_start+j]);
+                        smrwk->zxz.push_back((double)esdata->_val[beta_start+j] / (double)esdata->_val[se_start+j]);
                         smrwk->byz.push_back(gdata->byz[ge_rowid]);
                         smrwk->seyz.push_back(gdata->seyz[ge_rowid]);
                         smrwk->pyz.push_back(gdata->pvalue[ge_rowid]);
