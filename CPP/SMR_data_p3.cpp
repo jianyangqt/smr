@@ -799,7 +799,7 @@ namespace SMRDATA
                 fsize = ftell(fptr);
 #elif defined _WIN32 || _WIN64
                 int64_t fsize = 0;
-                fsize = ftell(fptr);
+                fsize = _ftelli64(fptr);
 #endif
                 if (fsize == -1) {
                     fprintf(stderr, "error, ftell function error\n");
