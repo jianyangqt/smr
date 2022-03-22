@@ -793,7 +793,20 @@ namespace SMRDATA
             if(filetype==SPARSE_FILE_TYPE_3F || filetype==SPARSE_FILE_TYPE_3){
                 uint64_t colNum=(etmp._probNum<<1)+1;
                 fseek(fptr, 0L, SEEK_END);
-                uint64_t lSize = ftell(fptr);
+                uint64_t lSize = 0;
+#if defined __linux
+                long fsize = 0;
+                fsize = ftell(fptr);
+#elif defined _WIN32 || _WIN64
+                int64_t fsize = 0;
+                fsize = ftell(fptr);
+#endif
+                if (fsize == -1) {
+                    fprintf(stderr, "error, ftell function error\n");
+                } else {
+                    lSize = (uint64_t)fsize;
+                }
+
                 fseek(fptr, 0L, SEEK_SET);
                 readuint32(fptr);
                 if(filetype==SPARSE_FILE_TYPE_3)
