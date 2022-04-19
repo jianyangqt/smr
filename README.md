@@ -32,13 +32,13 @@ If your Eigen or libz is not installed in standard head file and library searchi
 specific them as following:
 
 ```
-make -DEIGEN_PATH="where the Eigen's head file located" -DZLIB_INCLUDE="path of zlib head file" -DZLIB_LIB="path of zlib library"
+make EIGEN_PATH="where the Eigen's head file located" ZLIB_INCLUDE="path of zlib head file" ZLIB_LIB="path of zlib library"
 ```
 
 To build smr by debug mode, using:
 
 ```
-make -DDEBUG=ON
+make DEBUG=ON
 ```
 
 ## Usage  
