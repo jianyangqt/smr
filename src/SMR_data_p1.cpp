@@ -3713,7 +3713,13 @@ namespace SMRDATA
         }
     };
 
-    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag)
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh,
+        bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde,
+        char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname,
+        char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, 
+        char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs,
+        char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,
+        bool smpwindFlag)
     {
         cis_flag=true; // for later update. !!!
         printf("NOTE: Only the data in the cis-region would be used.\n");
@@ -3729,7 +3735,7 @@ namespace SMRDATA
         
         read_msglist(besdlistFileName, besds,"eQTL summary file names");
         if(besds.size()<=1) {
-            printf("ERROR: at least two eQTL summary files are required in the list %s.\n",besdlistFileName);
+            printf("ERROR: at least two eQTL summary files are required in the list %s.\n",besdlistFileName);
             exit(EXIT_FAILURE);
         }
         printf("%ld eQTL summary files are included.\n",besds.size());
