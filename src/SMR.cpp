@@ -13,6 +13,7 @@
 #include "SMR_plot.hpp"
 #include "bfile.hpp"
 #include "SMR.hpp"
+#include "config.h"
 
 using namespace SMRDATA;
 using namespace StatFunc;
@@ -28,7 +29,11 @@ main(int argc, char** argv)
 {
     cout << "*******************************************************************" << endl;
     cout << "* Summary-data-based Mendelian Randomization (SMR)" << endl;
-    cout << "* version 1.03"<< endl;
+    cout << "* Version " << SMR_VERSION << endl;
+#if defined __linux && __GNUC__
+    cout << "* Build at " << __DATE__ << " " << __TIME__ <<\
+        ", by GCC " << __GNUC__ << "." << __GNUC_MINOR__ << endl;
+#endif
     cout << "* (C) 2015 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
