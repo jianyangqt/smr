@@ -220,7 +220,7 @@ namespace SMRDATA
     bool has_suffix(const std::string &str, const std::string &suffix);
     void get_square_idxes(vector<int> &sn_ids,VectorXd &zsxz,double threshold);
 	void est_cov_bxy(MatrixXd &covbxy, VectorXd &_zsxz, VectorXf &_bxy, VectorXd &_seyz, VectorXd &_bxz, MatrixXd &_LD_heidi);
-	float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
+	double bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
     float bxy_mltheter_so(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num, double theta);
     void allele_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);
     void allele_check_opt(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);

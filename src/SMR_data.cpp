@@ -1395,7 +1395,7 @@ namespace SMRDATA
         }
     }
   
-   float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num)
+   double bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num)
     {
         VectorXd _bxy;
         VectorXd _sexy;
@@ -1403,7 +1403,7 @@ namespace SMRDATA
         VectorXd tmp3;
         long nsnp=*snp_num;
         int maxid;        
-        float pdev=-1.0;
+        double pdev=-1.0;
         MatrixXd covbxy(nsnp,nsnp);
         MatrixXd vdev(nsnp-1,nsnp-1);
        
