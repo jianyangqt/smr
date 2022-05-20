@@ -16,6 +16,8 @@ Install Eigen and libz. If you want build smr staticlly, you need static library
 
 ### Build
 
+#### using make
+
 Simply, in smr directoy,
 
 ```
@@ -40,6 +42,32 @@ To build smr by debug mode, using:
 ```
 make DEBUG=ON
 ```
+
+#### using cmake
+
+In SMR directory,
+
+```shell
+mkdir build
+cd build
+cmake ..
+make
+```
+
+To turn on debug,
+
+```shell
+cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+```
+
+To build static version of SMR,
+
+```shell
+cmake -DBUILD_STATIC=ON ..
+```
+
+If you need specify Eigne path you can use `-Deigen_path="path_to_Eigen"` when run `cmake ..`. To specify zlib head and library files, using `-Dzlib_path=path_to_your_zlib`. If your zlib head file and library located in different directory, you can use `-Dzlib_include_path=where_zlib_head_files` and `-Dzlib_lib_path=where_zlib_lib` to specify them.
+
 
 ## Usage  
 visit https://yanglab.westlake.edu.cn/software/smr/ for software's document.
