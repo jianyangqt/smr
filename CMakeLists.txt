@@ -112,7 +112,7 @@ add_executable(smr
 if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
     if (system STREQUAL "UNIX-like")
         if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-            target_compile_options(smr PRIVATE "-fopenmp")
+            target_compile_options(smr PRIVATE -O3 -fopenmp)
             target_include_directories(smr PRIVATE ${zlib_include_dir} PRIVATE ${eigen_dir})
             target_link_directories(smr PRIVATE ${zlib_lib_dir})
             if (NOT BUILD_STATIC)
