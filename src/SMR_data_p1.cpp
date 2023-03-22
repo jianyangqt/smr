@@ -6,7 +6,7 @@
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //
 
-#include "SMR_data_p1.h"
+#include "SMR_data_p1.hpp"
 namespace SMRDATA
 {
     void get_top_sets(eqtlInfo* eqtlinfo, vector<string> &prbIds, vector<float> &beta, vector<float> &se, vector<string> &rs, float thres)
@@ -579,35 +579,61 @@ namespace SMRDATA
     }
    */
 
-    void lookup(char* outFileName,char* eqtlFileName, char* snplstName, char* problstName,char* genelistName, double plookup,bool bFlag, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag,bool cis_flag, int cis_itvl,char* snpproblstName)
+/*
+    Function:
+        lookup eqtl summary date, and filter by some conditions, such as p_value,
+        chromosome number, et al.
+
+    Arguments:
+        outFileName: output file name.
+        eqtlFileName: eqtl summary file name prefix.
+
+ */
+
+    void
+    lookup(char * outFileName, char * eqtlFileName, char * snplstName, \
+        char * problstName, char * genelistName, double plookup, bool bFlag, \
+        int chr,  int prbchr, int snpchr, char * snprs, char * fromsnprs, \
+        char * tosnprs, char * prbname, char * fromprbname, char * toprbname, \
+        int snpWind, int prbWind, char * genename, int fromsnpkb, int tosnpkb, \
+        int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag, \
+        bool cis_flag, int cis_itvl, char * snpproblstName)
     {
         string logstr;
-        int flag4chr=0;
-        if(chr!=0) flag4chr++;
-        if(prbchr!=0 || snpchr!=0) flag4chr++;
-        if(flag4chr==2)
-        {
-            logstr="WARNING: --chr is not surpposed to use together with --probe-chr or --snp-chr. --chr will be disabled.\n";
-            chr=0;
+        int flag4chr = 0;
+        if(chr != 0) 
+            flag4chr++;
+        if(prbchr != 0 || snpchr != 0) 
+            flag4chr++;
+        if(flag4chr == 2){
+            logstr="WARNING: --chr is not surpposed to use together with --probe-chr \
+                or --snp-chr. --chr will be disabled.\n";
+            chr = 0;
             fputs(logstr.c_str(), stdout);
         }       
+
         map<string, string> prb_snp;
         map<string, string>::iterator iter;
         eqtlInfo eqtlinfo;
-        cout<<endl<<"Reading eQTL summary data..."<<endl;
-        if(eqtlFileName != NULL)
-        {
-            read_epifile(&eqtlinfo, string(eqtlFileName)+".epi");
-            epi_man(&eqtlinfo, problstName, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename);
+
+        cout << endl << "Reading eQTL summary data..." << endl;
+        //eqtlFileName if prefix of eqtl summary data. it contain epi, esi and besd file. 
+        if(eqtlFileName != NULL){
+            read_epifile(&eqtlinfo, string(eqtlFileName) + ".epi");
+            epi_man(&eqtlinfo, problstName, genelistName, chr, prbchr, prbname, \
+                fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename);
             
-            read_esifile(&eqtlinfo, string(eqtlFileName)+".esi");
-            esi_man(&eqtlinfo, snplstName, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname);
-            if(snpproblstName) extract_targets(&eqtlinfo, snpproblstName,  prb_snp);
+            read_esifile(&eqtlinfo, string(eqtlFileName) + ".esi");
+            esi_man(&eqtlinfo, snplstName, chr, snpchr, snprs, fromsnprs, \
+                tosnprs, snpWind, fromsnpkb, tosnpkb, snpwindFlag, cis_flag, \
+                cis_itvl, prbname);
+
+            if(snpproblstName) 
+                extract_targets(&eqtlinfo, snpproblstName, prb_snp);
             
-           read_besdfile(&eqtlinfo, string(eqtlFileName)+".besd");
-            if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
-            {
-                printf("No data included from %s in the analysis.\n",eqtlFileName);
+            read_besdfile(&eqtlinfo, string(eqtlFileName) + ".besd");
+            if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty()){
+                printf("No data included from %s in the analysis.\n", eqtlFileName);
                 exit(EXIT_FAILURE);
             }
         }
@@ -717,6 +743,8 @@ namespace SMRDATA
         
     }
     
+
+
     void rm_unmatched_snp(gwasData* gdata, eqtlInfo* esdata)
     {
         cout<<"Checking the consistency of SNP alleles between GWAS summary data and eQTL summary data..."<<endl;
@@ -878,6 +906,8 @@ namespace SMRDATA
         cout<<id_unmatched_esd.size()<<" SNPs failed in allele check and have been excluded. Total "<<etrait->_esi_include.size()<<" SNPs left in one eQTL summary dataset and "<<esdata->_esi_include.size()<<" SNPs left in another eQTL summary dtaset."<<endl;
         
     }
+
+
 
     void read_gene_anno(char* geneAnnoName,vector<int> &chr, vector<string> &genename,vector<int> &start,vector<int> &end)
     {
@@ -3683,7 +3713,13 @@ namespace SMRDATA
         }
     };
 
-    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag)
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh,
+        bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde,
+        char* genelistName, int chr,int prbchr, const char* prbname, char* fromprbname,
+        char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, 
+        char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs,
+        char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb,
+        bool smpwindFlag)
     {
         cis_flag=true; // for later update. !!!
         printf("NOTE: Only the data in the cis-region would be used.\n");
@@ -3699,7 +3735,7 @@ namespace SMRDATA
         
         read_msglist(besdlistFileName, besds,"eQTL summary file names");
         if(besds.size()<=1) {
-            printf("ERROR: at least two eQTL summary files are required in the list %s.\n",besdlistFileName);
+            printf("ERROR: at least two eQTL summary files are required in the list %s.\n",besdlistFileName);
             exit(EXIT_FAILURE);
         }
         printf("%ld eQTL summary files are included.\n",besds.size());

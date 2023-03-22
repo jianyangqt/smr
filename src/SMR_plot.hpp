@@ -9,8 +9,8 @@
 #ifndef __SMR_CPP__SMR_plot__
 #define __SMR_CPP__SMR_plot__
 
-#include "SMR_data.h"
-#include "SMR_data_p1.h"
+#include "SMR_data.hpp"
+#include "SMR_data_p1.hpp"
 
 namespace SMRDATA
 {

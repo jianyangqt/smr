@@ -9,7 +9,7 @@
 #ifndef __SMR_CPP__SMR_data_p1__
 #define __SMR_CPP__SMR_data_p1__
 
-#include "SMR_data.h"
+#include "SMR_data.hpp"
 
 namespace SMRDATA
 {
@@ -36,9 +36,6 @@ namespace SMRDATA
          vector<int> _nsnp;
         vector<uint32_t> _include;
     } eSMRrlt;
-    
-
-
     
     void est_effect_splsize(char* eqtlsmaslstName, char* eqtlFileName, char* snplstName,char* problstName,char* snplst2exclde, char* problst2exclde,float thres);
     void make_cojo(char* outFileName,char* eqtlFileName, char* snplstName,char* snplst2exclde, char* problstName, char* problst2exclde, char* genelistName, bool bFlag);

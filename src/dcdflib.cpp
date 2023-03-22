@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "cdflib.h"
-#include "ipmpar.h"
+#include "cdflib.hpp"
+#include "ipmpar.hpp"
 
 /*
 -----------------------------------------------------------------------

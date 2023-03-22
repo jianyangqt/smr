@@ -1,0 +1,5 @@
+smr
+*.o
+a.out
+test_fanghl
+test_fanghl/*

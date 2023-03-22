@@ -8,7 +8,7 @@
  * details
  */
 
-#include "StrFunc.h"
+#include "StrFunc.hpp"
 #include <cmath>
 #include <cstdio>
 #include <limits>

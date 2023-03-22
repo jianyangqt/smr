@@ -66,7 +66,11 @@ namespace SMRDATA
         vector<int> _include; // initialized in the readepi
         map<string,int> _probe_name_map;
         vector<double> _epi_var;
-        vector<int> _epi_start; // if no probe sequence region input, its size should be 0. for the probe not for probe sequence file, the value should be set as -9, no technical eQTL would be removed from this probe.
+        /* if no probe sequence region input, its size should be 0. 
+           for the probe not for probe sequence file, the value should be 
+           set as -9, no technical eQTL would be removed from this probe.
+         */
+        vector<int> _epi_start; 
         vector<int> _epi_end;
         
         //for sparse
@@ -208,15 +212,15 @@ namespace SMRDATA
     void read_famfile(bInfo* bdata,string famfile);
     void read_bedfile(bInfo* bdata,string bedfile);
     void read_gwas_data(gwasData* gdata, char* gwasFileName);
-    void read_esifile(eqtlInfo* eqtlinfo, string esifile, bool prtscr=true);
-    void read_epifile(eqtlInfo* eqtlinfo, string epifile , bool prtscr=true);
-    void read_besdfile(eqtlInfo* eqtlinfo, string besdfile,bool prtscr=true);
+    void read_esifile(eqtlInfo * eqtlinfo, string esifile, bool prtscr=true);
+    void read_epifile(eqtlInfo * eqtlinfo, string epifile , bool prtscr=true);
+    void read_besdfile(eqtlInfo * eqtlinfo, string besdfile, bool prtscr=true);
    
     bool has_prefix(const std::string &str, const std::string &prefix);
     bool has_suffix(const std::string &str, const std::string &suffix);
     void get_square_idxes(vector<int> &sn_ids,VectorXd &zsxz,double threshold);
 	void est_cov_bxy(MatrixXd &covbxy, VectorXd &_zsxz, VectorXf &_bxy, VectorXd &_seyz, VectorXd &_bxz, MatrixXd &_LD_heidi);
-	float bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
+	double bxy_hetero3(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num);
     float bxy_mltheter_so(VectorXd &_byz, VectorXd &_bxz, VectorXd &_seyz, VectorXd &_sexz, VectorXd &_zsxz, MatrixXd &_LD_heidi, long* snp_num, double theta);
     void allele_check(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);
     void allele_check_opt(bInfo* bdata, gwasData* gdata, eqtlInfo* esdata);

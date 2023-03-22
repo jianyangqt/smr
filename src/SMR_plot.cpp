@@ -6,7 +6,7 @@
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //
 
-#include "SMR_plot.h"
+#include "SMR_plot.hpp"
 
 namespace SMRDATA
 {

@@ -1,62 +1,45 @@
+#Makfile for linux
 
-# -----------------------------------------------------------------
-#   Makefile for GCTA 
-#   
-#   Supported platforms: Unix / Linux
-# ---------------------------------------------------------------------
+EIGEN_PATH := /usr/include
+ZLIB_INCLUDE := /usr/include
+ZLIB_LIB := /usr/lib64
+DEBUG := 
 
-# Directory of the target
-OUTPUT = smr_linux
-
-# Compiler
+CC = gcc
 CXX = g++
 
-# EIGEN library
-EIGEN_PATH = ../Lib/eigen
+ifdef DEBUG
+CFLAGS = -g -O0 -Wall
+CXXFLAGS = -g -O0 -Wall
+else
+CFLAGS = -O3 -Wall
+CXXFLAGS = -O3 -Wall
+endif
 
-# Intel MKL library
-#MKL_PATH = /opt/intel/mkl
+CPPFLAGS = 
+LDFLAGS = 
+LIBS =  -lm -lz -lomp
 
-# Compiler flags
-CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG 
-LIB += -static -lz -Wl,-lm -ldl
-#LIB += -lz -Wl, -lm -ldl
+objs = $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
-HDR += CommFunc.h \
-	   cdflib.h \
-	   dcdflib.h \
-           SMR.h \
-	   ipmpar.h \
-           StatFunc.h \
-           StrFunc.h \
-            SMR_data.h \
-            eData.h \
-            SMR_data_p1.h
-SRC = SMR.cpp \
-           CommFunc.cpp \
-           SMR_data.cpp \
-	   dcdflib.cpp \
-           StatFunc.cpp \
-           StrFunc.cpp	\
-           eData.cpp \
-           SMR_data_p1.cpp
+.PHONY: all
+all: smr
 
-OBJ = $(SRC:.cpp=.o)
+smr: $(objs)
+	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) $(LIBS) -o $@
 
-all : $(OUTPUT) 
+smr_static: $(objs)
+	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) -static $(LIBS) -o $@
 
-$(OUTPUT) :
-	$(CXX) $(CXXFLAGS) -o $(OUTPUT) $(OBJ) $(LIB) 
+$(objs): %.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 
-$(OBJ) : $(HDR)
+clean:
+	@rm -rf src/*.o
+	@rm -rf smr
+	@rm -rf smr_static
 
-.cpp.o : 
-	$(CXX) $(CXXFLAGS) -c $*.cpp
-.SUFFIXES : .cpp .c .o $(SUFFIXES)
 
-$(OUTPUT) : $(OBJ)
+install:
+	@echo The binary is under building directory named smr.
 
-FORCE:
-
-clean: 
-	rm -f *.o

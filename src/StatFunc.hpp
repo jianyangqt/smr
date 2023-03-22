@@ -13,8 +13,8 @@
 
 #include <vector>
 #include <iostream>
-#include "CommFunc.h"
-#include "dcdflib.h"
+#include "CommFunc.hpp"
+#include "dcdflib.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/SparseExtra>
